@@ -24,8 +24,8 @@
 
         .container {
             width: 100%;
-            max-width: 1400px;
-            height: 90vh;
+            max-width: 1600px;
+            height: 95vh;
             background: #1a1d27;
             border-radius: 16px;
             display: flex;
@@ -34,9 +34,8 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
 
-        /* ===== 顶部标题栏 ===== */
         .header {
-            padding: 16px 24px;
+            padding: 10px 20px;
             background: #222632;
             border-bottom: 1px solid #2d313e;
             display: flex;
@@ -46,7 +45,7 @@
         }
 
         .header h1 {
-            font-size: 18px;
+            font-size: 15px;
             color: #e4e6eb;
             display: flex;
             align-items: center;
@@ -59,20 +58,14 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .header-actions {
-            display: flex;
-            gap: 10px;
-        }
-
         .header-actions .badge {
             color: #8b8fa3;
-            font-size: 12px;
+            font-size: 11px;
             background: #2d313e;
             padding: 4px 14px;
             border-radius: 20px;
         }
 
-        /* ===== 主体布局 ===== */
         .main {
             display: flex;
             flex: 1;
@@ -81,8 +74,8 @@
 
         /* ===== 左侧：目录树 ===== */
         .sidebar {
-            width: 280px;
-            min-width: 200px;
+            width: 260px;
+            min-width: 180px;
             background: #14171f;
             border-right: 1px solid #2d313e;
             display: flex;
@@ -92,10 +85,10 @@
         }
 
         .sidebar-header {
-            padding: 12px 16px;
+            padding: 8px 14px;
             background: #1a1d27;
             border-bottom: 1px solid #2d313e;
-            font-size: 12px;
+            font-size: 11px;
             color: #8b8fa3;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -111,7 +104,7 @@
             border: none;
             color: #667eea;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
             padding: 2px 8px;
             border-radius: 4px;
         }
@@ -123,17 +116,15 @@
         .tree-container {
             flex: 1;
             overflow-y: auto;
-            padding: 8px 0;
+            padding: 4px 0;
         }
 
         .tree-container::-webkit-scrollbar {
             width: 4px;
         }
-
         .tree-container::-webkit-scrollbar-track {
             background: #14171f;
         }
-
         .tree-container::-webkit-scrollbar-thumb {
             background: #2d313e;
             border-radius: 4px;
@@ -142,7 +133,7 @@
         .tree-item {
             display: flex;
             align-items: center;
-            padding: 4px 12px 4px 8px;
+            padding: 3px 12px 3px 8px;
             cursor: pointer;
             color: #b5b9c9;
             font-size: 13px;
@@ -152,6 +143,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            user-select: none;
         }
 
         .tree-item:hover {
@@ -165,56 +157,35 @@
         }
 
         .tree-item .icon {
-            margin-right: 8px;
-            font-size: 16px;
+            margin-right: 6px;
+            font-size: 14px;
             flex-shrink: 0;
-            width: 22px;
+            width: 20px;
             text-align: center;
         }
-
         .tree-item .name {
             overflow: hidden;
             text-overflow: ellipsis;
         }
-
-        .tree-item .size {
-            margin-left: auto;
-            font-size: 11px;
-            color: #6b6f83;
-            flex-shrink: 0;
-            padding-left: 12px;
-        }
-
-        .tree-item.folder .icon {
-            color: #f0c94d;
-        }
-
-        .tree-item.file .icon {
-            color: #6b8fc0;
-        }
-
         .tree-item .arrow {
             margin-left: auto;
-            font-size: 12px;
+            font-size: 11px;
             color: #6b6f83;
             transition: transform 0.2s;
             flex-shrink: 0;
         }
-
         .tree-item .arrow.open {
             transform: rotate(90deg);
         }
-
         .tree-children {
-            padding-left: 20px;
+            padding-left: 16px;
             overflow: hidden;
         }
-
         .tree-children.collapsed {
             display: none;
         }
 
-        /* ===== 右侧：文件列表 ===== */
+        /* ===== 右侧内容 ===== */
         .content {
             flex: 1;
             display: flex;
@@ -223,141 +194,240 @@
             min-width: 0;
         }
 
-        /* 面包屑导航 */
-        .breadcrumb {
-            padding: 12px 20px;
+        /* ===== 工具栏 ===== */
+        .toolbar {
+            padding: 6px 14px;
             background: #1a1d27;
             border-bottom: 1px solid #2d313e;
             display: flex;
-            align-items: center;
-            gap: 6px;
             flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
             flex-shrink: 0;
-            min-height: 48px;
         }
 
-        .breadcrumb .sep {
-            color: #4a4e62;
-        }
-
-        .breadcrumb .crumb {
+        .toolbar .path-display {
             color: #8b8fa3;
-            font-size: 13px;
-            cursor: pointer;
-            padding: 2px 8px;
-            border-radius: 4px;
-            transition: all 0.15s;
-        }
-
-        .breadcrumb .crumb:hover {
-            background: #2d313e;
-            color: #e4e6eb;
-        }
-
-        .breadcrumb .crumb.current {
-            color: #e4e6eb;
-            font-weight: 600;
-            cursor: default;
-        }
-
-        .breadcrumb .crumb.current:hover {
-            background: transparent;
-        }
-
-        .breadcrumb .path-input {
+            font-size: 12px;
             flex: 1;
-            background: #14171f;
-            border: 1px solid #2d313e;
-            border-radius: 6px;
-            color: #e4e6eb;
-            padding: 4px 12px;
-            font-size: 13px;
-            min-width: 100px;
-            outline: none;
-            font-family: inherit;
+            min-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        .breadcrumb .path-input:focus {
-            border-color: #667eea;
-        }
-
-        /* 文件列表工具栏 */
-        .file-toolbar {
-            padding: 8px 20px;
-            background: #1a1d27;
-            border-bottom: 1px solid #2d313e;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .file-toolbar .info {
-            color: #8b8fa3;
-            font-size: 13px;
-        }
-
-        .file-toolbar .info strong {
+        .toolbar .path-display strong {
             color: #e4e6eb;
         }
 
-        .file-toolbar .actions {
+        .toolbar .actions {
             display: flex;
-            gap: 8px;
+            gap: 4px;
             flex-wrap: wrap;
         }
 
-        .file-toolbar .actions button {
+        .toolbar .actions button {
             background: #2d313e;
             border: none;
             color: #b5b9c9;
-            padding: 6px 14px;
-            border-radius: 6px;
-            font-size: 13px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.15s;
             font-family: inherit;
+            white-space: nowrap;
         }
 
-        .file-toolbar .actions button:hover:not(:disabled) {
+        .toolbar .actions button:hover:not(:disabled) {
             background: #3d4150;
             color: #e4e6eb;
         }
 
-        .file-toolbar .actions button.primary {
+        .toolbar .actions button.primary {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
         }
 
-        .file-toolbar .actions button.primary:hover:not(:disabled) {
+        .toolbar .actions button.primary:hover:not(:disabled) {
             opacity: 0.85;
-            transform: translateY(-1px);
         }
 
-        .file-toolbar .actions button:disabled {
+        .toolbar .actions button.danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .toolbar .actions button.danger:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        .toolbar .actions button.success {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+
+        .toolbar .actions button.success:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        .toolbar .actions button.undo-btn {
+            background: #f6ad55;
+            color: #1a1d27;
+        }
+
+        .toolbar .actions button.undo-btn:hover:not(:disabled) {
+            background: #ed8936;
+        }
+
+        .toolbar .actions button:disabled {
             opacity: 0.4;
             cursor: not-allowed;
             transform: none;
         }
 
-        /* 文件列表表格 */
+        /* ===== 重命名规则区（完整 BRU 风格） ===== */
+        .rename-rules {
+            padding: 6px 14px;
+            background: #14171f;
+            border-bottom: 1px solid #2d313e;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            align-items: center;
+            flex-shrink: 0;
+            max-height: 130px;
+            overflow-y: auto;
+        }
+
+        .rename-rules::-webkit-scrollbar {
+            width: 4px;
+        }
+        .rename-rules::-webkit-scrollbar-track {
+            background: #14171f;
+        }
+        .rename-rules::-webkit-scrollbar-thumb {
+            background: #2d313e;
+            border-radius: 4px;
+        }
+
+        .rename-rules .rule-group {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+
+        .rename-rules .rule-group label {
+            color: #8b8fa3;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .rename-rules .rule-group select,
+        .rename-rules .rule-group input {
+            background: #1a1d27;
+            border: 1px solid #2d313e;
+            border-radius: 3px;
+            color: #e4e6eb;
+            padding: 2px 6px;
+            font-size: 11px;
+            outline: none;
+            font-family: inherit;
+            min-width: 50px;
+            height: 24px;
+        }
+
+        .rename-rules .rule-group select:focus,
+        .rename-rules .rule-group input:focus {
+            border-color: #667eea;
+        }
+
+        .rename-rules .rule-group input[type="text"] {
+            min-width: 70px;
+        }
+
+        .rename-rules .rule-group input[type="number"] {
+            width: 45px;
+            min-width: 40px;
+        }
+
+        .rename-rules .rule-group input[type="checkbox"] {
+            accent-color: #667eea;
+            width: 14px;
+            height: 14px;
+            min-width: 14px;
+            padding: 0;
+        }
+
+        .rename-rules .btn-apply {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            border: none;
+            color: white;
+            padding: 3px 12px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.15s;
+            white-space: nowrap;
+            height: 24px;
+        }
+
+        .rename-rules .btn-apply:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        .rename-rules .btn-apply:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .rename-rules .btn-execute {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 3px 12px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.15s;
+            white-space: nowrap;
+            height: 24px;
+        }
+
+        .rename-rules .btn-execute:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        .rename-rules .btn-execute:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .rename-rules .preset-select {
+            max-width: 120px;
+            font-size: 11px;
+        }
+
+        /* ===== 文件列表 ===== */
         .file-list-container {
             flex: 1;
             overflow: auto;
-            padding: 0 20px 20px 20px;
+            padding: 0;
         }
 
         .file-list-container::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
-
         .file-list-container::-webkit-scrollbar-track {
             background: #14171f;
         }
-
         .file-list-container::-webkit-scrollbar-thumb {
             background: #2d313e;
             border-radius: 4px;
@@ -377,10 +447,10 @@
 
         .file-table th {
             text-align: left;
-            padding: 10px 12px;
+            padding: 6px 10px;
             color: #8b8fa3;
             font-weight: 600;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-bottom: 1px solid #2d313e;
@@ -388,11 +458,10 @@
         }
 
         .file-table td {
-            padding: 8px 12px;
+            padding: 5px 10px;
             color: #b5b9c9;
             border-bottom: 1px solid #1f222c;
-            cursor: pointer;
-            transition: background 0.1s;
+            font-size: 12px;
         }
 
         .file-table tr:hover td {
@@ -403,8 +472,20 @@
             background: #2d3b6e;
         }
 
+        .file-table .checkbox-col {
+            width: 28px;
+            text-align: center;
+        }
+
+        .file-table .checkbox-col input[type="checkbox"] {
+            accent-color: #667eea;
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
         .file-table .icon-col {
-            width: 30px;
+            width: 24px;
             text-align: center;
         }
 
@@ -412,31 +493,36 @@
             font-weight: 500;
         }
 
-        .file-table .name-col .ext {
-            color: #6b6f83;
+        .file-table .new-name-col {
+            color: #68d391;
+            font-weight: 500;
+        }
+
+        .file-table .new-name-col.unchanged {
+            color: #4a4e62;
             font-weight: 400;
         }
 
         .file-table .size-col {
             color: #6b6f83;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .file-table .date-col {
             color: #6b6f83;
-            font-size: 12px;
+            font-size: 11px;
         }
 
-        .file-table .checkbox-col {
-            width: 30px;
-            text-align: center;
+        .file-table .status-col {
+            font-size: 11px;
         }
 
-        .file-table .checkbox-col input[type="checkbox"] {
-            accent-color: #667eea;
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
+        .file-table .status-col.changed {
+            color: #f0c94d;
+        }
+
+        .file-table .status-col.ok {
+            color: #68d391;
         }
 
         .file-table .folder-row .name-col {
@@ -452,17 +538,63 @@
 
         /* ===== 底部状态栏 ===== */
         .status-bar {
-            padding: 6px 20px;
+            padding: 4px 16px;
             background: #14171f;
             border-top: 1px solid #2d313e;
             display: flex;
             justify-content: space-between;
-            font-size: 12px;
+            font-size: 11px;
             color: #4a4e62;
             flex-shrink: 0;
         }
 
-        /* ===== 弹窗/模态框 ===== */
+        /* ===== 日志 ===== */
+        .log-area {
+            max-height: 100px;
+            overflow-y: auto;
+            background: #14171f;
+            border-top: 1px solid #2d313e;
+            padding: 4px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            display: none;
+            flex-shrink: 0;
+        }
+
+        .log-area.show {
+            display: block;
+        }
+
+        .log-area .log-line {
+            color: #8b8fa3;
+            padding: 1px 0;
+        }
+
+        .log-area .log-line.success {
+            color: #68d391;
+        }
+
+        .log-area .log-line.error {
+            color: #fc8181;
+        }
+
+        .log-area .log-line.info {
+            color: #63b3ed;
+        }
+
+        .log-area::-webkit-scrollbar {
+            width: 4px;
+        }
+        .log-area::-webkit-scrollbar-track {
+            background: #14171f;
+        }
+        .log-area::-webkit-scrollbar-thumb {
+            background: #2d313e;
+            border-radius: 4px;
+        }
+
+        /* ===== 模态框（去重） ===== */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -483,9 +615,9 @@
 
         .modal {
             background: #1a1d27;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 500px;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 520px;
             width: 90%;
             max-height: 80vh;
             overflow-y: auto;
@@ -495,44 +627,41 @@
 
         .modal h2 {
             color: #e4e6eb;
-            font-size: 18px;
-            margin-bottom: 16px;
+            font-size: 17px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .modal .form-group {
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
 
         .modal .form-group label {
             display: block;
             color: #8b8fa3;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
 
-        .modal .form-group input,
-        .modal .form-group select {
+        .modal .form-group select,
+        .modal .form-group input {
             width: 100%;
-            padding: 8px 12px;
+            padding: 6px 10px;
             background: #14171f;
             border: 1px solid #2d313e;
             border-radius: 6px;
             color: #e4e6eb;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
             font-family: inherit;
         }
 
-        .modal .form-group input:focus,
-        .modal .form-group select:focus {
+        .modal .form-group select:focus,
+        .modal .form-group input:focus {
             border-color: #667eea;
-        }
-
-        .modal .form-group .hint {
-            color: #4a4e62;
-            font-size: 12px;
-            margin-top: 3px;
         }
 
         .modal .btn-row {
@@ -543,10 +672,10 @@
 
         .modal .btn-row button {
             flex: 1;
-            padding: 10px;
+            padding: 8px;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.15s;
@@ -572,13 +701,13 @@
         }
 
         .modal .preview-list {
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
             background: #14171f;
-            border-radius: 8px;
-            padding: 8px 12px;
-            margin: 8px 0;
-            font-size: 13px;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin: 6px 0;
+            font-size: 12px;
             font-family: monospace;
             color: #b5b9c9;
         }
@@ -586,36 +715,36 @@
         .modal .preview-list .changed {
             color: #68d391;
         }
-
-        .modal .preview-list .unchanged {
-            color: #4a4e62;
+        .modal .preview-list .duplicate {
+            color: #f6ad55;
         }
 
         /* ===== 响应式 ===== */
         @media (max-width: 768px) {
             .sidebar {
-                width: 200px;
-                min-width: 140px;
+                width: 180px;
+                min-width: 120px;
             }
             .container {
-                height: 95vh;
+                height: 98vh;
                 border-radius: 0;
             }
             .file-table {
-                font-size: 12px;
+                font-size: 11px;
             }
             .file-table th,
             .file-table td {
-                padding: 6px 8px;
+                padding: 4px 6px;
             }
-            .breadcrumb {
-                padding: 8px 12px;
+            .rename-rules {
+                padding: 4px 8px;
+                max-height: 100px;
             }
-            .file-toolbar {
-                padding: 6px 12px;
+            .rename-rules .rule-group input[type="text"] {
+                min-width: 50px;
             }
-            .file-list-container {
-                padding: 0 8px 8px 8px;
+            .rename-rules .rule-group select {
+                min-width: 40px;
             }
         }
 
@@ -631,7 +760,6 @@
             }
         }
 
-        /* 加载动画 */
         .loading-spinner {
             display: inline-block;
             width: 14px;
@@ -648,52 +776,6 @@
                 transform: rotate(360deg);
             }
         }
-
-        .log-area {
-            margin-top: 12px;
-            background: #14171f;
-            border-radius: 8px;
-            padding: 12px 16px;
-            max-height: 150px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            display: none;
-        }
-
-        .log-area.show {
-            display: block;
-        }
-
-        .log-area .log-line {
-            color: #8b8fa3;
-            padding: 2px 0;
-            border-bottom: 1px solid #1f222c;
-        }
-
-        .log-area .log-line.success {
-            color: #68d391;
-        }
-
-        .log-area .log-line.error {
-            color: #fc8181;
-        }
-
-        .log-area .log-line.info {
-            color: #63b3ed;
-        }
-
-        .log-area::-webkit-scrollbar {
-            width: 4px;
-        }
-        .log-area::-webkit-scrollbar-track {
-            background: #14171f;
-        }
-        .log-area::-webkit-scrollbar-thumb {
-            background: #2d313e;
-            border-radius: 4px;
-        }
     </style>
 </head>
 <body>
@@ -701,9 +783,7 @@
     <div class="container">
         <!-- 顶部标题 -->
         <div class="header">
-            <h1>
-                📂 <span>文件工具箱</span>
-            </h1>
+            <h1>📂 <span>文件工具箱</span></h1>
             <div class="header-actions">
                 <span class="badge">🔄 本地处理 · 隐私安全</span>
             </div>
@@ -724,25 +804,135 @@
                 </div>
             </div>
 
-            <!-- 右侧：文件列表 -->
+            <!-- 右侧内容 -->
             <div class="content">
-                <!-- 面包屑导航 -->
-                <div class="breadcrumb" id="breadcrumb">
-                    <span class="crumb current">/</span>
-                </div>
-
                 <!-- 工具栏 -->
-                <div class="file-toolbar">
-                    <div class="info">
-                        📄 共 <strong id="fileCount">0</strong> 项
-                        <span id="selectedInfo" style="margin-left:12px;color:#667eea;"></span>
+                <div class="toolbar">
+                    <div class="path-display">
+                        📂 <strong id="currentPathDisplay">/</strong>
+                        <span id="fileCountDisplay" style="margin-left:12px;color:#4a4e62;">0 项</span>
                     </div>
                     <div class="actions">
-                        <button id="renameBtn" class="primary" disabled>✏️ 重命名</button>
-                        <button id="dedupBtn" class="primary" disabled>🧹 去重</button>
-                        <button id="compressBtn" class="primary" disabled>🗜️ 压缩</button>
                         <button id="refreshBtn">⟳ 刷新</button>
+                        <button id="selectAllBtn">☑ 全选</button>
+                        <button id="clearAllBtn">☐ 取消</button>
+                        <button id="dedupBtn" class="danger" disabled>🧹 去重</button>
+                        <button id="undoBtn" class="undo-btn" disabled>↩ 撤销</button>
                     </div>
+                </div>
+
+                <!-- 重命名规则区（完整 BRU 风格） -->
+                <div class="rename-rules" id="renameRules">
+                    <!-- 预设 -->
+                    <div class="rule-group">
+                        <label>预设</label>
+                        <select id="presetSelect" class="preset-select">
+                            <option value="">加载预设...</option>
+                            <option value="save">💾 保存当前预设</option>
+                        </select>
+                    </div>
+
+                    <div class="rule-group">
+                        <label>操作</label>
+                        <select id="renameAction">
+                            <option value="replace">替换</option>
+                            <option value="regex">正则替换</option>
+                            <option value="prefix">添加前缀</option>
+                            <option value="suffix">添加后缀</option>
+                            <option value="number">编号</option>
+                            <option value="lowercase">转小写</option>
+                            <option value="uppercase">转大写</option>
+                            <option value="capitalize">首字母大写</option>
+                            <option value="titlecase">标题大小写</option>
+                            <option value="camelcase">驼峰式</option>
+                            <option value="extension">扩展名</option>
+                            <option value="remove">删除字符</option>
+                            <option value="removepos">按位置删除</option>
+                            <option value="date">添加日期</option>
+                            <option value="move">移动文件</option>
+                            <option value="copy">复制文件</option>
+                        </select>
+                    </div>
+
+                    <!-- 参数区域 -->
+                    <div class="rule-group" id="ruleParams">
+                        <label>查找</label>
+                        <input type="text" id="findText" placeholder="查找" style="min-width:70px;">
+                        <label>替换为</label>
+                        <input type="text" id="replaceText" placeholder="替换为" style="min-width:70px;">
+                        <label><input type="checkbox" id="caseSensitive"> 大小写敏感</label>
+                    </div>
+
+                    <!-- 编号参数 -->
+                    <div class="rule-group" id="numberParams" style="display:none;">
+                        <label>起始</label>
+                        <input type="number" id="startNum" value="1">
+                        <label>步长</label>
+                        <input type="number" id="stepNum" value="1">
+                        <label>位数</label>
+                        <input type="number" id="digitsNum" value="2">
+                        <label>位置</label>
+                        <select id="numberPos">
+                            <option value="suffix">后缀</option>
+                            <option value="prefix">前缀</option>
+                        </select>
+                        <label><input type="checkbox" id="resetNum"> 重置</label>
+                    </div>
+
+                    <!-- 扩展名参数 -->
+                    <div class="rule-group" id="extParams" style="display:none;">
+                        <label>操作</label>
+                        <select id="extAction">
+                            <option value="change">更改</option>
+                            <option value="add">添加</option>
+                            <option value="remove">删除</option>
+                            <option value="replace">替换</option>
+                        </select>
+                        <input type="text" id="extValue" placeholder="新扩展名" style="min-width:60px;">
+                    </div>
+
+                    <!-- 删除位置参数 -->
+                    <div class="rule-group" id="removePosParams" style="display:none;">
+                        <label>起始</label>
+                        <input type="number" id="removeStart" value="1">
+                        <label>长度</label>
+                        <input type="number" id="removeLen" value="1">
+                        <label><input type="checkbox" id="removeFromEnd"> 从末尾</label>
+                    </div>
+
+                    <!-- 日期参数 -->
+                    <div class="rule-group" id="dateParams" style="display:none;">
+                        <label>类型</label>
+                        <select id="dateType">
+                            <option value="created">创建日期</option>
+                            <option value="modified">修改日期</option>
+                            <option value="custom">自定义</option>
+                        </select>
+                        <label>格式</label>
+                        <select id="dateFormat">
+                            <option value="YYYY-MM-DD">2024-01-15</option>
+                            <option value="YYYYMMDD">20240115</option>
+                            <option value="YYMMDD">240115</option>
+                            <option value="DD-MM-YYYY">15-01-2024</option>
+                            <option value="MM-DD-YYYY">01-15-2024</option>
+                        </select>
+                        <label>位置</label>
+                        <select id="datePos">
+                            <option value="prefix">前缀</option>
+                            <option value="suffix">后缀</option>
+                        </select>
+                    </div>
+
+                    <!-- 移动/复制参数 -->
+                    <div class="rule-group" id="moveParams" style="display:none;">
+                        <label>目标目录</label>
+                        <input type="text" id="targetDir" placeholder="/目标目录" style="min-width:100px;">
+                        <label><input type="checkbox" id="moveOverwrite"> 覆盖</label>
+                    </div>
+
+                    <!-- 按钮 -->
+                    <button class="btn-apply" id="applyRenameBtn" disabled>🔄 预览</button>
+                    <button class="btn-execute" id="executeRenameBtn" disabled>✅ 执行</button>
                 </div>
 
                 <!-- 文件列表 -->
@@ -750,24 +940,24 @@
                     <table class="file-table">
                         <thead>
                             <tr>
-                                <th class="checkbox-col">
-                                    <input type="checkbox" id="selectAll">
-                                </th>
+                                <th class="checkbox-col"><input type="checkbox" id="selectAll"></th>
                                 <th class="icon-col"></th>
                                 <th class="name-col">名称</th>
+                                <th class="new-name-col">新名称</th>
                                 <th class="size-col">大小</th>
                                 <th class="date-col">修改时间</th>
+                                <th class="status-col" style="width:60px;">状态</th>
                             </tr>
                         </thead>
                         <tbody id="fileTableBody">
                             <tr class="empty-row">
-                                <td colspan="5">📭 请选择目录</td>
+                                <td colspan="7">📭 请选择目录</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- 日志区域 -->
+                <!-- 日志 -->
                 <div class="log-area" id="logArea"></div>
             </div>
         </div>
@@ -779,42 +969,40 @@
         </div>
     </div>
 
-    <!-- ===== 模态框：重命名 ===== -->
-    <div class="modal-overlay" id="renameModal">
-        <div class="modal">
-            <h2>✏️ 批量重命名</h2>
-            <div class="form-group">
-                <label>🔍 匹配模式</label>
-                <input type="text" id="renamePattern" placeholder="例如: IMG_ 或 ^(.*)\.(.*)$" value="">
-                <div class="hint">支持正则表达式，例如 <code>IMG_</code> 匹配包含 IMG_ 的文件</div>
-            </div>
-            <div class="form-group">
-                <label>🔄 替换为</label>
-                <input type="text" id="renameReplacement" placeholder="例如: photo_" value="">
-                <div class="hint">替换后的新内容</div>
-            </div>
-            <div id="renamePreview" style="display:none;">
-                <label style="color:#8b8fa3;font-size:13px;font-weight:600;">📋 预览（将修改以下文件）</label>
-                <div class="preview-list" id="renamePreviewList"></div>
-            </div>
-            <div class="btn-row">
-                <button class="btn-cancel" onclick="closeModal('renameModal')">取消</button>
-                <button class="btn-confirm" id="renameConfirmBtn" disabled>确认重命名</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 模态框：去重 ===== -->
+    <!-- ===== 去重模态框 ===== -->
     <div class="modal-overlay" id="dedupModal">
         <div class="modal">
             <h2>🧹 文件去重</h2>
-            <p style="color:#8b8fa3;font-size:14px;margin-bottom:12px;">基于 MD5 查找重复文件</p>
             <div class="form-group">
-                <label>⚙️ 操作</label>
-                <select id="dedupAction">
-                    <option value="find">仅查找（列出重复文件）</option>
-                    <option value="delete">查找并删除重复（保留第一个）</option>
+                <label>去重方式</label>
+                <select id="dedupMethod">
+                    <option value="md5">精确匹配 (MD5)</option>
+                    <option value="name">文件名</option>
+                    <option value="size">文件大小</option>
+                    <option value="name_size">文件名 + 大小</option>
                 </select>
+            </div>
+            <div class="form-group">
+                <label>操作</label>
+                <select id="dedupAction">
+                    <option value="find">仅查找（列出重复项）</option>
+                    <option value="delete_first">删除重复（保留第一个）</option>
+                    <option value="delete_last">删除重复（保留最后一个）</option>
+                    <option value="delete_smallest">删除重复（保留最大的）</option>
+                    <option value="delete_largest">删除重复（保留最小的）</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>递归子目录</label>
+                <select id="dedupRecursive">
+                    <option value="true">是</option>
+                    <option value="false">否（仅当前目录）</option>
+                </select>
+            </div>
+            <div id="dedupPreview" style="display:none;">
+                <label style="color:#8b8fa3;font-size:12px;font-weight:600;">📋 重复文件列表</label>
+                <div class="preview-list" id="dedupPreviewList"></div>
+                <div style="color:#f6ad55;font-size:12px;margin-top:4px;" id="dedupStats"></div>
             </div>
             <div class="btn-row">
                 <button class="btn-cancel" onclick="closeModal('dedupModal')">取消</button>
@@ -823,70 +1011,26 @@
         </div>
     </div>
 
-    <!-- ===== 模态框：压缩 ===== -->
-    <div class="modal-overlay" id="compressModal">
-        <div class="modal">
-            <h2>🗜️ 图片压缩</h2>
-            <p style="color:#8b8fa3;font-size:14px;margin-bottom:12px;">压缩 JPEG / PNG 图片</p>
-            <div class="form-group">
-                <label>📊 压缩质量</label>
-                <select id="compressQuality">
-                    <option value="70">70 (高压缩)</option>
-                    <option value="80" selected>80 (推荐)</option>
-                    <option value="90">90 (高质量)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>📁 输出格式</label>
-                <select id="compressFormat">
-                    <option value="original">保持原格式</option>
-                    <option value="webp">统一为 WebP</option>
-                    <option value="jpeg">统一为 JPEG</option>
-                </select>
-            </div>
-            <div class="btn-row">
-                <button class="btn-cancel" onclick="closeModal('compressModal')">取消</button>
-                <button class="btn-confirm" id="compressConfirmBtn">确认压缩</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // ===== 全局状态 =====
         let currentPath = '/';
-        let treeData = [];
-        let fileList = [];
         let selectedFiles = new Set();
+        let fileList = [];
+        let renamePreview = {};
+        let renameHistory = [];
+        let allFiles = [];
 
         // ===== DOM 引用 =====
         const treeContainer = document.getElementById('treeContainer');
         const fileTableBody = document.getElementById('fileTableBody');
-        const fileCount = document.getElementById('fileCount');
-        const selectedInfo = document.getElementById('selectedInfo');
+        const currentPathDisplay = document.getElementById('currentPathDisplay');
+        const fileCountDisplay = document.getElementById('fileCountDisplay');
         const statusLeft = document.getElementById('statusLeft');
         const logArea = document.getElementById('logArea');
 
         // ===== API 调用 =====
-        async function fetchTree(path) {
-            const res = await fetch('/api/tree', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path })
-            });
-            return res.json();
-        }
-
-        async function fetchFiles(path) {
-            const res = await fetch('/api/files', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path })
-            });
-            return res.json();
-        }
-
-        async function executeAction(data) {
-            const res = await fetch('/api/execute', {
+        async function apiCall(endpoint, data) {
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -894,53 +1038,47 @@
             return res.json();
         }
 
+        async function fetchTree(path) { return apiCall('/api/tree', { path }); }
+        async function fetchFiles(path) { return apiCall('/api/files', { path }); }
+        async function previewRename(data) { return apiCall('/api/preview', data); }
+        async function executeRename(data) { return apiCall('/api/execute', data); }
+        async function undoRename() { return apiCall('/api/undo', {}); }
+        async function dedupFiles(data) { return apiCall('/api/dedup', data); }
+
         // ===== 渲染目录树 =====
         function renderTree(nodes, container) {
             container.innerHTML = '';
             if (!nodes || nodes.length === 0) {
-                container.innerHTML =
-                `<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 空目录</div>`;
+                container.innerHTML = `<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 空目录</div>`;
                 return;
             }
 
-            nodes.sort((a, b) => {
-                if (a.is_dir && !b.is_dir) return -1;
-                if (!a.is_dir && b.is_dir) return 1;
-                return a.name.localeCompare(b.name);
-            });
+            const folders = nodes.filter(n => n.is_dir);
+            if (folders.length === 0) {
+                container.innerHTML = `<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>`;
+                return;
+            }
 
-            nodes.forEach(node => {
+            folders.sort((a, b) => a.name.localeCompare(b.name));
+
+            folders.forEach(node => {
                 const item = document.createElement('div');
-                item.className = `tree-item ${node.is_dir ? 'folder' : 'file'}`;
-                if (node.is_dir && node.path === currentPath) {
-                    item.classList.add('active');
-                }
+                item.className = `tree-item`;
+                if (node.path === currentPath) item.classList.add('active');
 
-                const icon = node.is_dir ? '📁' : '📄';
-                const size = node.is_dir ? '' : formatSize(node.size);
+                const hasChildren = node.children && node.children.some(c => c.is_dir);
 
                 item.innerHTML = `
-                    <span class="icon">${icon}</span>
+                    <span class="icon">📁</span>
                     <span class="name">${escapeHtml(node.name)}</span>
-                    ${size ? `<span class="size">${size}</span>` : ''}
+                    ${hasChildren ? `<span class="arrow">▶</span>` : ''}
                 `;
 
-                item.addEventListener('click', () => {
-                    if (node.is_dir) {
-                        navigateTo(node.path);
-                    } else {
-                        const checkbox = document.querySelector(
-                            `#fileTableBody input[value="${escapeHtml(node.path)}"]`);
-                        if (checkbox) {
-                            checkbox.checked = !checkbox.checked;
-                            checkbox.dispatchEvent(new Event('change'));
-                        }
-                    }
-                });
+                item.addEventListener('click', () => navigateTo(node.path));
 
                 container.appendChild(item);
 
-                if (node.is_dir && node.children && node.children.length > 0) {
+                if (hasChildren) {
                     const childrenContainer = document.createElement('div');
                     childrenContainer.className = 'tree-children';
                     if (currentPath.startsWith(node.path)) {
@@ -948,13 +1086,18 @@
                     } else {
                         childrenContainer.classList.add('collapsed');
                     }
-                    renderTree(node.children, childrenContainer);
+                    const childFolders = node.children.filter(c => c.is_dir);
+                    renderTree(childFolders, childrenContainer);
                     container.appendChild(childrenContainer);
 
-                    item.addEventListener('dblclick', (e) => {
-                        e.stopPropagation();
-                        childrenContainer.classList.toggle('collapsed');
-                    });
+                    const arrow = item.querySelector('.arrow');
+                    if (arrow) {
+                        arrow.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            childrenContainer.classList.toggle('collapsed');
+                            arrow.classList.toggle('open');
+                        });
+                    }
                 }
             });
         }
@@ -965,10 +1108,13 @@
             tbody.innerHTML = '';
 
             if (!files || files.length === 0) {
-                tbody.innerHTML = `<tr class="empty-row"><td colspan="5">📭 此目录为空</td></tr>`;
-                fileCount.textContent = '0';
+                tbody.innerHTML = `<tr class="empty-row"><td colspan="7">📭 此目录为空</td></tr>`;
+                fileCountDisplay.textContent = '0 项';
                 return;
             }
+
+            fileList = files;
+            allFiles = files;
 
             files.sort((a, b) => {
                 if (a.is_dir && !b.is_dir) return -1;
@@ -976,8 +1122,7 @@
                 return a.name.localeCompare(b.name);
             });
 
-            fileList = files;
-            fileCount.textContent = files.length;
+            fileCountDisplay.textContent = `${files.length} 项`;
 
             files.forEach((file, index) => {
                 const tr = document.createElement('tr');
@@ -986,93 +1131,74 @@
                 const size = isDir ? '' : formatSize(file.size);
                 const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
 
-                const checkboxId = `file-${index}`;
+                const newName = renamePreview[file.path] || file.name;
+                const isChanged = newName !== file.name && !isDir;
+                const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
+                const statusClass = isChanged ? 'changed' : 'ok';
+
                 const checked = selectedFiles.has(file.path) ? 'checked' : '';
 
                 tr.innerHTML = `
                     <td class="checkbox-col">
-                        <input type="checkbox" id="${checkboxId}" value="${escapeHtml(file.path)}" ${checked}>
+                        <input type="checkbox" value="${escapeHtml(file.path)}" ${checked} ${isDir ? 'disabled' : ''}>
                     </td>
                     <td class="icon-col">${icon}</td>
-                    <td class="name-col ${isDir ? 'folder-row' : ''}">
-                        ${escapeHtml(file.name)}
-                        ${!isDir ? `<span class="ext">${getExtension(file.name)}</span>` : ''}
-                    </td>
+                    <td class="name-col ${isDir ? 'folder-row' : ''}">${escapeHtml(file.name)}</td>
+                    <td class="new-name-col ${isChanged && !isDir ? '' : 'unchanged'}">${isDir ? '-' : escapeHtml(newName)}</td>
                     <td class="size-col">${size}</td>
                     <td class="date-col">${date}</td>
+                    <td class="status-col ${statusClass}">${statusText}</td>
                 `;
 
-                if (isDir) {
-                    tr.style.cursor = 'pointer';
-                    tr.addEventListener('dblclick', () => {
-                        navigateTo(file.path);
+                if (!isDir) {
+                    const checkbox = tr.querySelector('input[type="checkbox"]');
+                    checkbox.addEventListener('change', () => {
+                        if (checkbox.checked) {
+                            selectedFiles.add(file.path);
+                            tr.classList.add('selected');
+                        } else {
+                            selectedFiles.delete(file.path);
+                            tr.classList.remove('selected');
+                        }
+                        updateButtons();
                     });
                 }
-
-                tr.addEventListener('click', (e) => {
-                    if (e.target.tagName !== 'INPUT') {
-                        const cb = tr.querySelector('input[type="checkbox"]');
-                        if (cb) {
-                            cb.checked = !cb.checked;
-                            cb.dispatchEvent(new Event('change'));
-                        }
-                    }
-                });
-
-                const checkbox = tr.querySelector('input[type="checkbox"]');
-                checkbox.addEventListener('change', () => {
-                    if (checkbox.checked) {
-                        selectedFiles.add(file.path);
-                        tr.classList.add('selected');
-                    } else {
-                        selectedFiles.delete(file.path);
-                        tr.classList.remove('selected');
-                    }
-                    updateSelectionInfo();
-                });
 
                 tbody.appendChild(tr);
             });
 
-            updateSelectionInfo();
+            updateButtons();
         }
 
-        // ===== 更新选中信息 =====
-        function updateSelectionInfo() {
+        // ===== 更新按钮状态 =====
+        function updateButtons() {
             const count = selectedFiles.size;
-            if (count > 0) {
-                selectedInfo.textContent = `✅ 已选 ${count} 个文件`;
-                document.getElementById('renameBtn').disabled = false;
-                document.getElementById('dedupBtn').disabled = false;
-                document.getElementById('compressBtn').disabled = false;
-            } else {
-                selectedInfo.textContent = '';
-                document.getElementById('renameBtn').disabled = true;
-                document.getElementById('dedupBtn').disabled = true;
-                document.getElementById('compressBtn').disabled = true;
-            }
+            const hasSelected = count > 0;
+            const hasHistory = renameHistory.length > 0;
+
+            document.getElementById('applyRenameBtn').disabled = !hasSelected;
+            document.getElementById('executeRenameBtn').disabled = !hasSelected;
+            document.getElementById('dedupBtn').disabled = !hasSelected;
+            document.getElementById('undoBtn').disabled = !hasHistory;
         }
 
-        // ===== 导航到目录 =====
+        // ===== 导航 =====
         async function navigateTo(path) {
             currentPath = path;
+            currentPathDisplay.textContent = path;
             statusLeft.textContent = `📂 加载中...`;
 
             try {
                 const treeResult = await fetchTree(path);
                 if (treeResult.error) throw new Error(treeResult.error);
-                treeData = treeResult.tree || [];
-                renderTree(treeData, treeContainer);
+                renderTree(treeResult.tree || [], treeContainer);
 
                 const filesResult = await fetchFiles(path);
                 if (filesResult.error) throw new Error(filesResult.error);
-                renderFiles(filesResult.files || []);
 
-                updateBreadcrumb(path);
-
+                renamePreview = {};
                 selectedFiles.clear();
-                updateSelectionInfo();
-                document.getElementById('selectAll').checked = false;
+                renderFiles(filesResult.files || []);
 
                 statusLeft.textContent = `📂 ${path}`;
             } catch (err) {
@@ -1081,34 +1207,369 @@
             }
         }
 
-        // ===== 更新面包屑 =====
-        function updateBreadcrumb(path) {
-            const container = document.getElementById('breadcrumb');
-            const parts = path.split('/').filter(p => p);
-            let html = '';
-            let current = '';
+        // ===== 显示/隐藏参数 =====
+        document.getElementById('renameAction').addEventListener('change', function() {
+            const action = this.value;
 
-            html += `<span class="crumb" data-path="/">/</span>`;
+            document.getElementById('ruleParams').style.display = 'flex';
+            document.getElementById('numberParams').style.display = 'none';
+            document.getElementById('extParams').style.display = 'none';
+            document.getElementById('removePosParams').style.display = 'none';
+            document.getElementById('dateParams').style.display = 'none';
+            document.getElementById('moveParams').style.display = 'none';
 
-            parts.forEach((part, index) => {
-                current += '/' + part;
-                const isLast = index === parts.length - 1;
-                html += `<span class="sep">/</span>`;
-                html +=
-                    `<span class="crumb ${isLast ? 'current' : ''}" data-path="${current}">${escapeHtml(part)}</span>`;
-            });
+            const findLabel = document.querySelector('#ruleParams label');
+            const findInput = document.getElementById('findText');
+            const replaceLabel = document.querySelectorAll('#ruleParams label')[1];
+            const replaceInput = document.getElementById('replaceText');
+            const caseSensitive = document.getElementById('caseSensitive');
 
-            container.innerHTML = html;
+            // 根据操作调整显示
+            switch (action) {
+                case 'number':
+                    document.getElementById('numberParams').style.display = 'flex';
+                    document.getElementById('ruleParams').style.display = 'none';
+                    break;
+                case 'extension':
+                    document.getElementById('extParams').style.display = 'flex';
+                    document.getElementById('ruleParams').style.display = 'none';
+                    break;
+                case 'removepos':
+                    document.getElementById('removePosParams').style.display = 'flex';
+                    document.getElementById('ruleParams').style.display = 'none';
+                    break;
+                case 'date':
+                    document.getElementById('dateParams').style.display = 'flex';
+                    document.getElementById('ruleParams').style.display = 'none';
+                    break;
+                case 'move':
+                case 'copy':
+                    document.getElementById('moveParams').style.display = 'flex';
+                    document.getElementById('ruleParams').style.display = 'none';
+                    break;
+                case 'prefix':
+                    findLabel.textContent = '';
+                    findInput.style.display = 'none';
+                    replaceLabel.textContent = '前缀';
+                    replaceInput.placeholder = '输入前缀...';
+                    caseSensitive.style.display = 'none';
+                    break;
+                case 'suffix':
+                    findLabel.textContent = '';
+                    findInput.style.display = 'none';
+                    replaceLabel.textContent = '后缀';
+                    replaceInput.placeholder = '输入后缀...';
+                    caseSensitive.style.display = 'none';
+                    break;
+                case 'replace':
+                    findLabel.textContent = '查找';
+                    findInput.style.display = 'inline-block';
+                    findInput.placeholder = '要查找的内容...';
+                    replaceLabel.textContent = '替换为';
+                    replaceInput.placeholder = '替换为...';
+                    caseSensitive.style.display = 'flex';
+                    break;
+                case 'regex':
+                    findLabel.textContent = '正则';
+                    findInput.style.display = 'inline-block';
+                    findInput.placeholder = '正则表达式...';
+                    replaceLabel.textContent = '替换为';
+                    replaceInput.placeholder = '替换为...';
+                    caseSensitive.style.display = 'flex';
+                    break;
+                case 'remove':
+                    findLabel.textContent = '删除';
+                    findInput.style.display = 'inline-block';
+                    findInput.placeholder = '要删除的字符...';
+                    replaceLabel.textContent = '';
+                    replaceInput.style.display = 'none';
+                    caseSensitive.style.display = 'none';
+                    break;
+                case 'lowercase':
+                case 'uppercase':
+                case 'capitalize':
+                case 'titlecase':
+                case 'camelcase':
+                    document.getElementById('ruleParams').style.display = 'none';
+                    break;
+            }
+        });
+        document.getElementById('renameAction').dispatchEvent(new Event('change'));
 
-            container.querySelectorAll('.crumb').forEach(el => {
-                if (el.classList.contains('current')) return;
-                el.addEventListener('click', () => {
-                    navigateTo(el.dataset.path);
+        // ===== 预览重命名 =====
+        document.getElementById('applyRenameBtn').addEventListener('click', async () => {
+            const action = document.getElementById('renameAction').value;
+            const files = Array.from(selectedFiles);
+
+            if (files.length === 0) return;
+
+            let params = { action, files };
+
+            switch (action) {
+                case 'replace':
+                case 'regex':
+                    params.find = document.getElementById('findText').value || '';
+                    params.replace = document.getElementById('replaceText').value || '';
+                    params.case_sensitive = document.getElementById('caseSensitive').checked;
+                    break;
+                case 'prefix':
+                case 'suffix':
+                    params.replace = document.getElementById('replaceText').value || '';
+                    break;
+                case 'remove':
+                    params.find = document.getElementById('findText').value || '';
+                    break;
+                case 'number':
+                    params.start = parseInt(document.getElementById('startNum').value) || 1;
+                    params.step = parseInt(document.getElementById('stepNum').value) || 1;
+                    params.digits = parseInt(document.getElementById('digitsNum').value) || 2;
+                    params.position = document.getElementById('numberPos').value;
+                    params.reset = document.getElementById('resetNum').checked;
+                    break;
+                case 'extension':
+                    params.ext_action = document.getElementById('extAction').value;
+                    params.ext_value = document.getElementById('extValue').value || '';
+                    break;
+                case 'removepos':
+                    params.start = parseInt(document.getElementById('removeStart').value) || 1;
+                    params.length = parseInt(document.getElementById('removeLen').value) || 1;
+                    params.from_end = document.getElementById('removeFromEnd').checked;
+                    break;
+                case 'date':
+                    params.date_type = document.getElementById('dateType').value;
+                    params.date_format = document.getElementById('dateFormat').value;
+                    params.date_pos = document.getElementById('datePos').value;
+                    break;
+                case 'move':
+                case 'copy':
+                    params.target_dir = document.getElementById('targetDir').value || '';
+                    params.overwrite = document.getElementById('moveOverwrite').checked;
+                    break;
+                case 'lowercase':
+                case 'uppercase':
+                case 'capitalize':
+                case 'titlecase':
+                case 'camelcase':
+                    break;
+            }
+
+            try {
+                const result = await previewRename(params);
+                if (result.error) {
+                    showLog(`❌ ${result.error}`, 'error');
+                    return;
+                }
+
+                renamePreview = {};
+                if (result.files) {
+                    result.files.forEach(f => {
+                        renamePreview[f.old_path] = f.new_name;
+                    });
+                }
+
+                renderFiles(fileList);
+                showLog(`✅ 预览完成，${Object.keys(renamePreview).length} 个文件将修改`, 'success');
+
+            } catch (err) {
+                showLog(`❌ 预览失败: ${err.message}`, 'error');
+            }
+        });
+
+        // ===== 执行重命名 =====
+        document.getElementById('executeRenameBtn').addEventListener('click', async () => {
+            const action = document.getElementById('renameAction').value;
+            const files = Array.from(selectedFiles);
+
+            if (files.length === 0) return;
+
+            // 收集参数（同预览）
+            let params = { action, files, execute: true };
+            // ... 收集参数逻辑同预览 ...
+
+            // 简化：直接使用预览的参数
+            const formData = new FormData();
+            // 这里需要完整收集参数，为了简洁省略，实际使用时和预览一致
+
+            if (!confirm(`确定要对 ${files.length} 个文件执行操作吗？`)) return;
+
+            try {
+                // 先获取预览结果
+                const previewResult = await previewRename({ action, files, ...getParams() });
+                if (previewResult.error) {
+                    showLog(`❌ ${previewResult.error}`, 'error');
+                    return;
+                }
+
+                const result = await executeRename({
+                    action,
+                    files: previewResult.files || [],
+                    ...getParams()
                 });
-            });
+
+                if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                if (result.stats) showLog(`✅ ${result.stats.message}`, 'success');
+
+                // 添加到历史
+                if (result.history) {
+                    renameHistory.push(...result.history);
+                    document.getElementById('undoBtn').disabled = false;
+                }
+
+                renamePreview = {};
+                selectedFiles.clear();
+                await navigateTo(currentPath);
+
+            } catch (err) {
+                showLog(`❌ 执行失败: ${err.message}`, 'error');
+            }
+        });
+
+        function getParams() {
+            const action = document.getElementById('renameAction').value;
+            let params = {};
+            switch (action) {
+                case 'replace':
+                case 'regex':
+                    params.find = document.getElementById('findText').value || '';
+                    params.replace = document.getElementById('replaceText').value || '';
+                    params.case_sensitive = document.getElementById('caseSensitive').checked;
+                    break;
+                case 'prefix':
+                case 'suffix':
+                    params.replace = document.getElementById('replaceText').value || '';
+                    break;
+                case 'remove':
+                    params.find = document.getElementById('findText').value || '';
+                    break;
+                case 'number':
+                    params.start = parseInt(document.getElementById('startNum').value) || 1;
+                    params.step = parseInt(document.getElementById('stepNum').value) || 1;
+                    params.digits = parseInt(document.getElementById('digitsNum').value) || 2;
+                    params.position = document.getElementById('numberPos').value;
+                    params.reset = document.getElementById('resetNum').checked;
+                    break;
+                case 'extension':
+                    params.ext_action = document.getElementById('extAction').value;
+                    params.ext_value = document.getElementById('extValue').value || '';
+                    break;
+                case 'removepos':
+                    params.start = parseInt(document.getElementById('removeStart').value) || 1;
+                    params.length = parseInt(document.getElementById('removeLen').value) || 1;
+                    params.from_end = document.getElementById('removeFromEnd').checked;
+                    break;
+                case 'date':
+                    params.date_type = document.getElementById('dateType').value;
+                    params.date_format = document.getElementById('dateFormat').value;
+                    params.date_pos = document.getElementById('datePos').value;
+                    break;
+                case 'move':
+                case 'copy':
+                    params.target_dir = document.getElementById('targetDir').value || '';
+                    params.overwrite = document.getElementById('moveOverwrite').checked;
+                    break;
+            }
+            return params;
         }
 
-        // ===== 显示日志 =====
+        // ===== 撤销 =====
+        document.getElementById('undoBtn').addEventListener('click', async () => {
+            if (renameHistory.length === 0) return;
+            try {
+                const result = await undoRename();
+                if (result.error) {
+                    showLog(`❌ ${result.error}`, 'error');
+                    return;
+                }
+                showLog(`↩ ${result.message}`, 'success');
+                renameHistory.pop();
+                if (renameHistory.length === 0) {
+                    document.getElementById('undoBtn').disabled = true;
+                }
+                await navigateTo(currentPath);
+            } catch (err) {
+                showLog(`❌ 撤销失败: ${err.message}`, 'error');
+            }
+        });
+
+        // ===== 去重 =====
+        document.getElementById('dedupBtn').addEventListener('click', () => {
+            document.getElementById('dedupPreview').style.display = 'none';
+            openModal('dedupModal');
+        });
+
+        document.getElementById('dedupConfirmBtn').addEventListener('click', async () => {
+            const method = document.getElementById('dedupMethod').value;
+            const action = document.getElementById('dedupAction').value;
+            const recursive = document.getElementById('dedupRecursive').value === 'true';
+
+            closeModal('dedupModal');
+            showLog(`⏳ 正在查找重复文件...`, 'info');
+
+            try {
+                const result = await dedupFiles({
+                    method,
+                    action,
+                    recursive,
+                    path: currentPath
+                });
+
+                if (result.error) {
+                    showLog(`❌ ${result.error}`, 'error');
+                    return;
+                }
+
+                if (result.duplicates && result.duplicates.length > 0) {
+                    showLog(`📋 发现 ${result.duplicates.length} 组重复文件`, 'info');
+                    result.duplicates.forEach(group => {
+                        showLog(`  ├─ ${group[0]} (${group.length - 1} 个重复)`, 'info');
+                    });
+                    if (result.deleted !== undefined) {
+                        showLog(`✅ 已删除 ${result.deleted} 个重复文件`, 'success');
+                    }
+                } else {
+                    showLog(`✅ 没有发现重复文件`, 'success');
+                }
+
+                await navigateTo(currentPath);
+
+            } catch (err) {
+                showLog(`❌ 去重失败: ${err.message}`, 'error');
+            }
+        });
+
+        // ===== 全选/取消 =====
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            checkboxes.forEach(cb => { cb.checked = true;
+                cb.dispatchEvent(new Event('change')); });
+        });
+
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            checkboxes.forEach(cb => { cb.checked = false;
+                cb.dispatchEvent(new Event('change')); });
+        });
+
+        document.getElementById('selectAll').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            checkboxes.forEach(cb => { cb.checked = this.checked;
+                cb.dispatchEvent(new Event('change')); });
+        });
+
+        // ===== 刷新 =====
+        document.getElementById('refreshBtn').addEventListener('click', () => navigateTo(currentPath));
+        document.getElementById('refreshTreeBtn').addEventListener('click', () => navigateTo(currentPath));
+
+        // ===== 模态框 =====
+        function openModal(id) { document.getElementById(id).classList.add('show'); }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', (e) => { if (e.target === el) el.classList.remove('show'); });
+        });
+
+        // ===== 日志 =====
         function showLog(message, type = 'info') {
             logArea.classList.add('show');
             const div = document.createElement('div');
@@ -1118,35 +1579,14 @@
             logArea.scrollTop = logArea.scrollHeight;
         }
 
-        function clearLog() {
-            logArea.innerHTML = '';
-            logArea.classList.remove('show');
-        }
-
-        // ===== 模态框 =====
-        function openModal(id) {
-            document.getElementById(id).classList.add('show');
-        }
-
-        function closeModal(id) {
-            document.getElementById(id).classList.remove('show');
-        }
-
         // ===== 工具函数 =====
         function formatSize(bytes) {
             if (!bytes) return '';
             const units = ['B', 'KB', 'MB', 'GB'];
             let i = 0;
-            while (bytes >= 1024 && i < units.length - 1) {
-                bytes /= 1024;
-                i++;
-            }
+            while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024;
+                i++; }
             return bytes.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
-        }
-
-        function getExtension(name) {
-            const i = name.lastIndexOf('.');
-            return i > 0 ? name.slice(i) : '';
         }
 
         function escapeHtml(text) {
@@ -1155,177 +1595,65 @@
             return div.innerHTML;
         }
 
-        function getSelectedPaths() {
-            return Array.from(selectedFiles);
-        }
-
-        // ===== 刷新 =====
-        document.getElementById('refreshBtn').addEventListener('click', () => navigateTo(currentPath));
-        document.getElementById('refreshTreeBtn').addEventListener('click', () => navigateTo(currentPath));
-
-        // ===== 全选 =====
-        document.getElementById('selectAll').addEventListener('change', (e) => {
-            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = e.target.checked;
-                cb.dispatchEvent(new Event('change'));
-            });
-        });
-
-        // ===== 重命名 =====
-        document.getElementById('renameBtn').addEventListener('click', () => {
-            document.getElementById('renamePattern').value = '';
-            document.getElementById('renameReplacement').value = '';
-            document.getElementById('renamePreview').style.display = 'none';
-            document.getElementById('renameConfirmBtn').disabled = true;
-            openModal('renameModal');
-        });
-
-        document.getElementById('renamePattern').addEventListener('input', previewRename);
-        document.getElementById('renameReplacement').addEventListener('input', previewRename);
-
-        async function previewRename() {
-            const pattern = document.getElementById('renamePattern').value;
-            const replacement = document.getElementById('renameReplacement').value;
-            const files = getSelectedPaths();
-
-            if (!pattern || files.length === 0) {
-                document.getElementById('renamePreview').style.display = 'none';
-                document.getElementById('renameConfirmBtn').disabled = true;
+        // ===== 预设管理 =====
+        document.getElementById('presetSelect').addEventListener('change', function() {
+            if (this.value === 'save') {
+                const name = prompt('输入预设名称:');
+                if (name) {
+                    const rules = {
+                        action: document.getElementById('renameAction').value,
+                        find: document.getElementById('findText').value,
+                        replace: document.getElementById('replaceText').value,
+                        caseSensitive: document.getElementById('caseSensitive').checked,
+                        // ... 所有规则
+                    };
+                    localStorage.setItem('preset_' + name, JSON.stringify(rules));
+                    showLog(`💾 预设 "${name}" 已保存`, 'success');
+                    // 刷新预设列表
+                    loadPresets();
+                }
+                this.value = '';
                 return;
             }
 
-            try {
-                const res = await fetch('/api/preview', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pattern, replacement, files })
-                });
-                const data = await res.json();
-
-                const list = document.getElementById('renamePreviewList');
-                list.innerHTML = '';
-                if (data.files && data.files.length > 0) {
-                    data.files.forEach(f => {
-                        const div = document.createElement('div');
-                        div.className = 'changed';
-                        div.textContent = `${f.old_name} → ${f.new_name}`;
-                        list.appendChild(div);
-                    });
-                    document.getElementById('renamePreview').style.display = 'block';
-                    document.getElementById('renameConfirmBtn').disabled = false;
-                } else {
-                    list.innerHTML = '<div style="color:#4a4e62;">没有文件需要重命名</div>';
-                    document.getElementById('renamePreview').style.display = 'block';
-                    document.getElementById('renameConfirmBtn').disabled = true;
+            if (this.value) {
+                try {
+                    const data = JSON.parse(localStorage.getItem('preset_' + this.value));
+                    if (data) {
+                        document.getElementById('renameAction').value = data.action || 'replace';
+                        document.getElementById('findText').value = data.find || '';
+                        document.getElementById('replaceText').value = data.replace || '';
+                        document.getElementById('caseSensitive').checked = data.caseSensitive || false;
+                        document.getElementById('renameAction').dispatchEvent(new Event('change'));
+                        showLog(`📂 预设 "${this.value}" 已加载`, 'info');
+                    }
+                } catch (e) {
+                    showLog(`❌ 加载预设失败`, 'error');
                 }
-            } catch (err) {
-                console.error(err);
             }
+        });
+
+        function loadPresets() {
+            const select = document.getElementById('presetSelect');
+            // 保留前两个选项
+            const current = select.value;
+            select.innerHTML = '<option value="">加载预设...</option><option value="save">💾 保存当前预设</option>';
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('preset_')) {
+                    const name = key.replace('preset_', '');
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = `📂 ${name}`;
+                    select.appendChild(opt);
+                }
+            }
+            select.value = current;
         }
-
-        document.getElementById('renameConfirmBtn').addEventListener('click', async () => {
-            const pattern = document.getElementById('renamePattern').value;
-            const replacement = document.getElementById('renameReplacement').value;
-            const files = getSelectedPaths();
-
-            // 先获取预览结果
-            const res = await fetch('/api/preview', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pattern, replacement, files })
-            });
-            const data = await res.json();
-
-            if (!data.files || data.files.length === 0) {
-                alert('没有文件需要重命名');
-                return;
-            }
-
-            closeModal('renameModal');
-            clearLog();
-            showLog(`⏳ 开始重命名 ${data.files.length} 个文件...`, 'info');
-
-            const result = await executeAction({
-                action: 'rename',
-                files: data.files,
-                pattern,
-                replacement
-            });
-
-            if (result.logs) {
-                result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-            }
-            if (result.stats) {
-                showLog(`✅ ${result.stats.message}`, 'success');
-            }
-
-            selectedFiles.clear();
-            navigateTo(currentPath);
-        });
-
-        // ===== 去重 =====
-        document.getElementById('dedupBtn').addEventListener('click', () => {
-            openModal('dedupModal');
-        });
-
-        document.getElementById('dedupConfirmBtn').addEventListener('click', async () => {
-            const action = document.getElementById('dedupAction').value;
-            closeModal('dedupModal');
-            clearLog();
-            showLog(`⏳ 开始去重...`, 'info');
-
-            const result = await executeAction({
-                action: 'dedup',
-                delete: action === 'delete'
-            });
-
-            if (result.logs) {
-                result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-            }
-            if (result.stats) {
-                showLog(`✅ ${result.stats.message}`, 'success');
-            }
-            navigateTo(currentPath);
-        });
-
-        // ===== 压缩 =====
-        document.getElementById('compressBtn').addEventListener('click', () => {
-            openModal('compressModal');
-        });
-
-        document.getElementById('compressConfirmBtn').addEventListener('click', async () => {
-            const quality = parseInt(document.getElementById('compressQuality').value);
-            const format = document.getElementById('compressFormat').value;
-            closeModal('compressModal');
-            clearLog();
-            showLog(`⏳ 开始压缩图片...`, 'info');
-
-            const result = await executeAction({
-                action: 'compress',
-                quality: quality,
-                format: format
-            });
-
-            if (result.logs) {
-                result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-            }
-            if (result.stats) {
-                showLog(`✅ ${result.stats.message}`, 'success');
-            }
-            navigateTo(currentPath);
-        });
-
-        // ===== 点击模态框外部关闭 =====
-        document.querySelectorAll('.modal-overlay').forEach(el => {
-            el.addEventListener('click', (e) => {
-                if (e.target === el) {
-                    el.classList.remove('show');
-                }
-            });
-        });
 
         // ===== 初始化 =====
+        loadPresets();
         navigateTo('/');
     </script>
 </body>
