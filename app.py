@@ -155,7 +155,6 @@ def get_files():
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
     
-    # 每次实时读取目录，不使用缓存
     files = []
     try:
         for item in target.iterdir():
@@ -356,11 +355,14 @@ def execute():
                 except Exception as e:
                     return jsonify({'error': f'无法创建目标目录: {str(e)}'}), 400
             
+            # 从 files 中提取所有 old_path
             all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
             
+            # 应用过滤
             if filters and any(filters.values()):
                 filtered_paths = apply_file_filters(all_file_paths, filters)
-                items_to_process = [f for f in files if str(Path(work_dir) / f['old_path']) in filtered_paths]
+                filtered_set = set(filtered_paths)
+                items_to_process = [f for f in files if str(Path(work_dir) / f['old_path']) in filtered_set]
                 logs.append({'text': f'📋 过滤后匹配 {len(items_to_process)} 个文件（共 {len(files)} 个）', 'type': 'info'})
             else:
                 items_to_process = files
@@ -372,7 +374,8 @@ def execute():
             
             for item in items_to_process:
                 old_path = Path(work_dir) / item['old_path']
-                new_path = target_path / item['old_name']
+                old_name = old_path.name
+                new_path = target_path / old_name
                 
                 if overwrite and new_path.exists():
                     new_path.unlink()
@@ -380,14 +383,14 @@ def execute():
                 try:
                     if action == 'move':
                         shutil.move(str(old_path), str(new_path))
-                        logs.append({'text': f'📦 移动: {item["old_name"]} → {target_dir}', 'type': 'success'})
+                        logs.append({'text': f'📦 移动: {old_name} → {target_dir}', 'type': 'success'})
                     else:
                         shutil.copy2(str(old_path), str(new_path))
-                        logs.append({'text': f'📋 复制: {item["old_name"]} → {target_dir}', 'type': 'success'})
+                        logs.append({'text': f'📋 复制: {old_name} → {target_dir}', 'type': 'success'})
                     stats['processed'] += 1
-                    history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
+                    history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': old_name})
                 except Exception as e:
-                    logs.append({'text': f'❌ 处理失败: {item["old_name"]} - {str(e)}', 'type': 'error'})
+                    logs.append({'text': f'❌ 处理失败: {old_name} - {str(e)}', 'type': 'error'})
             
             stats['message'] = f'成功处理 {stats["processed"]} 个文件'
 
