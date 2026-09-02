@@ -31,8 +31,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tree-children{padding-left:16px;overflow:hidden}
 .tree-children.collapsed{display:none}
 .content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-
-/* 重命名规则栏 */
 .rename-bar{padding:6px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;flex-shrink:0}
 .rename-bar select,.rename-bar input{background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:4px 8px;font-size:12px;outline:0;font-family:inherit;height:28px}
 .rename-bar select:focus,.rename-bar input:focus{border-color:#667eea}
@@ -46,7 +44,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rename-bar .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
 .rename-bar .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:4px}
 .rename-bar .checkbox-label input[type=checkbox]{accent-color:#667eea;width:14px;height:14px;margin:0}
-
 .toolbar{padding:6px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex-shrink:0}
 .toolbar .path-display{color:#8b8fa3;font-size:12px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toolbar .path-display strong{color:#e4e6eb}
@@ -60,7 +57,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .toolbar .actions button:disabled{opacity:.4;cursor:not-allowed}
 .toolbar .actions button.undo-btn{background:#f6ad55;color:#1a1d27}
 .toolbar .actions button.undo-btn:hover:not(:disabled){background:#ed8936}
-
 .file-list-container{flex:1;overflow:auto;padding:0}
 .file-list-container::-webkit-scrollbar{width:6px;height:6px}
 .file-list-container::-webkit-scrollbar-track{background:#14171f}
@@ -70,10 +66,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .file-table th{text-align:left;padding:6px 10px;color:#8b8fa3;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #2d313e;background:#1a1d27}
 .file-table td{padding:5px 10px;color:#b5b9c9;border-bottom:1px solid #1f222c;font-size:12px}
 .file-table tr:hover td{background:#222632}
-.file-table tr.selected td{background:#2d3b6e}
-.file-table .checkbox-col{width:28px;text-align:center}
-.file-table .checkbox-col input[type=checkbox]{accent-color:#667eea;width:14px;height:14px;cursor:pointer}
-.file-table .icon-col{width:24px;text-align:center}
 .file-table .name-col{font-weight:500}
 .file-table .new-name-col{color:#68d391;font-weight:500}
 .file-table .new-name-col.unchanged{color:#4a4e62;font-weight:400}
@@ -94,10 +86,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .log-area::-webkit-scrollbar{width:4px}
 .log-area::-webkit-scrollbar-track{background:#14171f}
 .log-area::-webkit-scrollbar-thumb{background:#2d313e;border-radius:4px}
-
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
 .modal-overlay.show{display:flex}
-.modal{background:#1a1d27;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
+.modal{background:#1a1d27;border-radius:12px;padding:24px;max-width:550px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
 .modal h2{color:#e4e6eb;font-size:17px;margin-bottom:14px}
 .modal h3{color:#8b8fa3;font-size:13px;margin:12px 0 8px}
 .modal hr{border:0;border-top:1px solid #2d313e;margin:12px 0}
@@ -118,7 +109,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .modal .preview-info .total{color:#8b8fa3}
 .modal .preview-list{max-height:200px;overflow-y:auto;background:#14171f;border-radius:6px;padding:6px 10px;margin:6px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
 .modal .preview-list .changed{color:#68d391}
-
 @media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%}.filter-grid{grid-template-columns:1fr}}
 @media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}}
 .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
@@ -208,8 +198,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <select id="datePos"><option value="prefix">前缀</option><option value="suffix">后缀</option></select>
                 </span>
 
-                <button class="btn" id="previewRenameBtn" disabled>🔄 预览</button>
-                <button class="btn btn-execute" id="executeRenameBtn" disabled>✅ 执行</button>
+                <button class="btn" id="previewRenameBtn">🔄 预览</button>
+                <button class="btn btn-execute" id="executeRenameBtn">✅ 执行</button>
             </div>
 
             <!-- 工具栏 -->
@@ -217,25 +207,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 <div class="path-display">
                     📂 <strong id="currentPathDisplay">/</strong>
                     <span id="fileCountDisplay" style="margin-left:12px;color:#4a4e62;">0 项</span>
-                    <span id="selectedInfo" style="margin-left:12px;color:#667eea;"></span>
                 </div>
                 <div class="actions">
                     <button id="refreshBtn">⟳ 刷新</button>
-                    <button id="selectAllBtn">☑ 全选</button>
-                    <button id="clearAllBtn">☐ 取消</button>
-                    <button id="moveCopyBtn" class="primary" disabled>📦 移动/复制</button>
-                    <button id="dedupBtn" class="danger" disabled>🧹 去重</button>
+                    <button id="moveCopyBtn" class="primary">📦 移动/复制</button>
+                    <button id="dedupBtn" class="danger">🧹 去重</button>
                     <button id="undoBtn" class="undo-btn" disabled>↩ 撤销</button>
                     <button id="cleanupBtn">🧹 清理</button>
                 </div>
             </div>
 
-            <!-- 文件列表 -->
+            <!-- 文件列表（无复选框） -->
             <div class="file-list-container" id="fileListContainer">
                 <table class="file-table">
                     <thead><tr>
-                        <th class="checkbox-col"><input type="checkbox" id="selectAll"></th>
-                        <th class="icon-col"></th>
                         <th class="name-col">名称</th>
                         <th class="new-name-col">新名称</th>
                         <th class="size-col">大小</th>
@@ -243,7 +228,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                         <th class="status-col">状态</th>
                     </tr></thead>
                     <tbody id="fileTableBody">
-                        <tr class="empty-row"><td colspan="7">📭 请选择目录</td></tr>
+                        <tr class="empty-row"><td colspan="5">📭 此目录为空</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -254,43 +239,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="status-bar">
         <span id="statusLeft">就绪</span>
         <span id="statusRight">ghcr.io/gruntfish/nas-file-tool</span>
-    </div>
-</div>
-
-<!-- 移动/复制模态框 -->
-<div class="modal-overlay" id="moveCopyModal">
-    <div class="modal">
-        <h2>📦 移动/复制文件</h2>
-        <div class="form-group"><label>操作</label><select id="moveCopyAction"><option value="move">移动</option><option value="copy">复制</option></select></div>
-        <div class="form-group"><label>目标目录</label><input type="text" id="moveTargetDir" placeholder="backup/2024"></div>
-        <div class="form-group"><label><input type="checkbox" id="moveOverwrite"> 覆盖</label></div>
-        <hr>
-        <h3>📋 过滤条件</h3>
-        <div class="filter-grid">
-            <div class="form-group"><label>文件名包含</label><input type="text" id="filterNameContains" placeholder="IMG_"></div>
-            <div class="form-group"><label>文件名不包含</label><input type="text" id="filterNameNotContains" placeholder="temp"></div>
-            <div class="form-group"><label>扩展名</label><input type="text" id="filterExtensions" placeholder=".jpg,.png"></div>
-            <div class="form-group"><label>排除扩展名</label><input type="text" id="filterExtNot" placeholder=".tmp"></div>
-            <div class="form-group"><label>最小大小(KB)</label><input type="number" id="filterMinSize" placeholder="1024"></div>
-            <div class="form-group"><label>最大大小(KB)</label><input type="number" id="filterMaxSize" placeholder="10240"></div>
-            <div class="form-group"><label>日期(晚于)</label><input type="date" id="filterDateAfter"></div>
-            <div class="form-group"><label>日期(早于)</label><input type="date" id="filterDateBefore"></div>
-        </div>
-        <div class="form-group"><label>文件类型</label><select id="filterFileTypes"><option value="">全部</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="document">文档</option><option value="archive">压缩包</option></select></div>
-        <div class="form-group"><label>正则</label><input type="text" id="filterRegex" placeholder="^IMG_.*\.jpg$"></div>
-        <div id="filterPreview" style="display:none;"><div class="preview-info" id="filterPreviewInfo"></div></div>
-        <div class="btn-row"><button class="btn-cancel" onclick="closeModal('moveCopyModal')">取消</button><button class="btn-confirm" id="moveCopyConfirmBtn">确认</button></div>
-    </div>
-</div>
-
-<!-- 去重模态框 -->
-<div class="modal-overlay" id="dedupModal">
-    <div class="modal">
-        <h2>🧹 文件去重</h2>
-        <div class="form-group"><label>方式</label><select id="dedupMethod"><option value="md5">MD5</option><option value="name">文件名</option><option value="size">大小</option><option value="name_size">文件名+大小</option></select></div>
-        <div class="form-group"><label>操作</label><select id="dedupAction"><option value="find">仅查找</option><option value="delete_first">删除(保留第一个)</option><option value="delete_last">删除(保留最后一个)</option><option value="delete_smallest">删除(保留最大的)</option><option value="delete_largest">删除(保留最小的)</option></select></div>
-        <div class="form-group"><label>递归</label><select id="dedupRecursive"><option value="true">是</option><option value="false">否</option></select></div>
-        <div class="btn-row"><button class="btn-cancel" onclick="closeModal('dedupModal')">取消</button><button class="btn-confirm" id="dedupConfirmBtn">确认</button></div>
     </div>
 </div>
 
@@ -306,14 +254,107 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
 </div>
 
+<!-- 移动/复制模态框 -->
+<div class="modal-overlay" id="moveCopyModal">
+    <div class="modal">
+        <h2>📦 移动/复制文件</h2>
+        <div style="color:#8b8fa3;font-size:13px;margin-bottom:12px;">
+            源目录：<strong id="moveSourcePath" style="color:#e4e6eb;">/</strong>
+            <span style="color:#4a4e62;margin-left:8px;">（该目录下所有文件）</span>
+        </div>
+        <div class="form-group">
+            <label>操作</label>
+            <select id="moveCopyAction">
+                <option value="move">移动</option>
+                <option value="copy">复制</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>目标目录</label>
+            <div style="display:flex;gap:6px;">
+                <select id="moveTargetSelect" style="flex:1;min-width:120px;">
+                    <option value="">📁 选择已有目录...</option>
+                </select>
+                <input type="text" id="moveTargetInput" placeholder="输入新目录名自动创建" style="flex:1;min-width:100px;">
+            </div>
+            <div style="color:#4a4e62;font-size:11px;margin-top:4px;">
+                💡 下拉框选择已有目录，或输入新目录名称（自动创建）
+            </div>
+        </div>
+        <div class="form-group">
+            <label><input type="checkbox" id="moveOverwrite"> 覆盖已存在文件</label>
+        </div>
+        <hr>
+        <h3>📋 过滤条件（可选）</h3>
+        <div class="filter-grid">
+            <div class="form-group"><label>文件名包含</label><input type="text" id="filterNameContains" placeholder="IMG_"></div>
+            <div class="form-group"><label>文件名不包含</label><input type="text" id="filterNameNotContains" placeholder="temp"></div>
+            <div class="form-group"><label>扩展名</label><input type="text" id="filterExtensions" placeholder=".jpg,.png"></div>
+            <div class="form-group"><label>排除扩展名</label><input type="text" id="filterExtNot" placeholder=".tmp"></div>
+            <div class="form-group"><label>最小大小(KB)</label><input type="number" id="filterMinSize" placeholder="1024"></div>
+            <div class="form-group"><label>最大大小(KB)</label><input type="number" id="filterMaxSize" placeholder="10240"></div>
+            <div class="form-group"><label>日期(晚于)</label><input type="date" id="filterDateAfter"></div>
+            <div class="form-group"><label>日期(早于)</label><input type="date" id="filterDateBefore"></div>
+        </div>
+        <div class="form-group"><label>文件类型</label><select id="filterFileTypes"><option value="">全部</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="document">文档</option><option value="archive">压缩包</option></select></div>
+        <div class="form-group"><label>正则</label><input type="text" id="filterRegex" placeholder="^IMG_.*\.jpg$"></div>
+        <div id="filterPreview" style="display:none;"><div class="preview-info" id="filterPreviewInfo"></div></div>
+        <div class="btn-row">
+            <button class="btn-cancel" onclick="closeModal('moveCopyModal')">取消</button>
+            <button class="btn-confirm" id="moveCopyConfirmBtn">确认执行</button>
+        </div>
+    </div>
+</div>
+
+<!-- 去重模态框 -->
+<div class="modal-overlay" id="dedupModal">
+    <div class="modal">
+        <h2>🧹 文件去重</h2>
+        <div class="form-group">
+            <label>去重方式</label>
+            <select id="dedupMethod">
+                <option value="md5">MD5 哈希值（精确）</option>
+                <option value="name">文件名</option>
+                <option value="size">文件大小</option>
+                <option value="name_size">文件名 + 大小</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>操作</label>
+            <select id="dedupAction">
+                <option value="find">仅查找（列出重复项）</option>
+                <option value="delete_first">删除重复（保留第一个）</option>
+                <option value="delete_last">删除重复（保留最后一个）</option>
+                <option value="delete_smallest">删除重复（保留最大的）</option>
+                <option value="delete_largest">删除重复（保留最小的）</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>递归子目录</label>
+            <select id="dedupRecursive">
+                <option value="true">是</option>
+                <option value="false">否（仅当前目录）</option>
+            </select>
+        </div>
+        <div id="dedupPreview" style="display:none;">
+            <div class="preview-list" id="dedupPreviewList"></div>
+            <div style="color:#f6ad55;font-size:12px;margin-top:4px;" id="dedupStats"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn-cancel" onclick="closeModal('dedupModal')">取消</button>
+            <button class="btn-confirm" id="dedupConfirmBtn">确认执行</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let currentPath = '/';
-let selectedFiles = new Set();
 let fileList = [];
 let renamePreview = {};
 let renameHistory = [];
 let fullTreeData = [];
 let pendingRenameFiles = [];
+let allSubdirs = [];
 
 const treeContainer = document.getElementById('treeContainer');
 const fileTableBody = document.getElementById('fileTableBody');
@@ -321,7 +362,6 @@ const currentPathDisplay = document.getElementById('currentPathDisplay');
 const fileCountDisplay = document.getElementById('fileCountDisplay');
 const statusLeft = document.getElementById('statusLeft');
 const logArea = document.getElementById('logArea');
-const selectedInfo = document.getElementById('selectedInfo');
 
 async function apiCall(endpoint, data) {
     const res = await fetch(endpoint, {
@@ -336,6 +376,40 @@ async function fetchTree(path) { return apiCall('/api/tree', { path }); }
 async function fetchFiles(path) { return apiCall('/api/files', { path }); }
 async function undoRename() { return apiCall('/api/undo', {}); }
 async function dedupFiles(data) { return apiCall('/api/dedup', data); }
+
+// ===== 收集所有子目录路径 =====
+function collectSubdirs(nodes, prefix) {
+    let result = [];
+    for (let node of nodes) {
+        if (node.is_dir) {
+            const fullPath = prefix ? prefix + '/' + node.name : node.name;
+            result.push(fullPath);
+            if (node.children && node.children.length > 0) {
+                result = result.concat(collectSubdirs(node.children, fullPath));
+            }
+        }
+    }
+    return result;
+}
+
+// ===== 更新目标目录下拉框 =====
+function updateTargetSelect() {
+    const select = document.getElementById('moveTargetSelect');
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">📁 选择已有目录...</option>';
+    const subdirs = collectSubdirs(fullTreeData, '');
+    allSubdirs = subdirs;
+    subdirs.sort();
+    for (let dir of subdirs) {
+        const opt = document.createElement('option');
+        opt.value = dir;
+        opt.textContent = '📁 ' + dir;
+        select.appendChild(opt);
+    }
+    if (currentValue && subdirs.includes(currentValue)) {
+        select.value = currentValue;
+    }
+}
 
 // ===== 渲染目录树 =====
 function renderTree(nodes, container) {
@@ -387,6 +461,7 @@ function renderTree(nodes, container) {
 async function loadFiles(path) {
     currentPath = path;
     currentPathDisplay.textContent = path;
+    document.getElementById('moveSourcePath').textContent = path;
     statusLeft.textContent = '📂 加载中...';
     try {
         const result = await fetchFiles(path);
@@ -395,12 +470,13 @@ async function loadFiles(path) {
         renderFiles(fileList);
         updateTreeHighlight(path);
         statusLeft.textContent = '📂 ' + path;
+        // 更新目标目录下拉框
+        updateTargetSelect();
     } catch (err) {
         statusLeft.textContent = '❌ 加载失败: ' + err.message;
     }
 }
 
-// ===== 更新目录树高亮 =====
 function updateTreeHighlight(path) {
     document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
     const parts = path.split('/').filter(p => p);
@@ -424,7 +500,6 @@ function updateTreeHighlight(path) {
     }
 }
 
-// ===== 初始化目录树 =====
 async function initTree() {
     try {
         const result = await fetchTree('/');
@@ -441,14 +516,13 @@ async function navigateTo(path) {
     await loadFiles(path);
 }
 
-// ===== 渲染文件列表 =====
+// ===== 渲染文件列表（无复选框） =====
 function renderFiles(files) {
     const tbody = fileTableBody;
     tbody.innerHTML = '';
     if (!files || files.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="7">📭 此目录为空</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">📭 此目录为空</td></tr>';
         fileCountDisplay.textContent = '0 项';
-        updateButtons();
         return;
     }
     fileList = files;
@@ -468,36 +542,14 @@ function renderFiles(files) {
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
-        const checked = selectedFiles.has(file.path) ? 'checked' : '';
-        tr.innerHTML = '<td class="checkbox-col"><input type="checkbox" value="' + escapeHtml(file.path) + '" ' + checked + (isDir ? ' disabled' : '') + '></td>' +
-            '<td class="icon-col">' + icon + '</td>' +
-            '<td class="name-col' + (isDir ? ' folder-row' : '') + '">' + escapeHtml(file.name) + '</td>' +
+        tr.innerHTML =
+            '<td class="name-col' + (isDir ? ' folder-row' : '') + '">' + icon + ' ' + escapeHtml(file.name) + '</td>' +
             '<td class="new-name-col' + (isChanged && !isDir ? '' : ' unchanged') + '">' + (isDir ? '-' : escapeHtml(newName)) + '</td>' +
             '<td class="size-col">' + size + '</td>' +
             '<td class="date-col">' + date + '</td>' +
             '<td class="status-col ' + statusClass + '">' + statusText + '</td>';
-        if (!isDir) {
-            const cb = tr.querySelector('input[type="checkbox"]');
-            cb.addEventListener('change', function() {
-                if (this.checked) { selectedFiles.add(file.path); tr.classList.add('selected'); }
-                else { selectedFiles.delete(file.path); tr.classList.remove('selected'); }
-                updateButtons();
-            });
-        }
         tbody.appendChild(tr);
     });
-    updateButtons();
-}
-
-function updateButtons() {
-    const count = selectedFiles.size;
-    const hasSelected = count > 0;
-    selectedInfo.textContent = hasSelected ? '✅ 已选 ' + count + ' 个' : '';
-    document.getElementById('previewRenameBtn').disabled = !hasSelected;
-    document.getElementById('executeRenameBtn').disabled = !hasSelected;
-    document.getElementById('moveCopyBtn').disabled = !hasSelected;
-    document.getElementById('dedupBtn').disabled = !hasSelected;
-    document.getElementById('undoBtn').disabled = renameHistory.length === 0;
 }
 
 function formatSize(bytes) {
@@ -668,10 +720,24 @@ function getRenameParams() {
     return params;
 }
 
+// ===== 获取当前目录所有文件路径 =====
+function getAllFilePaths() {
+    const paths = [];
+    for (let file of fileList) {
+        if (!file.is_dir) {
+            paths.push(file.path);
+        }
+    }
+    return paths;
+}
+
 // ===== 预览重命名 =====
 document.getElementById('previewRenameBtn').addEventListener('click', async function() {
-    const files = Array.from(selectedFiles);
-    if (files.length === 0) return;
+    const files = getAllFilePaths();
+    if (files.length === 0) {
+        showLog('⚠️ 当前目录没有文件', 'warning');
+        return;
+    }
     const params = getRenameParams();
     params.files = files;
 
@@ -692,6 +758,7 @@ document.getElementById('previewRenameBtn').addEventListener('click', async func
                 pendingRenameFiles.push(f);
             });
             document.getElementById('renamePreviewConfirmBtn').disabled = false;
+            showLog('📋 预览完成，' + result.files.length + ' 个文件将修改', 'info');
         } else {
             list.innerHTML = '<div style="color:#4a4e62;">没有文件需要修改</div>';
             document.getElementById('renamePreviewConfirmBtn').disabled = true;
@@ -724,21 +791,22 @@ document.getElementById('renamePreviewConfirmBtn').addEventListener('click', asy
         }
         renamePreview = {};
         pendingRenameFiles = [];
-        selectedFiles.clear();
         await loadFiles(currentPath);
     } catch(e) {
         showLog('❌ ' + e.message, 'error');
     }
 });
 
-// ===== 执行重命名（直接执行，跳过预览） =====
+// ===== 执行重命名（直接执行） =====
 document.getElementById('executeRenameBtn').addEventListener('click', async function() {
-    const files = Array.from(selectedFiles);
-    if (files.length === 0) return;
+    const files = getAllFilePaths();
+    if (files.length === 0) {
+        showLog('⚠️ 当前目录没有文件', 'warning');
+        return;
+    }
     const params = getRenameParams();
     params.files = files;
 
-    // 先预览获取结果
     try {
         const previewResult = await apiCall('/api/preview', params);
         if (previewResult.error) { showLog('❌ ' + previewResult.error, 'error'); return; }
@@ -764,27 +832,17 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
             document.getElementById('undoBtn').disabled = false;
         }
         renamePreview = {};
-        selectedFiles.clear();
         await loadFiles(currentPath);
     } catch(e) {
         showLog('❌ ' + e.message, 'error');
     }
 });
 
-// ===== 按钮事件 =====
+// ===== 刷新 =====
 document.getElementById('refreshBtn').addEventListener('click', function() { loadFiles(currentPath); });
 document.getElementById('refreshTreeBtn').addEventListener('click', function() { initTree(); });
 
-document.getElementById('selectAllBtn').addEventListener('click', function() {
-    document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)').forEach(cb => { cb.checked = true; cb.dispatchEvent(new Event('change')); });
-});
-document.getElementById('clearAllBtn').addEventListener('click', function() {
-    document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)').forEach(cb => { cb.checked = false; cb.dispatchEvent(new Event('change')); });
-});
-document.getElementById('selectAll').addEventListener('change', function() {
-    document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)').forEach(cb => { cb.checked = this.checked; cb.dispatchEvent(new Event('change')); });
-});
-
+// ===== 撤销 =====
 document.getElementById('undoBtn').addEventListener('click', async function() {
     if (renameHistory.length === 0) return;
     try {
@@ -797,6 +855,7 @@ document.getElementById('undoBtn').addEventListener('click', async function() {
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
 
+// ===== 清理内存 =====
 document.getElementById('cleanupBtn').addEventListener('click', async function() {
     try {
         const res = await fetch('/api/cleanup', { method: 'POST' });
@@ -807,45 +866,19 @@ document.getElementById('cleanupBtn').addEventListener('click', async function()
 
 // ===== 移动/复制 =====
 document.getElementById('moveCopyBtn').addEventListener('click', function() {
-    document.getElementById('moveTargetDir').value = '';
+    document.getElementById('moveSourcePath').textContent = currentPath;
+    document.getElementById('moveTargetSelect').value = '';
+    document.getElementById('moveTargetInput').value = '';
     document.getElementById('moveOverwrite').checked = false;
     ['filterNameContains','filterNameNotContains','filterExtensions','filterExtNot','filterMinSize','filterMaxSize','filterDateAfter','filterDateBefore','filterRegex'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('filterFileTypes').value = '';
     document.getElementById('filterPreview').style.display = 'none';
+    // 更新下拉框
+    updateTargetSelect();
     openModal('moveCopyModal');
 });
 
-document.getElementById('moveCopyConfirmBtn').addEventListener('click', async function() {
-    const action = document.getElementById('moveCopyAction').value;
-    const targetDir = document.getElementById('moveTargetDir').value.trim();
-    if (!targetDir) { alert('请输入目标目录'); return; }
-    const files = Array.from(selectedFiles);
-    if (files.length === 0) { alert('请选择文件'); return; }
-    closeModal('moveCopyModal');
-    clearLog();
-    const filters = getFilters();
-    if (Object.keys(filters).length > 0) showLog('📋 应用过滤条件...', 'info');
-    showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件...', 'info');
-    try {
-        const result = await apiCall('/api/execute', {
-            action: action,
-            files: files.map(f => ({ old_path: f })),
-            target_dir: targetDir,
-            overwrite: document.getElementById('moveOverwrite').checked,
-            filters: filters
-        });
-        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-        if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-        if (result.stats) showLog('✅ ' + result.stats.message, 'success');
-        if (result.history && result.history.length > 0) {
-            renameHistory.push(...result.history);
-            document.getElementById('undoBtn').disabled = false;
-        }
-        selectedFiles.clear();
-        await loadFiles(currentPath);
-    } catch(e) { showLog('❌ ' + e.message, 'error'); }
-});
-
+// ===== 获取过滤条件 =====
 function getFilters() {
     const filters = {};
     const v = (id) => document.getElementById(id).value.trim();
@@ -862,13 +895,64 @@ function getFilters() {
     return filters;
 }
 
+// ===== 移动/复制确认 =====
+document.getElementById('moveCopyConfirmBtn').addEventListener('click', async function() {
+    const action = document.getElementById('moveCopyAction').value;
+    let targetDir = document.getElementById('moveTargetSelect').value.trim();
+    const inputDir = document.getElementById('moveTargetInput').value.trim();
+
+    // 如果输入框有内容，使用输入框（创建新目录）
+    if (inputDir) {
+        targetDir = inputDir;
+    }
+
+    if (!targetDir) {
+        alert('请选择或输入目标目录');
+        return;
+    }
+
+    const files = getAllFilePaths();
+    if (files.length === 0) {
+        showLog('⚠️ 当前目录没有文件可移动/复制', 'warning');
+        closeModal('moveCopyModal');
+        return;
+    }
+
+    closeModal('moveCopyModal');
+    clearLog();
+    const filters = getFilters();
+    if (Object.keys(filters).length > 0) showLog('📋 应用过滤条件...', 'info');
+    showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件到: ' + targetDir, 'info');
+
+    try {
+        const result = await apiCall('/api/execute', {
+            action: action,
+            files: files.map(f => ({ old_path: f })),
+            target_dir: targetDir,
+            overwrite: document.getElementById('moveOverwrite').checked,
+            filters: filters
+        });
+        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+        if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+        if (result.stats) showLog('✅ ' + result.stats.message, 'success');
+        if (result.history && result.history.length > 0) {
+            renameHistory.push(...result.history);
+            document.getElementById('undoBtn').disabled = false;
+        }
+        await loadFiles(currentPath);
+    } catch(e) {
+        showLog('❌ ' + e.message, 'error');
+    }
+});
+
+// 过滤预览
 document.querySelectorAll('#moveCopyModal input, #moveCopyModal select').forEach(el => {
     el.addEventListener('input', previewFilter);
     el.addEventListener('change', previewFilter);
 });
 async function previewFilter() {
     const filters = getFilters();
-    const files = Array.from(selectedFiles);
+    const files = getAllFilePaths();
     if (Object.keys(filters).length === 0 || files.length === 0) {
         document.getElementById('filterPreview').style.display = 'none';
         return;
@@ -882,7 +966,11 @@ async function previewFilter() {
 }
 
 // ===== 去重 =====
-document.getElementById('dedupBtn').addEventListener('click', function() { openModal('dedupModal'); });
+document.getElementById('dedupBtn').addEventListener('click', function() {
+    document.getElementById('dedupPreview').style.display = 'none';
+    openModal('dedupModal');
+});
+
 document.getElementById('dedupConfirmBtn').addEventListener('click', async function() {
     const method = document.getElementById('dedupMethod').value;
     const action = document.getElementById('dedupAction').value;
