@@ -134,7 +134,7 @@ def apply_file_filters(file_list, filters):
     
     return filtered
 
-# ===== 获取目录树（完整递归，不限制深度） =====
+# ===== 获取目录树 =====
 @app.route('/api/tree', methods=['POST'])
 def get_tree():
     data = request.json
@@ -157,7 +157,6 @@ def get_tree():
             return jsonify({'tree': file_cache[cache_key], 'current': base_path, 'cached': True})
 
     def build_tree(path):
-        """完整递归，不限制深度"""
         nodes = []
         try:
             for item in sorted(path.iterdir()):
@@ -424,7 +423,13 @@ def execute():
             return jsonify({'error': '目标目录不能为空'}), 400
         
         target_path = Path(work_dir) / target_dir.lstrip('/')
-        target_path.mkdir(parents=True, exist_ok=True)
+        # ===== 检查并创建目标目录 =====
+        if not target_path.exists():
+            try:
+                target_path.mkdir(parents=True, exist_ok=True)
+                logs.append({'text': f'📁 创建目标目录: {target_dir}', 'type': 'info'})
+            except Exception as e:
+                return jsonify({'error': f'无法创建目标目录: {str(e)}'}), 400
         
         all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
         
