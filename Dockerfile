@@ -1,20 +1,20 @@
-FROM ubuntu:22.04
+FROM alpine:latest
 
-# 设置非交互式安装，避免卡住
-ENV DEBIAN_FRONTEND=noninteractive
-
-# 更新系统并安装依赖
-RUN apt-get update && apt-get install -y \
+# 1. 安装系统工具
+RUN apk add --no-cache \
     python3 \
-    python3-pip \
-    python3-dev \
+    py3-pip \
     jpegoptim \
     optipng \
-    webp \
-    && rm -rf /var/lib/apt/lists/*
+    libwebp-tools \
+    && rm -rf /var/cache/apk/*
 
-# 安装 Flask
-RUN pip3 install flask --break-system-packages
+# 2. 创建虚拟环境，在里面装 flask（绕过系统保护）
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir flask
+
+# 3. 把虚拟环境的命令加到 PATH（这样直接用 flask、python3 就行）
+ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
