@@ -365,128 +365,134 @@ def execute():
     if len(files) > MAX_FILES_PER_OPERATION:
         return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
-    if action in ['number', 'date']:
-        all_files = data.get('all_files', [])
-        if not all_files:
-            all_files = [f['old_path'] for f in files]
+    try:
+        if action in ['number', 'date']:
+            all_files = data.get('all_files', [])
+            if not all_files:
+                all_files = [f['old_path'] for f in files]
 
-        for idx, file_path in enumerate(all_files):
-            old_name = Path(file_path).name
-            new_name = old_name
+            for idx, file_path in enumerate(all_files):
+                old_name = Path(file_path).name
+                new_name = old_name
 
-            if action == 'number':
-                start = int(data.get('start', 1))
-                step = int(data.get('step', 1))
-                digits = int(data.get('digits', 2))
-                position = data.get('position', 'suffix')
-                num = str(start + idx * step).zfill(digits)
-                name, ext = os.path.splitext(old_name)
-                if position == 'prefix':
-                    new_name = num + '_' + name + ext
-                else:
-                    new_name = name + '_' + num + ext
+                if action == 'number':
+                    start = int(data.get('start', 1))
+                    step = int(data.get('step', 1))
+                    digits = int(data.get('digits', 2))
+                    position = data.get('position', 'suffix')
+                    num = str(start + idx * step).zfill(digits)
+                    name, ext = os.path.splitext(old_name)
+                    if position == 'prefix':
+                        new_name = num + '_' + name + ext
+                    else:
+                        new_name = name + '_' + num + ext
 
-            elif action == 'date':
-                date_type = data.get('date_type', 'created')
-                date_format = data.get('date_format', 'YYYY-MM-DD')
-                date_pos = data.get('date_pos', 'prefix')
-                file_path_obj = Path(work_dir) / file_path
-                if date_type == 'created':
-                    dt = datetime.fromtimestamp(file_path_obj.stat().st_ctime)
-                elif date_type == 'modified':
-                    dt = datetime.fromtimestamp(file_path_obj.stat().st_mtime)
-                else:
-                    dt = datetime.now()
-                fmt = date_format.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
-                date_str = dt.strftime(fmt)
-                name, ext = os.path.splitext(old_name)
-                if date_pos == 'prefix':
-                    new_name = date_str + '_' + name + ext
-                else:
-                    new_name = name + '_' + date_str + ext
+                elif action == 'date':
+                    date_type = data.get('date_type', 'created')
+                    date_format = data.get('date_format', 'YYYY-MM-DD')
+                    date_pos = data.get('date_pos', 'prefix')
+                    file_path_obj = Path(work_dir) / file_path
+                    if date_type == 'created':
+                        dt = datetime.fromtimestamp(file_path_obj.stat().st_ctime)
+                    elif date_type == 'modified':
+                        dt = datetime.fromtimestamp(file_path_obj.stat().st_mtime)
+                    else:
+                        dt = datetime.now()
+                    fmt = date_format.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
+                    date_str = dt.strftime(fmt)
+                    name, ext = os.path.splitext(old_name)
+                    if date_pos == 'prefix':
+                        new_name = date_str + '_' + name + ext
+                    else:
+                        new_name = name + '_' + date_str + ext
 
-            if new_name != old_name:
-                old_path = Path(work_dir) / file_path
-                new_path = Path(work_dir) / str(Path(file_path).parent / new_name)
+                if new_name != old_name:
+                    old_path = Path(work_dir) / file_path
+                    new_path = Path(work_dir) / str(Path(file_path).parent / new_name)
+                    if old_path.exists() and not new_path.exists():
+                        old_path.rename(new_path)
+                        logs.append({'text': f'✏️ {action}: {old_name} → {new_name}', 'type': 'success'})
+                        history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': old_name})
+                        stats['processed'] += 1
+
+        elif action in ['move', 'copy']:
+            target_dir = data.get('target_dir', '')
+            overwrite = data.get('overwrite', False)
+            filters = data.get('filters', {})
+            
+            if not target_dir:
+                return jsonify({'error': '目标目录不能为空'}), 400
+            
+            target_path = Path(work_dir) / target_dir.lstrip('/')
+            if not target_path.exists():
+                try:
+                    target_path.mkdir(parents=True, exist_ok=True)
+                    logs.append({'text': f'📁 创建目标目录: {target_dir}', 'type': 'info'})
+                except Exception as e:
+                    return jsonify({'error': f'无法创建目标目录: {str(e)}'}), 400
+            
+            all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
+            
+            if filters and any(filters.values()):
+                filtered_paths = apply_file_filters(all_file_paths, filters)
+                items_to_process = [f for f in files if str(Path(work_dir) / f['old_path']) in filtered_paths]
+                logs.append({'text': f'📋 过滤后匹配 {len(items_to_process)} 个文件（共 {len(files)} 个）', 'type': 'info'})
+            else:
+                items_to_process = files
+            
+            if not items_to_process:
+                logs.append({'text': '⚠️ 没有文件匹配过滤条件', 'type': 'warning'})
+                stats['message'] = '没有文件匹配过滤条件'
+                return jsonify({'logs': logs, 'stats': stats})
+            
+            for item in items_to_process:
+                old_path = Path(work_dir) / item['old_path']
+                new_path = target_path / item['old_name']
+                
+                if overwrite and new_path.exists():
+                    new_path.unlink()
+                
+                try:
+                    if action == 'move':
+                        shutil.move(str(old_path), str(new_path))
+                        logs.append({'text': f'📦 移动: {item["old_name"]} → {target_dir}', 'type': 'success'})
+                    else:
+                        shutil.copy2(str(old_path), str(new_path))
+                        logs.append({'text': f'📋 复制: {item["old_name"]} → {target_dir}', 'type': 'success'})
+                    stats['processed'] += 1
+                    history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
+                except Exception as e:
+                    logs.append({'text': f'❌ 处理失败: {item["old_name"]} - {str(e)}', 'type': 'error'})
+            
+            stats['message'] = f'成功处理 {stats["processed"]} 个文件'
+
+        elif action in ['replace', 'regex', 'prefix', 'suffix', 'remove', 'removepos',
+                        'lowercase', 'uppercase', 'capitalize', 'titlecase', 'camelcase', 'extension']:
+            for item in files:
+                old_path = Path(work_dir) / item['old_path']
+                new_path = Path(work_dir) / item['new_path']
                 if old_path.exists() and not new_path.exists():
                     old_path.rename(new_path)
-                    logs.append({'text': f'✏️ {action}: {old_name} → {new_name}', 'type': 'success'})
-                    history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': old_name})
+                    logs.append({'text': f'✏️ 重命名: {item["old_name"]} → {item["new_name"]}', 'type': 'success'})
+                    history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
                     stats['processed'] += 1
 
-    elif action in ['move', 'copy']:
-        target_dir = data.get('target_dir', '')
-        overwrite = data.get('overwrite', False)
-        filters = data.get('filters', {})
-        
-        if not target_dir:
-            return jsonify({'error': '目标目录不能为空'}), 400
-        
-        target_path = Path(work_dir) / target_dir.lstrip('/')
-        # ===== 检查并创建目标目录 =====
-        if not target_path.exists():
-            try:
-                target_path.mkdir(parents=True, exist_ok=True)
-                logs.append({'text': f'📁 创建目标目录: {target_dir}', 'type': 'info'})
-            except Exception as e:
-                return jsonify({'error': f'无法创建目标目录: {str(e)}'}), 400
-        
-        all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
-        
-        if filters and any(filters.values()):
-            filtered_paths = apply_file_filters(all_file_paths, filters)
-            items_to_process = [f for f in files if str(Path(work_dir) / f['old_path']) in filtered_paths]
-            logs.append({'text': f'📋 过滤后匹配 {len(items_to_process)} 个文件（共 {len(files)} 个）', 'type': 'info'})
         else:
-            items_to_process = files
-        
-        if not items_to_process:
-            logs.append({'text': '⚠️ 没有文件匹配过滤条件', 'type': 'warning'})
-            stats['message'] = '没有文件匹配过滤条件'
-            return jsonify({'logs': logs, 'stats': stats})
-        
-        for item in items_to_process:
-            old_path = Path(work_dir) / item['old_path']
-            new_path = target_path / item['old_name']
-            
-            if overwrite and new_path.exists():
-                new_path.unlink()
-            
-            try:
-                if action == 'move':
-                    shutil.move(str(old_path), str(new_path))
-                    logs.append({'text': f'📦 移动: {item["old_name"]} → {target_dir}', 'type': 'success'})
-                else:
-                    shutil.copy2(str(old_path), str(new_path))
-                    logs.append({'text': f'📋 复制: {item["old_name"]} → {target_dir}', 'type': 'success'})
-                stats['processed'] += 1
-                history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
-            except Exception as e:
-                logs.append({'text': f'❌ 处理失败: {item["old_name"]} - {str(e)}', 'type': 'error'})
-        
+            return jsonify({'error': f'未知操作: {action}'}), 400
+
+        for h in history:
+            rename_history.append(h)
+
+        gc.collect()
+
         stats['message'] = f'成功处理 {stats["processed"]} 个文件'
+        return jsonify({'logs': logs, 'stats': stats, 'history': history})
 
-    elif action in ['replace', 'regex', 'prefix', 'suffix', 'remove', 'removepos',
-                    'lowercase', 'uppercase', 'capitalize', 'titlecase', 'camelcase', 'extension']:
-        for item in files:
-            old_path = Path(work_dir) / item['old_path']
-            new_path = Path(work_dir) / item['new_path']
-            if old_path.exists() and not new_path.exists():
-                old_path.rename(new_path)
-                logs.append({'text': f'✏️ 重命名: {item["old_name"]} → {item["new_name"]}', 'type': 'success'})
-                history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
-                stats['processed'] += 1
-
-    else:
-        return jsonify({'error': f'未知操作: {action}'}), 400
-
-    for h in history:
-        rename_history.append(h)
-
-    gc.collect()
-
-    stats['message'] = f'成功处理 {stats["processed"]} 个文件'
-    return jsonify({'logs': logs, 'stats': stats, 'history': history})
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f'execute error: {error_msg}')
+        return jsonify({'error': str(e), 'trace': error_msg}), 500
 
 # ===== 撤销 =====
 @app.route('/api/undo', methods=['POST'])
