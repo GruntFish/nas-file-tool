@@ -563,5 +563,28 @@ def filter_preview():
         'matched_files': [str(p) for p in filtered_paths]
     })
 
+@app.route('/api/delete', methods=['POST'])
+def delete_files():
+    data = request.json
+    files = data.get('files', [])
+    work_dir = '/data'
+    
+    logs = []
+    deleted = 0
+    
+    for file_path in files:
+        target = Path(work_dir) / file_path
+        if target.exists() and target.is_file():
+            try:
+                target.unlink()
+                logs.append({'text': f'🗑️ 删除: {target.name}', 'type': 'success'})
+                deleted += 1
+            except Exception as e:
+                logs.append({'text': f'❌ 删除失败: {target.name} - {str(e)}', 'type': 'error'})
+        else:
+            logs.append({'text': f'⚠️ 文件不存在: {file_path}', 'type': 'warning'})
+    
+    return jsonify({'logs': logs, 'deleted': deleted})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
