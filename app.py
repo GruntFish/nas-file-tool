@@ -15,16 +15,24 @@ app = Flask(__name__)
 
 # ===== 内存限制配置 =====
 MAX_HISTORY = 100
-MAX_LOG_LINES = 200
 CACHE_EXPIRE_TIME = 300
-AUTO_CLEANUP_INTERVAL = 3600  # 自动清理间隔（秒），默认1小时
 
 # ===== 全局变量 =====
 rename_history = deque(maxlen=MAX_HISTORY)
-log_cache = deque(maxlen=MAX_LOG_LINES)
 file_cache = {}
 cache_timestamps = {}
-last_cleanup_time = datetime.now()
+
+# ===== 定时自动清理（2小时） =====
+def auto_cleanup():
+    while True:
+        time.sleep(7200)
+        file_cache.clear()
+        cache_timestamps.clear()
+        gc.collect()
+        print(f"[自动清理] 内存已清理，时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
+cleanup_thread.start()
 
 # ===== 获取内存使用 =====
 def get_memory_usage():
@@ -35,79 +43,106 @@ def get_memory_usage():
     except:
         return 0
 
-# ===== 自动清理函数 =====
-def auto_cleanup():
-    """自动清理内存（后台线程运行）"""
-    global file_cache, cache_timestamps, log_cache, last_cleanup_time
+# ===== 文件类型判断 =====
+def get_file_type(file_path):
+    ext = file_path.suffix.lower()
+    image_exts = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif'}
+    video_exts = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'}
+    audio_exts = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a'}
+    doc_exts = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf', '.md'}
+    archive_exts = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'}
     
-    while True:
-        try:
-            time.sleep(AUTO_CLEANUP_INTERVAL)
-            
-            # 清理文件缓存
-            file_cache.clear()
-            cache_timestamps.clear()
-            
-            # 清理日志缓存
-            log_cache.clear()
-            
-            # 强制垃圾回收
-            gc.collect()
-            
-            last_cleanup_time = datetime.now()
-            memory_usage = get_memory_usage()
-            
-            print(f"[自动清理] 内存已清理，当前使用: {memory_usage}MB, 时间: {last_cleanup_time}")
-            
-        except Exception as e:
-            print(f"[自动清理] 错误: {e}")
+    if ext in image_exts: return 'image'
+    if ext in video_exts: return 'video'
+    if ext in audio_exts: return 'audio'
+    if ext in doc_exts: return 'document'
+    if ext in archive_exts: return 'archive'
+    return 'other'
 
-# ===== 启动后台清理线程 =====
-cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
-cleanup_thread.start()
+# ===== 文件过滤函数 =====
+def apply_file_filters(file_list, filters):
+    filtered = []
+    
+    for file_path in file_list:
+        file_path = Path(file_path)
+        
+        # 文件名包含
+        if filters.get('name_contains'):
+            if filters['name_contains'].lower() not in file_path.name.lower():
+                continue
+        
+        # 文件名不包含
+        if filters.get('name_not_contains'):
+            if filters['name_not_contains'].lower() in file_path.name.lower():
+                continue
+        
+        # 扩展名匹配
+        ext = file_path.suffix.lower()
+        if filters.get('extensions'):
+            ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions']]
+            if ext not in ext_list:
+                continue
+        
+        # 排除扩展名
+        if filters.get('extensions_not'):
+            ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions_not']]
+            if ext in ext_list:
+                continue
+        
+        # 文件大小
+        try:
+            size = file_path.stat().st_size
+            if filters.get('min_size') and size < filters['min_size'] * 1024:
+                continue
+            if filters.get('max_size') and size > filters['max_size'] * 1024:
+                continue
+        except:
+            pass
+        
+        # 修改时间
+        try:
+            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+            if filters.get('date_after'):
+                try:
+                    date_after = datetime.strptime(filters['date_after'], '%Y-%m-%d')
+                    if mtime.date() < date_after.date():
+                        continue
+                except:
+                    pass
+            if filters.get('date_before'):
+                try:
+                    date_before = datetime.strptime(filters['date_before'], '%Y-%m-%d')
+                    if mtime.date() > date_before.date():
+                        continue
+                except:
+                    pass
+        except:
+            pass
+        
+        # 文件类型
+        if filters.get('file_types'):
+            file_type = get_file_type(file_path)
+            if file_type != filters['file_types']:
+                continue
+        
+        # 正则匹配
+        if filters.get('regex'):
+            try:
+                if not re.search(filters['regex'], file_path.name):
+                    continue
+            except:
+                pass
+        
+        filtered.append(str(file_path))
+    
+    return filtered
 
 # ===== 根路由 =====
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# ===== 手动清理内存 =====
-@app.route('/api/cleanup', methods=['POST'])
-def cleanup():
-    global file_cache, cache_timestamps, log_cache, last_cleanup_time
-    
-    file_cache.clear()
-    cache_timestamps.clear()
-    log_cache.clear()
-    gc.collect()
-    
-    last_cleanup_time = datetime.now()
-    memory_usage = get_memory_usage()
-    
-    return jsonify({
-        'message': '内存已清理',
-        'memory_mb': memory_usage,
-        'history_count': len(rename_history),
-        'cache_count': len(file_cache),
-        'last_cleanup': last_cleanup_time.strftime('%Y-%m-%d %H:%M:%S')
-    })
-
-# ===== 内存状态监控 =====
-@app.route('/api/memory', methods=['GET'])
-def memory_status():
-    """查看内存使用状态"""
-    return jsonify({
-        'memory_mb': get_memory_usage(),
-        'history_count': len(rename_history),
-        'cache_count': len(file_cache),
-        'max_history': MAX_HISTORY,
-        'max_log_lines': MAX_LOG_LINES,
-        'cache_expire_time': CACHE_EXPIRE_TIME,
-        'auto_cleanup_interval': AUTO_CLEANUP_INTERVAL,
-        'last_cleanup_time': last_cleanup_time.strftime('%Y-%m-%d %H:%M:%S') if last_cleanup_time else '从未'
-    })
-
-# ===== 获取目录树（带缓存） =====
+# ===== 获取目录树（完整递归） =====
 @app.route('/api/tree', methods=['POST'])
 def get_tree():
     data = request.json
@@ -129,9 +164,7 @@ def get_tree():
         if (datetime.now().timestamp() - cached_time) < CACHE_EXPIRE_TIME:
             return jsonify({'tree': file_cache[cache_key], 'current': base_path, 'cached': True})
 
-    def build_tree(path, max_depth=5):
-        if max_depth <= 0:
-            return []
+    def build_tree(path):
         nodes = []
         try:
             for item in sorted(path.iterdir()):
@@ -141,21 +174,21 @@ def get_tree():
                         'path': str(item.relative_to(work_dir)),
                         'is_dir': True,
                         'size': 0,
-                        'children': build_tree(item, max_depth - 1)
+                        'children': build_tree(item)
                     }
                     nodes.append(node)
         except PermissionError:
             pass
         return nodes
 
-    tree = build_tree(target, max_depth=5)
+    tree = build_tree(target)
     
     file_cache[cache_key] = tree
     cache_timestamps[cache_key] = datetime.now().timestamp()
     
     return jsonify({'tree': tree, 'current': base_path, 'cached': False})
 
-# ===== 获取文件列表（带缓存） =====
+# ===== 获取文件列表 =====
 @app.route('/api/files', methods=['POST'])
 def get_files():
     data = request.json
@@ -324,7 +357,7 @@ def apply_rename_action(old_name, action, data):
 
     return new_name
 
-# ===== 执行重命名 =====
+# ===== 执行操作 =====
 @app.route('/api/execute', methods=['POST'])
 def execute():
     data = request.json
@@ -392,23 +425,50 @@ def execute():
     elif action in ['move', 'copy']:
         target_dir = data.get('target_dir', '')
         overwrite = data.get('overwrite', False)
+        filters = data.get('filters', {})
+        
         if not target_dir:
             return jsonify({'error': '目标目录不能为空'}), 400
+        
         target_path = Path(work_dir) / target_dir.lstrip('/')
         target_path.mkdir(parents=True, exist_ok=True)
-        for item in files:
+        
+        # 获取所有文件路径
+        all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
+        
+        # 应用过滤条件
+        if filters and any(filters.values()):
+            filtered_paths = apply_file_filters(all_file_paths, filters)
+            items_to_process = [f for f in files if str(Path(work_dir) / f['old_path']) in filtered_paths]
+            logs.append({'text': f'📋 过滤后匹配 {len(items_to_process)} 个文件（共 {len(files)} 个）', 'type': 'info'})
+        else:
+            items_to_process = files
+        
+        if not items_to_process:
+            logs.append({'text': '⚠️ 没有文件匹配过滤条件', 'type': 'warning'})
+            stats['message'] = '没有文件匹配过滤条件'
+            return jsonify({'logs': logs, 'stats': stats})
+        
+        for item in items_to_process:
             old_path = Path(work_dir) / item['old_path']
             new_path = target_path / item['old_name']
+            
             if overwrite and new_path.exists():
                 new_path.unlink()
-            if action == 'move':
-                shutil.move(str(old_path), str(new_path))
-                logs.append({'text': f'📦 移动: {item["old_name"]} → {target_dir}', 'type': 'success'})
-            else:
-                shutil.copy2(str(old_path), str(new_path))
-                logs.append({'text': f'📋 复制: {item["old_name"]} → {target_dir}', 'type': 'success'})
-            stats['processed'] += 1
-            history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
+            
+            try:
+                if action == 'move':
+                    shutil.move(str(old_path), str(new_path))
+                    logs.append({'text': f'📦 移动: {item["old_name"]} → {target_dir}', 'type': 'success'})
+                else:
+                    shutil.copy2(str(old_path), str(new_path))
+                    logs.append({'text': f'📋 复制: {item["old_name"]} → {target_dir}', 'type': 'success'})
+                stats['processed'] += 1
+                history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
+            except Exception as e:
+                logs.append({'text': f'❌ 处理失败: {item["old_name"]} - {str(e)}', 'type': 'error'})
+        
+        stats['message'] = f'成功处理 {stats["processed"]} 个文件'
 
     elif action in ['replace', 'regex', 'prefix', 'suffix', 'remove', 'removepos',
                     'lowercase', 'uppercase', 'capitalize', 'titlecase', 'camelcase', 'extension']:
@@ -426,9 +486,6 @@ def execute():
 
     for h in history:
         rename_history.append(h)
-
-    if len(log_cache) > MAX_LOG_LINES:
-        log_cache.clear()
 
     gc.collect()
 
@@ -545,6 +602,28 @@ def dedup():
                     pass
 
     return jsonify(result)
+
+# ===== 内存状态 =====
+@app.route('/api/memory', methods=['GET'])
+def memory_status():
+    return jsonify({
+        'memory_mb': get_memory_usage(),
+        'history_count': len(rename_history),
+        'cache_count': len(file_cache),
+        'max_history': MAX_HISTORY,
+        'cache_expire_time': CACHE_EXPIRE_TIME
+    })
+
+# ===== 清理内存 =====
+@app.route('/api/cleanup', methods=['POST'])
+def cleanup():
+    file_cache.clear()
+    cache_timestamps.clear()
+    gc.collect()
+    return jsonify({
+        'message': '内存已清理',
+        'memory_mb': get_memory_usage()
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
