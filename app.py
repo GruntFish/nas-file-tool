@@ -31,9 +31,8 @@ def get_tree():
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
 
-    def build_tree(path, depth=0, max_depth=3):
-        if depth > max_depth:
-            return []
+    def build_tree(path):
+        """完整递归，不限制深度"""
         nodes = []
         try:
             for item in sorted(path.iterdir()):
@@ -43,17 +42,14 @@ def get_tree():
                         'path': str(item.relative_to(work_dir)),
                         'is_dir': True,
                         'size': 0,
+                        'children': build_tree(item)
                     }
-                    if depth < max_depth:
-                        node['children'] = build_tree(item, depth + 1, max_depth)
-                    else:
-                        node['children'] = []
                     nodes.append(node)
         except PermissionError:
             pass
         return nodes
 
-    tree = build_tree(target, 0, 3)
+    tree = build_tree(target)
     return jsonify({'tree': tree, 'current': base_path})
 
 # ===== 获取文件列表 =====
