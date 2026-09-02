@@ -6,10 +6,10 @@ RUN apk add --no-cache \
     py3-pip \
     jpegoptim \
     optipng \
-    cwebp \
+    libwebp-tools \
     && rm -rf /var/cache/apk/*
 
-# 用 pip 安装 Flask（Alpine 的 py3-flask 包有问题）
+# 用 pip 安装 Flask
 RUN pip3 install --no-cache-dir flask
 
 WORKDIR /app
