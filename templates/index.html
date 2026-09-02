@@ -42,9 +42,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rename-bar .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
 .rename-bar .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:3px}
 .rename-bar .checkbox-label input[type=checkbox]{accent-color:#667eea;width:12px;height:12px;margin:0}
-.rename-bar .btn-group{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
-.rename-bar .btn-group .sep{color:#2d313e;font-size:14px;padding:0 2px;user-select:none}
-.rename-bar button{background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap;height:24px}
+.rename-bar .btn-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rename-bar .btn-group .sep{color:#2d313e;font-size:14px;padding:0 4px;user-select:none}
+.rename-bar .btn-group .btn-spacer{width:16px;flex-shrink:0}
+.rename-bar button{background:#2d313e;border:0;color:#b5b9c9;padding:2px 12px;border-radius:4px;font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap;height:24px}
 .rename-bar button:hover:not(:disabled){background:#3d4150;color:#e4e6eb}
 .rename-bar button.primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
 .rename-bar button.primary:hover:not(:disabled){opacity:.85}
@@ -53,7 +54,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rename-bar button.undo-btn{background:#f6ad55;color:#1a1d27}
 .rename-bar button.undo-btn:hover:not(:disabled){background:#ed8936}
 .rename-bar button:disabled{opacity:.4;cursor:not-allowed}
-.rename-bar .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:2px 12px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:24px}
+.rename-bar .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:2px 14px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:24px}
 .rename-bar .btn-execute:hover:not(:disabled){opacity:.85}
 .file-list-container{flex:1;overflow:auto;padding:0}
 .file-list-container::-webkit-scrollbar{width:6px;height:6px}
@@ -86,29 +87,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .log-area::-webkit-scrollbar-thumb{background:#2d313e;border-radius:4px}
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
 .modal-overlay.show{display:flex}
-.modal{background:#1a1d27;border-radius:12px;padding:24px;max-width:550px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
-.modal h2{color:#e4e6eb;font-size:17px;margin-bottom:14px}
-.modal h3{color:#8b8fa3;font-size:13px;margin:12px 0 8px}
-.modal hr{border:0;border-top:1px solid #2d313e;margin:12px 0}
-.modal .form-group{margin-bottom:10px}
-.modal .form-group label{display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px}
-.modal .form-group select,.modal .form-group input{width:100%;padding:6px 10px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit}
+.modal{background:#1a1d27;border-radius:12px;padding:20px 24px;max-width:650px;width:92%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
+.modal h2{color:#e4e6eb;font-size:17px;margin-bottom:12px}
+.modal h3{color:#8b8fa3;font-size:13px;margin:10px 0 6px}
+.modal hr{border:0;border-top:1px solid #2d313e;margin:10px 0}
+.modal .form-group{margin-bottom:8px}
+.modal .form-group label{display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:2px}
+.modal .form-group select,.modal .form-group input{width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit}
 .modal .form-group select:focus,.modal .form-group input:focus{border-color:#667eea}
 .modal .form-group input[type=checkbox]{width:auto;accent-color:#667eea}
-.modal .filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.modal .btn-row{display:flex;gap:10px;margin-top:16px}
+.modal .filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.modal .filter-grid .form-group{margin-bottom:0}
+.modal .filter-grid .form-group label{font-size:11px}
+.modal .filter-grid .form-group select,.modal .filter-grid .form-group input{padding:4px 6px;font-size:12px}
+.modal .btn-row{display:flex;gap:10px;margin-top:14px}
 .modal .btn-row button{flex:1;padding:8px;border:0;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
 .modal .btn-row .btn-confirm{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
 .modal .btn-row .btn-confirm:hover{opacity:.85}
 .modal .btn-row .btn-cancel{background:#2d313e;color:#b5b9c9}
 .modal .btn-row .btn-cancel:hover{background:#3d4150}
-.modal .preview-info{background:#14171f;border-radius:6px;padding:8px 12px;margin:6px 0;font-size:12px;color:#b5b9c9}
+.modal .preview-info{background:#14171f;border-radius:6px;padding:6px 10px;margin:4px 0;font-size:12px;color:#b5b9c9}
 .modal .preview-info .matched{color:#68d391}
 .modal .preview-info .total{color:#8b8fa3}
-.modal .preview-list{max-height:150px;overflow-y:auto;background:#14171f;border-radius:6px;padding:6px 10px;margin:6px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
+.modal .preview-list{max-height:120px;overflow-y:auto;background:#14171f;border-radius:6px;padding:4px 8px;margin:4px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
 .modal .preview-list .changed{color:#68d391}
-@media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%}.filter-grid{grid-template-columns:1fr}}
-@media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}}
+@media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%;padding:16px}.modal .filter-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}.modal .filter-grid{grid-template-columns:1fr}}
 .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
@@ -197,14 +201,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <select id="datePos"><option value="prefix">前缀</option><option value="suffix">后缀</option></select>
                 </span>
 
-                <!-- 按钮组：执行重命名 + 其他按钮 -->
+                <!-- 按钮组：执行重命名 + 其他按钮（间距拉开） -->
                 <div class="btn-group">
                     <button class="btn-execute" id="executeRenameBtn">✅ 执行重命名</button>
                     <span class="sep">|</span>
                     <button id="moveCopyBtn" class="primary">📦 移动/复制</button>
+                    <span class="btn-spacer"></span>
                     <button id="dedupBtn" class="danger">🧹 去重</button>
+                    <span class="btn-spacer"></span>
                     <button id="undoBtn" class="undo-btn" disabled>↩ 撤销</button>
-                    <span class="sep">|</span>
+                    <span class="btn-spacer"></span>
                     <button id="cleanupBtn">🧹 清理内存</button>
                 </div>
             </div>
@@ -234,38 +240,47 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
 </div>
 
-<!-- 移动/复制模态框 -->
+<!-- 移动/复制模态框（横向排列） -->
 <div class="modal-overlay" id="moveCopyModal">
     <div class="modal">
         <h2>📦 移动/复制文件</h2>
-        <div style="color:#8b8fa3;font-size:13px;margin-bottom:12px;">
+        <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
             源目录：<strong id="moveSourcePath" style="color:#e4e6eb;">/</strong>
             <span style="color:#4a4e62;margin-left:8px;">（该目录下所有文件）</span>
         </div>
-        <div class="form-group">
-            <label>操作</label>
-            <select id="moveCopyAction">
-                <option value="move">移动</option>
-                <option value="copy">复制</option>
-            </select>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="form-group">
+                <label>操作</label>
+                <select id="moveCopyAction">
+                    <option value="move">移动</option>
+                    <option value="copy">复制</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>覆盖已存在文件</label>
+                <div style="display:flex;align-items:center;height:32px;padding-left:4px;">
+                    <input type="checkbox" id="moveOverwrite">
+                </div>
+            </div>
         </div>
+
         <div class="form-group">
             <label>目标目录</label>
             <div style="display:flex;gap:6px;">
-                <select id="moveTargetSelect" style="flex:1;min-width:120px;">
+                <select id="moveTargetSelect" style="flex:2;min-width:120px;">
                     <option value="">📁 选择已有目录...</option>
                 </select>
                 <input type="text" id="moveTargetInput" placeholder="输入新目录名自动创建" style="flex:1;min-width:100px;">
             </div>
-            <div style="color:#4a4e62;font-size:11px;margin-top:4px;">
+            <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
                 💡 下拉框选择已有目录，或输入新目录名称（自动创建）
             </div>
         </div>
-        <div class="form-group">
-            <label><input type="checkbox" id="moveOverwrite"> 覆盖已存在文件</label>
-        </div>
+
         <hr>
         <h3>📋 过滤条件（可选）</h3>
+
         <div class="filter-grid">
             <div class="form-group"><label>文件名包含</label><input type="text" id="filterNameContains" placeholder="IMG_"></div>
             <div class="form-group"><label>文件名不包含</label><input type="text" id="filterNameNotContains" placeholder="temp"></div>
@@ -275,10 +290,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             <div class="form-group"><label>最大大小(KB)</label><input type="number" id="filterMaxSize" placeholder="10240"></div>
             <div class="form-group"><label>日期(晚于)</label><input type="date" id="filterDateAfter"></div>
             <div class="form-group"><label>日期(早于)</label><input type="date" id="filterDateBefore"></div>
+            <div class="form-group"><label>文件类型</label>
+                <select id="filterFileTypes">
+                    <option value="">全部</option>
+                    <option value="image">图片</option>
+                    <option value="video">视频</option>
+                    <option value="audio">音频</option>
+                    <option value="document">文档</option>
+                    <option value="archive">压缩包</option>
+                </select>
+            </div>
+            <div class="form-group"><label>正则匹配</label><input type="text" id="filterRegex" placeholder="^IMG_.*\.jpg$"></div>
         </div>
-        <div class="form-group"><label>文件类型</label><select id="filterFileTypes"><option value="">全部</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="document">文档</option><option value="archive">压缩包</option></select></div>
-        <div class="form-group"><label>正则</label><input type="text" id="filterRegex" placeholder="^IMG_.*\.jpg$"></div>
-        <div id="filterPreview" style="display:none;"><div class="preview-info" id="filterPreviewInfo"></div></div>
+
+        <div id="filterPreview" style="display:none;margin-top:6px;">
+            <div class="preview-info" id="filterPreviewInfo"></div>
+        </div>
+
         <div class="btn-row">
             <button class="btn-cancel" onclick="closeModal('moveCopyModal')">取消</button>
             <button class="btn-confirm" id="moveCopyConfirmBtn">确认执行</button>
@@ -288,7 +316,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <!-- 去重模态框 -->
 <div class="modal-overlay" id="dedupModal">
-    <div class="modal">
+    <div class="modal" style="max-width:500px;">
         <h2>🧹 文件去重</h2>
         <div class="form-group">
             <label>去重方式</label>
@@ -341,7 +369,6 @@ const fileCountDisplay = document.getElementById('fileCountDisplay');
 const statusLeft = document.getElementById('statusLeft');
 const logArea = document.getElementById('logArea');
 
-// ===== 路径工具函数（不用 Path 对象） =====
 function getFileName(filePath) {
     if (!filePath) return '';
     const parts = filePath.split('/');
@@ -688,7 +715,6 @@ function getAllFilePaths() {
     return paths;
 }
 
-// ===== 实时预览 =====
 function autoPreview() {
     const files = getAllFilePaths();
     const params = getRenameParams();
@@ -724,7 +750,6 @@ function autoPreview() {
     renderFiles(fileList);
 }
 
-// ===== 渲染文件列表 =====
 function renderFiles(files) {
     const tbody = fileTableBody;
     tbody.innerHTML = '';
@@ -791,7 +816,6 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 });
 
-// ===== 重命名操作切换显示参数 =====
 document.getElementById('renameAction').addEventListener('change', function() {
     const action = this.value;
     document.getElementById('findLabel').style.display = 'inline';
@@ -880,7 +904,6 @@ document.getElementById('renameAction').addEventListener('change', function() {
     autoPreview();
 });
 
-// ===== 输入框变化时自动预览 =====
 document.getElementById('findText').addEventListener('input', autoPreview);
 document.getElementById('replaceText').addEventListener('input', autoPreview);
 document.getElementById('caseSensitive').addEventListener('change', autoPreview);
@@ -897,7 +920,6 @@ document.getElementById('dateType').addEventListener('change', autoPreview);
 document.getElementById('dateFormat').addEventListener('change', autoPreview);
 document.getElementById('datePos').addEventListener('change', autoPreview);
 
-// ===== 执行重命名 =====
 document.getElementById('executeRenameBtn').addEventListener('click', async function() {
     const files = getAllFilePaths();
     if (files.length === 0) {
