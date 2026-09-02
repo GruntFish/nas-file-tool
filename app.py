@@ -13,6 +13,11 @@ from collections import deque
 
 app = Flask(__name__)
 
+# ===== 根路由 =====
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 # ===== 内存限制配置 =====
 MAX_HISTORY = 100
 CACHE_EXPIRE_TIME = 300
@@ -66,30 +71,25 @@ def apply_file_filters(file_list, filters):
     for file_path in file_list:
         file_path = Path(file_path)
         
-        # 文件名包含
         if filters.get('name_contains'):
             if filters['name_contains'].lower() not in file_path.name.lower():
                 continue
         
-        # 文件名不包含
         if filters.get('name_not_contains'):
             if filters['name_not_contains'].lower() in file_path.name.lower():
                 continue
         
-        # 扩展名匹配
         ext = file_path.suffix.lower()
         if filters.get('extensions'):
             ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions']]
             if ext not in ext_list:
                 continue
         
-        # 排除扩展名
         if filters.get('extensions_not'):
             ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions_not']]
             if ext in ext_list:
                 continue
         
-        # 文件大小
         try:
             size = file_path.stat().st_size
             if filters.get('min_size') and size < filters['min_size'] * 1024:
@@ -99,7 +99,6 @@ def apply_file_filters(file_list, filters):
         except:
             pass
         
-        # 修改时间
         try:
             mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
             if filters.get('date_after'):
@@ -119,13 +118,11 @@ def apply_file_filters(file_list, filters):
         except:
             pass
         
-        # 文件类型
         if filters.get('file_types'):
             file_type = get_file_type(file_path)
             if file_type != filters['file_types']:
                 continue
         
-        # 正则匹配
         if filters.get('regex'):
             try:
                 if not re.search(filters['regex'], file_path.name):
@@ -137,12 +134,7 @@ def apply_file_filters(file_list, filters):
     
     return filtered
 
-# ===== 根路由 =====
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-# ===== 获取目录树（完整递归） =====
+# ===== 获取目录树（完整递归，不限制深度） =====
 @app.route('/api/tree', methods=['POST'])
 def get_tree():
     data = request.json
@@ -165,6 +157,7 @@ def get_tree():
             return jsonify({'tree': file_cache[cache_key], 'current': base_path, 'cached': True})
 
     def build_tree(path):
+        """完整递归，不限制深度，遍历所有子目录"""
         nodes = []
         try:
             for item in sorted(path.iterdir()):
@@ -433,10 +426,8 @@ def execute():
         target_path = Path(work_dir) / target_dir.lstrip('/')
         target_path.mkdir(parents=True, exist_ok=True)
         
-        # 获取所有文件路径
         all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
         
-        # 应用过滤条件
         if filters and any(filters.values()):
             filtered_paths = apply_file_filters(all_file_paths, filters)
             items_to_process = [f for f in files if str(Path(work_dir) / f['old_path']) in filtered_paths]
@@ -623,6 +614,23 @@ def cleanup():
     return jsonify({
         'message': '内存已清理',
         'memory_mb': get_memory_usage()
+    })
+
+# ===== 过滤预览 =====
+@app.route('/api/filter_preview', methods=['POST'])
+def filter_preview():
+    data = request.json
+    files = data.get('files', [])
+    filters = data.get('filters', {})
+    work_dir = '/data'
+    
+    all_file_paths = [Path(work_dir) / f for f in files]
+    filtered_paths = apply_file_filters(all_file_paths, filters)
+    
+    return jsonify({
+        'total': len(files),
+        'matched': len(filtered_paths),
+        'matched_files': [str(p) for p in filtered_paths]
     })
 
 if __name__ == '__main__':
