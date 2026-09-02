@@ -31,6 +31,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tree-children{padding-left:16px;overflow:hidden}
 .tree-children.collapsed{display:none}
 .content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* 重命名规则栏 */
+.rename-bar{padding:6px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;flex-shrink:0}
+.rename-bar select,.rename-bar input{background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:4px 8px;font-size:12px;outline:0;font-family:inherit;height:28px}
+.rename-bar select:focus,.rename-bar input:focus{border-color:#667eea}
+.rename-bar input[type=text]{min-width:80px}
+.rename-bar input[type=number]{width:50px}
+.rename-bar .btn{background:linear-gradient(135deg,#48bb78,#38a169);border:0;color:#fff;padding:4px 14px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:28px}
+.rename-bar .btn:hover:not(:disabled){opacity:.85}
+.rename-bar .btn:disabled{opacity:.4;cursor:not-allowed}
+.rename-bar .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2)}
+.rename-bar .btn-execute:hover:not(:disabled){opacity:.85}
+.rename-bar .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
+.rename-bar .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:4px}
+.rename-bar .checkbox-label input[type=checkbox]{accent-color:#667eea;width:14px;height:14px;margin:0}
+
 .toolbar{padding:6px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex-shrink:0}
 .toolbar .path-display{color:#8b8fa3;font-size:12px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toolbar .path-display strong{color:#e4e6eb}
@@ -44,6 +60,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .toolbar .actions button:disabled{opacity:.4;cursor:not-allowed}
 .toolbar .actions button.undo-btn{background:#f6ad55;color:#1a1d27}
 .toolbar .actions button.undo-btn:hover:not(:disabled){background:#ed8936}
+
 .file-list-container{flex:1;overflow:auto;padding:0}
 .file-list-container::-webkit-scrollbar{width:6px;height:6px}
 .file-list-container::-webkit-scrollbar-track{background:#14171f}
@@ -77,6 +94,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .log-area::-webkit-scrollbar{width:4px}
 .log-area::-webkit-scrollbar-track{background:#14171f}
 .log-area::-webkit-scrollbar-thumb{background:#2d313e;border-radius:4px}
+
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
 .modal-overlay.show{display:flex}
 .modal{background:#1a1d27;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
@@ -98,6 +116,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .modal .preview-info{background:#14171f;border-radius:6px;padding:8px 12px;margin:6px 0;font-size:12px;color:#b5b9c9}
 .modal .preview-info .matched{color:#68d391}
 .modal .preview-info .total{color:#8b8fa3}
+.modal .preview-list{max-height:200px;overflow-y:auto;background:#14171f;border-radius:6px;padding:6px 10px;margin:6px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
+.modal .preview-list .changed{color:#68d391}
+
 @media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%}.filter-grid{grid-template-columns:1fr}}
 @media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}}
 .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
@@ -112,6 +133,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <div class="header-actions"><span class="badge">🔄 本地处理 · 隐私安全</span></div>
     </div>
     <div class="main">
+        <!-- 左侧目录树 -->
         <div class="sidebar">
             <div class="sidebar-header">
                 📁 目录树
@@ -123,11 +145,79 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 </div>
             </div>
         </div>
+
+        <!-- 右侧内容 -->
         <div class="content">
+            <!-- 重命名规则栏 -->
+            <div class="rename-bar" id="renameBar">
+                <span class="label">操作</span>
+                <select id="renameAction">
+                    <option value="replace">替换</option>
+                    <option value="regex">正则替换</option>
+                    <option value="prefix">添加前缀</option>
+                    <option value="suffix">添加后缀</option>
+                    <option value="number">编号</option>
+                    <option value="lowercase">转小写</option>
+                    <option value="uppercase">转大写</option>
+                    <option value="capitalize">首字母大写</option>
+                    <option value="titlecase">标题大小写</option>
+                    <option value="camelcase">驼峰式</option>
+                    <option value="extension">扩展名</option>
+                    <option value="remove">删除字符</option>
+                    <option value="removepos">按位置删除</option>
+                    <option value="date">添加日期</option>
+                </select>
+
+                <span id="findLabel" class="label">查找</span>
+                <input type="text" id="findText" placeholder="查找">
+                <span id="replaceLabel" class="label">替换为</span>
+                <input type="text" id="replaceText" placeholder="替换为">
+                <label class="checkbox-label"><input type="checkbox" id="caseSensitive"> 大小写敏感</label>
+
+                <!-- 编号参数 -->
+                <span id="numParams" style="display:none;">
+                    <span class="label">起始</span>
+                    <input type="number" id="startNum" value="1">
+                    <span class="label">步长</span>
+                    <input type="number" id="stepNum" value="1">
+                    <span class="label">位数</span>
+                    <input type="number" id="digitsNum" value="2">
+                    <span class="label">位置</span>
+                    <select id="numberPos"><option value="suffix">后缀</option><option value="prefix">前缀</option></select>
+                </span>
+
+                <!-- 扩展名参数 -->
+                <span id="extParams" style="display:none;">
+                    <select id="extAction"><option value="change">更改</option><option value="add">添加</option><option value="remove">删除</option><option value="replace">替换</option></select>
+                    <input type="text" id="extValue" placeholder="新扩展名">
+                </span>
+
+                <!-- 按位置删除参数 -->
+                <span id="removePosParams" style="display:none;">
+                    <span class="label">起始</span>
+                    <input type="number" id="removeStart" value="1">
+                    <span class="label">长度</span>
+                    <input type="number" id="removeLen" value="1">
+                    <label class="checkbox-label"><input type="checkbox" id="removeFromEnd"> 从末尾</label>
+                </span>
+
+                <!-- 日期参数 -->
+                <span id="dateParams" style="display:none;">
+                    <select id="dateType"><option value="created">创建日期</option><option value="modified">修改日期</option><option value="custom">自定义</option></select>
+                    <select id="dateFormat"><option value="YYYY-MM-DD">2024-01-15</option><option value="YYYYMMDD">20240115</option><option value="YYMMDD">240115</option></select>
+                    <select id="datePos"><option value="prefix">前缀</option><option value="suffix">后缀</option></select>
+                </span>
+
+                <button class="btn" id="previewRenameBtn" disabled>🔄 预览</button>
+                <button class="btn btn-execute" id="executeRenameBtn" disabled>✅ 执行</button>
+            </div>
+
+            <!-- 工具栏 -->
             <div class="toolbar">
                 <div class="path-display">
                     📂 <strong id="currentPathDisplay">/</strong>
                     <span id="fileCountDisplay" style="margin-left:12px;color:#4a4e62;">0 项</span>
+                    <span id="selectedInfo" style="margin-left:12px;color:#667eea;"></span>
                 </div>
                 <div class="actions">
                     <button id="refreshBtn">⟳ 刷新</button>
@@ -139,6 +229,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <button id="cleanupBtn">🧹 清理</button>
                 </div>
             </div>
+
+            <!-- 文件列表 -->
             <div class="file-list-container" id="fileListContainer">
                 <table class="file-table">
                     <thead><tr>
@@ -155,6 +247,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     </tbody>
                 </table>
             </div>
+
             <div class="log-area" id="logArea"></div>
         </div>
     </div>
@@ -201,6 +294,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
 </div>
 
+<!-- 重命名预览模态框 -->
+<div class="modal-overlay" id="renamePreviewModal">
+    <div class="modal">
+        <h2>🔄 重命名预览</h2>
+        <div id="renamePreviewList" class="preview-list"></div>
+        <div class="btn-row">
+            <button class="btn-cancel" onclick="closeModal('renamePreviewModal')">取消</button>
+            <button class="btn-confirm" id="renamePreviewConfirmBtn">确认执行</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let currentPath = '/';
 let selectedFiles = new Set();
@@ -208,6 +313,7 @@ let fileList = [];
 let renamePreview = {};
 let renameHistory = [];
 let fullTreeData = [];
+let pendingRenameFiles = [];
 
 const treeContainer = document.getElementById('treeContainer');
 const fileTableBody = document.getElementById('fileTableBody');
@@ -215,6 +321,7 @@ const currentPathDisplay = document.getElementById('currentPathDisplay');
 const fileCountDisplay = document.getElementById('fileCountDisplay');
 const statusLeft = document.getElementById('statusLeft');
 const logArea = document.getElementById('logArea');
+const selectedInfo = document.getElementById('selectedInfo');
 
 async function apiCall(endpoint, data) {
     const res = await fetch(endpoint, {
@@ -230,7 +337,7 @@ async function fetchFiles(path) { return apiCall('/api/files', { path }); }
 async function undoRename() { return apiCall('/api/undo', {}); }
 async function dedupFiles(data) { return apiCall('/api/dedup', data); }
 
-// ===== 渲染目录树（完整递归，一次性加载全部） =====
+// ===== 渲染目录树 =====
 function renderTree(nodes, container) {
     container.innerHTML = '';
     if (!nodes || nodes.length === 0) {
@@ -276,7 +383,7 @@ function renderTree(nodes, container) {
     });
 }
 
-// ===== 只加载文件列表，不刷新目录树 =====
+// ===== 加载文件列表 =====
 async function loadFiles(path) {
     currentPath = path;
     currentPathDisplay.textContent = path;
@@ -286,7 +393,6 @@ async function loadFiles(path) {
         if (result.error) throw new Error(result.error);
         fileList = result.files || [];
         renderFiles(fileList);
-        // 更新目录树高亮
         updateTreeHighlight(path);
         statusLeft.textContent = '📂 ' + path;
     } catch (err) {
@@ -301,7 +407,6 @@ function updateTreeHighlight(path) {
     let currentContainer = treeContainer;
     for (let i = 0; i < parts.length; i++) {
         const items = currentContainer.querySelectorAll(':scope > .tree-item');
-        let found = false;
         for (let item of items) {
             const nameEl = item.querySelector('.name');
             if (nameEl && nameEl.textContent === parts[i]) {
@@ -313,15 +418,13 @@ function updateTreeHighlight(path) {
                     if (arrow) arrow.classList.add('open');
                     currentContainer = childContainer;
                 }
-                found = true;
                 break;
             }
         }
-        if (!found) break;
     }
 }
 
-// ===== 初始化：加载完整目录树 =====
+// ===== 初始化目录树 =====
 async function initTree() {
     try {
         const result = await fetchTree('/');
@@ -334,7 +437,6 @@ async function initTree() {
     }
 }
 
-// ===== 导航：只切换文件列表 =====
 async function navigateTo(path) {
     await loadFiles(path);
 }
@@ -346,6 +448,7 @@ function renderFiles(files) {
     if (!files || files.length === 0) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="7">📭 此目录为空</td></tr>';
         fileCountDisplay.textContent = '0 项';
+        updateButtons();
         return;
     }
     fileList = files;
@@ -387,7 +490,11 @@ function renderFiles(files) {
 }
 
 function updateButtons() {
-    const hasSelected = selectedFiles.size > 0;
+    const count = selectedFiles.size;
+    const hasSelected = count > 0;
+    selectedInfo.textContent = hasSelected ? '✅ 已选 ' + count + ' 个' : '';
+    document.getElementById('previewRenameBtn').disabled = !hasSelected;
+    document.getElementById('executeRenameBtn').disabled = !hasSelected;
     document.getElementById('moveCopyBtn').disabled = !hasSelected;
     document.getElementById('dedupBtn').disabled = !hasSelected;
     document.getElementById('undoBtn').disabled = renameHistory.length === 0;
@@ -422,6 +529,246 @@ function openModal(id) { document.getElementById(id).classList.add('show'); }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+});
+
+// ===== 重命名操作切换显示参数 =====
+document.getElementById('renameAction').addEventListener('change', function() {
+    const action = this.value;
+    document.getElementById('findLabel').style.display = 'inline';
+    document.getElementById('findText').style.display = 'inline';
+    document.getElementById('replaceLabel').style.display = 'inline';
+    document.getElementById('replaceText').style.display = 'inline';
+    document.getElementById('caseSensitive').parentElement.style.display = 'inline-flex';
+    document.getElementById('numParams').style.display = 'none';
+    document.getElementById('extParams').style.display = 'none';
+    document.getElementById('removePosParams').style.display = 'none';
+    document.getElementById('dateParams').style.display = 'none';
+
+    switch(action) {
+        case 'number':
+            document.getElementById('numParams').style.display = 'inline';
+            document.getElementById('findLabel').style.display = 'none';
+            document.getElementById('findText').style.display = 'none';
+            document.getElementById('replaceLabel').style.display = 'none';
+            document.getElementById('replaceText').style.display = 'none';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        case 'extension':
+            document.getElementById('extParams').style.display = 'inline';
+            document.getElementById('findLabel').style.display = 'none';
+            document.getElementById('findText').style.display = 'none';
+            document.getElementById('replaceLabel').style.display = 'none';
+            document.getElementById('replaceText').style.display = 'none';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        case 'removepos':
+            document.getElementById('removePosParams').style.display = 'inline';
+            document.getElementById('findLabel').style.display = 'none';
+            document.getElementById('findText').style.display = 'none';
+            document.getElementById('replaceLabel').style.display = 'none';
+            document.getElementById('replaceText').style.display = 'none';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        case 'date':
+            document.getElementById('dateParams').style.display = 'inline';
+            document.getElementById('findLabel').style.display = 'none';
+            document.getElementById('findText').style.display = 'none';
+            document.getElementById('replaceLabel').style.display = 'none';
+            document.getElementById('replaceText').style.display = 'none';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        case 'prefix':
+            document.getElementById('findLabel').style.display = 'none';
+            document.getElementById('findText').style.display = 'none';
+            document.getElementById('replaceLabel').textContent = '前缀';
+            document.getElementById('replaceText').placeholder = '输入前缀...';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        case 'suffix':
+            document.getElementById('findLabel').style.display = 'none';
+            document.getElementById('findText').style.display = 'none';
+            document.getElementById('replaceLabel').textContent = '后缀';
+            document.getElementById('replaceText').placeholder = '输入后缀...';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        case 'remove':
+            document.getElementById('replaceLabel').style.display = 'none';
+            document.getElementById('replaceText').style.display = 'none';
+            document.getElementById('findLabel').textContent = '删除';
+            document.getElementById('findText').placeholder = '要删除的字符...';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        case 'lowercase':
+        case 'uppercase':
+        case 'capitalize':
+        case 'titlecase':
+        case 'camelcase':
+            document.getElementById('findLabel').style.display = 'none';
+            document.getElementById('findText').style.display = 'none';
+            document.getElementById('replaceLabel').style.display = 'none';
+            document.getElementById('replaceText').style.display = 'none';
+            document.getElementById('caseSensitive').parentElement.style.display = 'none';
+            break;
+        default:
+            document.getElementById('findLabel').textContent = '查找';
+            document.getElementById('findText').placeholder = '查找';
+            document.getElementById('replaceLabel').textContent = '替换为';
+            document.getElementById('replaceText').placeholder = '替换为';
+            document.getElementById('caseSensitive').parentElement.style.display = 'inline-flex';
+            break;
+    }
+});
+document.getElementById('renameAction').dispatchEvent(new Event('change'));
+
+// ===== 获取重命名参数 =====
+function getRenameParams() {
+    const action = document.getElementById('renameAction').value;
+    const params = { action };
+    switch(action) {
+        case 'replace':
+        case 'regex':
+            params.find = document.getElementById('findText').value || '';
+            params.replace = document.getElementById('replaceText').value || '';
+            params.case_sensitive = document.getElementById('caseSensitive').checked;
+            break;
+        case 'prefix':
+        case 'suffix':
+            params.replace = document.getElementById('replaceText').value || '';
+            break;
+        case 'remove':
+            params.find = document.getElementById('findText').value || '';
+            break;
+        case 'number':
+            params.start = parseInt(document.getElementById('startNum').value) || 1;
+            params.step = parseInt(document.getElementById('stepNum').value) || 1;
+            params.digits = parseInt(document.getElementById('digitsNum').value) || 2;
+            params.position = document.getElementById('numberPos').value;
+            break;
+        case 'extension':
+            params.ext_action = document.getElementById('extAction').value;
+            params.ext_value = document.getElementById('extValue').value || '';
+            break;
+        case 'removepos':
+            params.start = parseInt(document.getElementById('removeStart').value) || 1;
+            params.length = parseInt(document.getElementById('removeLen').value) || 1;
+            params.from_end = document.getElementById('removeFromEnd').checked;
+            break;
+        case 'date':
+            params.date_type = document.getElementById('dateType').value;
+            params.date_format = document.getElementById('dateFormat').value;
+            params.date_pos = document.getElementById('datePos').value;
+            break;
+        case 'lowercase':
+        case 'uppercase':
+        case 'capitalize':
+        case 'titlecase':
+        case 'camelcase':
+            break;
+    }
+    return params;
+}
+
+// ===== 预览重命名 =====
+document.getElementById('previewRenameBtn').addEventListener('click', async function() {
+    const files = Array.from(selectedFiles);
+    if (files.length === 0) return;
+    const params = getRenameParams();
+    params.files = files;
+
+    try {
+        const result = await apiCall('/api/preview', params);
+        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+
+        const list = document.getElementById('renamePreviewList');
+        list.innerHTML = '';
+        pendingRenameFiles = [];
+
+        if (result.files && result.files.length > 0) {
+            result.files.forEach(f => {
+                const div = document.createElement('div');
+                div.className = 'changed';
+                div.textContent = f.old_name + '  →  ' + f.new_name;
+                list.appendChild(div);
+                pendingRenameFiles.push(f);
+            });
+            document.getElementById('renamePreviewConfirmBtn').disabled = false;
+        } else {
+            list.innerHTML = '<div style="color:#4a4e62;">没有文件需要修改</div>';
+            document.getElementById('renamePreviewConfirmBtn').disabled = true;
+        }
+        openModal('renamePreviewModal');
+    } catch(e) {
+        showLog('❌ ' + e.message, 'error');
+    }
+});
+
+// ===== 确认执行重命名 =====
+document.getElementById('renamePreviewConfirmBtn').addEventListener('click', async function() {
+    if (pendingRenameFiles.length === 0) return;
+    closeModal('renamePreviewModal');
+    clearLog();
+    showLog('⏳ 开始重命名 ' + pendingRenameFiles.length + ' 个文件...', 'info');
+
+    try {
+        const result = await apiCall('/api/execute', {
+            action: document.getElementById('renameAction').value,
+            files: pendingRenameFiles,
+            ...getRenameParams()
+        });
+        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+        if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+        if (result.stats) showLog('✅ ' + result.stats.message, 'success');
+        if (result.history && result.history.length > 0) {
+            renameHistory.push(...result.history);
+            document.getElementById('undoBtn').disabled = false;
+        }
+        renamePreview = {};
+        pendingRenameFiles = [];
+        selectedFiles.clear();
+        await loadFiles(currentPath);
+    } catch(e) {
+        showLog('❌ ' + e.message, 'error');
+    }
+});
+
+// ===== 执行重命名（直接执行，跳过预览） =====
+document.getElementById('executeRenameBtn').addEventListener('click', async function() {
+    const files = Array.from(selectedFiles);
+    if (files.length === 0) return;
+    const params = getRenameParams();
+    params.files = files;
+
+    // 先预览获取结果
+    try {
+        const previewResult = await apiCall('/api/preview', params);
+        if (previewResult.error) { showLog('❌ ' + previewResult.error, 'error'); return; }
+        if (!previewResult.files || previewResult.files.length === 0) {
+            showLog('⚠️ 没有文件需要修改', 'warning');
+            return;
+        }
+        if (!confirm('确定要重命名 ' + previewResult.files.length + ' 个文件吗？')) return;
+
+        clearLog();
+        showLog('⏳ 开始重命名 ' + previewResult.files.length + ' 个文件...', 'info');
+
+        const result = await apiCall('/api/execute', {
+            action: document.getElementById('renameAction').value,
+            files: previewResult.files,
+            ...getRenameParams()
+        });
+        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+        if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+        if (result.stats) showLog('✅ ' + result.stats.message, 'success');
+        if (result.history && result.history.length > 0) {
+            renameHistory.push(...result.history);
+            document.getElementById('undoBtn').disabled = false;
+        }
+        renamePreview = {};
+        selectedFiles.clear();
+        await loadFiles(currentPath);
+    } catch(e) {
+        showLog('❌ ' + e.message, 'error');
+    }
 });
 
 // ===== 按钮事件 =====
@@ -477,8 +824,7 @@ document.getElementById('moveCopyConfirmBtn').addEventListener('click', async fu
     closeModal('moveCopyModal');
     clearLog();
     const filters = getFilters();
-    const hasFilters = Object.keys(filters).length > 0;
-    if (hasFilters) showLog('📋 应用过滤条件...', 'info');
+    if (Object.keys(filters).length > 0) showLog('📋 应用过滤条件...', 'info');
     showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件...', 'info');
     try {
         const result = await apiCall('/api/execute', {
@@ -516,7 +862,6 @@ function getFilters() {
     return filters;
 }
 
-// 过滤预览
 document.querySelectorAll('#moveCopyModal input, #moveCopyModal select').forEach(el => {
     el.addEventListener('input', previewFilter);
     el.addEventListener('change', previewFilter);
