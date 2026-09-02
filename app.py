@@ -4,18 +4,110 @@ import re
 import hashlib
 import subprocess
 import shutil
+import gc
+import threading
+import time
 from pathlib import Path
 from datetime import datetime
+from collections import deque
 
 app = Flask(__name__)
 
+# ===== 内存限制配置 =====
+MAX_HISTORY = 100
+MAX_LOG_LINES = 200
+CACHE_EXPIRE_TIME = 300
+AUTO_CLEANUP_INTERVAL = 3600  # 自动清理间隔（秒），默认1小时
+
+# ===== 全局变量 =====
+rename_history = deque(maxlen=MAX_HISTORY)
+log_cache = deque(maxlen=MAX_LOG_LINES)
+file_cache = {}
+cache_timestamps = {}
+last_cleanup_time = datetime.now()
+
+# ===== 获取内存使用 =====
+def get_memory_usage():
+    try:
+        import psutil
+        process = psutil.Process(os.getpid())
+        return round(process.memory_info().rss / 1024 / 1024, 2)
+    except:
+        return 0
+
+# ===== 自动清理函数 =====
+def auto_cleanup():
+    """自动清理内存（后台线程运行）"""
+    global file_cache, cache_timestamps, log_cache, last_cleanup_time
+    
+    while True:
+        try:
+            time.sleep(AUTO_CLEANUP_INTERVAL)
+            
+            # 清理文件缓存
+            file_cache.clear()
+            cache_timestamps.clear()
+            
+            # 清理日志缓存
+            log_cache.clear()
+            
+            # 强制垃圾回收
+            gc.collect()
+            
+            last_cleanup_time = datetime.now()
+            memory_usage = get_memory_usage()
+            
+            print(f"[自动清理] 内存已清理，当前使用: {memory_usage}MB, 时间: {last_cleanup_time}")
+            
+        except Exception as e:
+            print(f"[自动清理] 错误: {e}")
+
+# ===== 启动后台清理线程 =====
+cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
+cleanup_thread.start()
+
+# ===== 根路由 =====
 @app.route('/')
 def index():
     return render_template('index.html')
 
-rename_history = []
+# ===== 手动清理内存 =====
+@app.route('/api/cleanup', methods=['POST'])
+def cleanup():
+    global file_cache, cache_timestamps, log_cache, last_cleanup_time
+    
+    file_cache.clear()
+    cache_timestamps.clear()
+    log_cache.clear()
+    gc.collect()
+    
+    last_cleanup_time = datetime.now()
+    memory_usage = get_memory_usage()
+    
+    return jsonify({
+        'message': '内存已清理',
+        'memory_mb': memory_usage,
+        'history_count': len(rename_history),
+        'cache_count': len(file_cache),
+        'last_cleanup': last_cleanup_time.strftime('%Y-%m-%d %H:%M:%S')
+    })
 
-# ===== 获取目录树 =====
+# ===== 内存状态监控 =====
+@app.route('/api/memory', methods=['GET'])
+def memory_status():
+    """查看内存使用状态"""
+    return jsonify({
+        'memory_mb': get_memory_usage(),
+        'history_count': len(rename_history),
+        'cache_count': len(file_cache),
+        'max_history': MAX_HISTORY,
+        'max_log_lines': MAX_LOG_LINES,
+        'cache_expire_time': CACHE_EXPIRE_TIME,
+        'auto_cleanup_interval': AUTO_CLEANUP_INTERVAL,
+        'last_cleanup_time': last_cleanup_time.strftime('%Y-%m-%d %H:%M:%S') if last_cleanup_time else '从未'
+    })
+
+# ===== 获取目录树（带缓存） =====
 @app.route('/api/tree', methods=['POST'])
 def get_tree():
     data = request.json
@@ -31,8 +123,15 @@ def get_tree():
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
 
-    def build_tree(path):
-        """完整递归，不限制深度"""
+    cache_key = f"tree_{base_path}"
+    if cache_key in file_cache:
+        cached_time = cache_timestamps.get(cache_key, 0)
+        if (datetime.now().timestamp() - cached_time) < CACHE_EXPIRE_TIME:
+            return jsonify({'tree': file_cache[cache_key], 'current': base_path, 'cached': True})
+
+    def build_tree(path, max_depth=5):
+        if max_depth <= 0:
+            return []
         nodes = []
         try:
             for item in sorted(path.iterdir()):
@@ -42,17 +141,21 @@ def get_tree():
                         'path': str(item.relative_to(work_dir)),
                         'is_dir': True,
                         'size': 0,
-                        'children': build_tree(item)
+                        'children': build_tree(item, max_depth - 1)
                     }
                     nodes.append(node)
         except PermissionError:
             pass
         return nodes
 
-    tree = build_tree(target)
-    return jsonify({'tree': tree, 'current': base_path})
+    tree = build_tree(target, max_depth=5)
+    
+    file_cache[cache_key] = tree
+    cache_timestamps[cache_key] = datetime.now().timestamp()
+    
+    return jsonify({'tree': tree, 'current': base_path, 'cached': False})
 
-# ===== 获取文件列表 =====
+# ===== 获取文件列表（带缓存） =====
 @app.route('/api/files', methods=['POST'])
 def get_files():
     data = request.json
@@ -67,6 +170,12 @@ def get_files():
 
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
+
+    cache_key = f"files_{base_path}"
+    if cache_key in file_cache:
+        cached_time = cache_timestamps.get(cache_key, 0)
+        if (datetime.now().timestamp() - cached_time) < CACHE_EXPIRE_TIME:
+            return jsonify({'files': file_cache[cache_key], 'current': base_path, 'cached': True})
 
     files = []
     try:
@@ -85,7 +194,10 @@ def get_files():
     except PermissionError:
         pass
 
-    return jsonify({'files': files, 'current': base_path})
+    file_cache[cache_key] = files
+    cache_timestamps[cache_key] = datetime.now().timestamp()
+
+    return jsonify({'files': files, 'current': base_path, 'cached': False})
 
 # ===== 预览重命名 =====
 @app.route('/api/preview', methods=['POST'])
@@ -224,6 +336,10 @@ def execute():
     stats = {'processed': 0, 'message': '成功'}
     history = []
 
+    MAX_FILES_PER_OPERATION = 500
+    if len(files) > MAX_FILES_PER_OPERATION:
+        return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
+
     if action in ['number', 'date']:
         all_files = data.get('all_files', [])
         if not all_files:
@@ -308,8 +424,14 @@ def execute():
     else:
         return jsonify({'error': f'未知操作: {action}'}), 400
 
-    global rename_history
-    rename_history.extend(history)
+    for h in history:
+        rename_history.append(h)
+
+    if len(log_cache) > MAX_LOG_LINES:
+        log_cache.clear()
+
+    gc.collect()
+
     stats['message'] = f'成功处理 {stats["processed"]} 个文件'
     return jsonify({'logs': logs, 'stats': stats, 'history': history})
 
