@@ -9,7 +9,10 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# ===== 全局变量：撤销历史 =====
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 rename_history = []
 
 # ===== 获取目录树 =====
