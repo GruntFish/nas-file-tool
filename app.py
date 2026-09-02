@@ -13,33 +13,23 @@ from collections import deque
 
 app = Flask(__name__)
 
-# ===== 根路由 =====
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# ===== 内存限制配置 =====
 MAX_HISTORY = 100
-CACHE_EXPIRE_TIME = 300
 
-# ===== 全局变量 =====
 rename_history = deque(maxlen=MAX_HISTORY)
-file_cache = {}
-cache_timestamps = {}
 
-# ===== 定时自动清理（2小时） =====
 def auto_cleanup():
     while True:
         time.sleep(7200)
-        file_cache.clear()
-        cache_timestamps.clear()
         gc.collect()
-        print(f"[自动清理] 内存已清理，时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f'[自动清理] 内存已清理，时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
 cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
 cleanup_thread.start()
 
-# ===== 获取内存使用 =====
 def get_memory_usage():
     try:
         import psutil
@@ -48,7 +38,6 @@ def get_memory_usage():
     except:
         return 0
 
-# ===== 文件类型判断 =====
 def get_file_type(file_path):
     ext = file_path.suffix.lower()
     image_exts = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif'}
@@ -56,7 +45,6 @@ def get_file_type(file_path):
     audio_exts = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a'}
     doc_exts = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf', '.md'}
     archive_exts = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'}
-    
     if ext in image_exts: return 'image'
     if ext in video_exts: return 'video'
     if ext in audio_exts: return 'audio'
@@ -64,32 +52,25 @@ def get_file_type(file_path):
     if ext in archive_exts: return 'archive'
     return 'other'
 
-# ===== 文件过滤函数 =====
 def apply_file_filters(file_list, filters):
     filtered = []
-    
     for file_path in file_list:
         file_path = Path(file_path)
-        
         if filters.get('name_contains'):
             if filters['name_contains'].lower() not in file_path.name.lower():
                 continue
-        
         if filters.get('name_not_contains'):
             if filters['name_not_contains'].lower() in file_path.name.lower():
                 continue
-        
         ext = file_path.suffix.lower()
         if filters.get('extensions'):
             ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions']]
             if ext not in ext_list:
                 continue
-        
         if filters.get('extensions_not'):
             ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions_not']]
             if ext in ext_list:
                 continue
-        
         try:
             size = file_path.stat().st_size
             if filters.get('min_size') and size < filters['min_size'] * 1024:
@@ -98,7 +79,6 @@ def apply_file_filters(file_list, filters):
                 continue
         except:
             pass
-        
         try:
             mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
             if filters.get('date_after'):
@@ -117,45 +97,32 @@ def apply_file_filters(file_list, filters):
                     pass
         except:
             pass
-        
         if filters.get('file_types'):
             file_type = get_file_type(file_path)
             if file_type != filters['file_types']:
                 continue
-        
         if filters.get('regex'):
             try:
                 if not re.search(filters['regex'], file_path.name):
                     continue
             except:
                 pass
-        
         filtered.append(str(file_path))
-    
     return filtered
 
-# ===== 获取目录树 =====
 @app.route('/api/tree', methods=['POST'])
 def get_tree():
     data = request.json
     base_path = data.get('path', '/')
     work_dir = '/data'
-
     if base_path == '/':
         target = Path(work_dir)
     else:
         clean = base_path.lstrip('/')
         target = Path(work_dir) / clean
-
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
-
-    cache_key = f"tree_{base_path}"
-    if cache_key in file_cache:
-        cached_time = cache_timestamps.get(cache_key, 0)
-        if (datetime.now().timestamp() - cached_time) < CACHE_EXPIRE_TIME:
-            return jsonify({'tree': file_cache[cache_key], 'current': base_path, 'cached': True})
-
+    
     def build_tree(path):
         nodes = []
         try:
@@ -172,36 +139,23 @@ def get_tree():
         except PermissionError:
             pass
         return nodes
-
     tree = build_tree(target)
-    
-    file_cache[cache_key] = tree
-    cache_timestamps[cache_key] = datetime.now().timestamp()
-    
-    return jsonify({'tree': tree, 'current': base_path, 'cached': False})
+    return jsonify({'tree': tree, 'current': base_path})
 
-# ===== 获取文件列表 =====
 @app.route('/api/files', methods=['POST'])
 def get_files():
     data = request.json
     base_path = data.get('path', '/')
     work_dir = '/data'
-
     if base_path == '/':
         target = Path(work_dir)
     else:
         clean = base_path.lstrip('/')
         target = Path(work_dir) / clean
-
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
-
-    cache_key = f"files_{base_path}"
-    if cache_key in file_cache:
-        cached_time = cache_timestamps.get(cache_key, 0)
-        if (datetime.now().timestamp() - cached_time) < CACHE_EXPIRE_TIME:
-            return jsonify({'files': file_cache[cache_key], 'current': base_path, 'cached': True})
-
+    
+    # 每次实时读取目录，不使用缓存
     files = []
     try:
         for item in target.iterdir():
@@ -218,32 +172,22 @@ def get_files():
                 pass
     except PermissionError:
         pass
+    return jsonify({'files': files, 'current': base_path})
 
-    file_cache[cache_key] = files
-    cache_timestamps[cache_key] = datetime.now().timestamp()
-
-    return jsonify({'files': files, 'current': base_path, 'cached': False})
-
-# ===== 预览重命名 =====
 @app.route('/api/preview', methods=['POST'])
 def preview():
     data = request.json
     action = data.get('action')
     files = data.get('files', [])
-    work_dir = '/data'
-
     results = []
-
     for file_path in files:
         old_name = Path(file_path).name
         new_name = old_name
-
         try:
             new_name = apply_rename_action(old_name, action, data)
         except Exception as e:
             print(f'Error processing {old_name}: {e}')
             new_name = old_name
-
         if new_name != old_name:
             results.append({
                 'old_path': file_path,
@@ -251,12 +195,10 @@ def preview():
                 'old_name': old_name,
                 'new_name': new_name,
             })
-
     return jsonify({'files': results})
 
 def apply_rename_action(old_name, action, data):
     name, ext = os.path.splitext(old_name)
-
     if action == 'replace':
         find_str = data.get('find', '')
         replace_str = data.get('replace', '')
@@ -267,7 +209,6 @@ def apply_rename_action(old_name, action, data):
                 new_name = old_name.lower().replace(find_str.lower(), replace_str)
         else:
             new_name = old_name
-
     elif action == 'regex':
         find_str = data.get('find', '')
         replace_str = data.get('replace', '')
@@ -279,20 +220,16 @@ def apply_rename_action(old_name, action, data):
                 new_name = old_name
         else:
             new_name = old_name
-
     elif action == 'prefix':
         prefix = data.get('replace', '')
         new_name = prefix + old_name
-
     elif action == 'suffix':
         suffix = data.get('replace', '')
         new_name = name + suffix + ext
-
     elif action == 'remove':
         remove_str = data.get('find', '')
         if remove_str:
             new_name = old_name.replace(remove_str, '')
-
     elif action == 'removepos':
         start = data.get('start', 1) - 1
         length = data.get('length', 1)
@@ -303,26 +240,20 @@ def apply_rename_action(old_name, action, data):
             new_name = name[:start] + name[start+length:] + ext
         else:
             new_name = old_name
-
     elif action == 'lowercase':
         new_name = old_name.lower()
-
     elif action == 'uppercase':
         new_name = old_name.upper()
-
     elif action == 'capitalize':
         new_name = name.capitalize() + ext
-
     elif action == 'titlecase':
         new_name = name.title() + ext
-
     elif action == 'camelcase':
         parts = name.replace('_', ' ').replace('-', ' ').split()
         if parts:
             new_name = parts[0].lower() + ''.join(p.title() for p in parts[1:]) + ext
         else:
             new_name = old_name
-
     elif action == 'extension':
         ext_action = data.get('ext_action', '')
         ext_value = data.get('ext_value', '')
@@ -334,22 +265,16 @@ def apply_rename_action(old_name, action, data):
             new_name = name
         elif ext_action == 'replace':
             new_name = name + '.' + ext_value if ext_value else name
-
     elif action == 'number':
         new_name = old_name
-
     elif action == 'date':
         new_name = old_name
-
     elif action == 'move' or action == 'copy':
         new_name = old_name
-
     else:
         new_name = old_name
-
     return new_name
 
-# ===== 执行操作 =====
 @app.route('/api/execute', methods=['POST'])
 def execute():
     data = request.json
@@ -494,7 +419,6 @@ def execute():
         print(f'execute error: {error_msg}')
         return jsonify({'error': str(e), 'trace': error_msg}), 500
 
-# ===== 撤销 =====
 @app.route('/api/undo', methods=['POST'])
 def undo():
     global rename_history
@@ -512,7 +436,6 @@ def undo():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ===== 去重 =====
 @app.route('/api/dedup', methods=['POST'])
 def dedup():
     data = request.json
@@ -605,29 +528,22 @@ def dedup():
 
     return jsonify(result)
 
-# ===== 内存状态 =====
 @app.route('/api/memory', methods=['GET'])
 def memory_status():
     return jsonify({
         'memory_mb': get_memory_usage(),
         'history_count': len(rename_history),
-        'cache_count': len(file_cache),
-        'max_history': MAX_HISTORY,
-        'cache_expire_time': CACHE_EXPIRE_TIME
+        'max_history': MAX_HISTORY
     })
 
-# ===== 清理内存 =====
 @app.route('/api/cleanup', methods=['POST'])
 def cleanup():
-    file_cache.clear()
-    cache_timestamps.clear()
     gc.collect()
     return jsonify({
         'message': '内存已清理',
         'memory_mb': get_memory_usage()
     })
 
-# ===== 过滤预览 =====
 @app.route('/api/filter_preview', methods=['POST'])
 def filter_preview():
     data = request.json
