@@ -7,92 +7,133 @@ import shutil
 import gc
 import threading
 import time
-import resource
-import sys
 from pathlib import Path
 from datetime import datetime
 from collections import deque
-import psutil
 
 app = Flask(__name__)
 
-# ===== 内存限制配置 =====
-MAX_HISTORY = 100
-MAX_MEMORY_PERCENT = 20  # 最大内存使用百分比
-MAX_FILES_PER_OPERATION = 500  # 单次操作最大文件数
-MAX_DEDUP_FILES = 2000  # 去重最大文件数
-BATCH_SIZE = 50  # 批处理大小
+# ===== NAS 性能优化配置 =====
+MAX_HISTORY = 50
+MAX_FILES_PER_OPERATION = 100
+MAX_DEDUP_FILES = 3000
+BATCH_SIZE = 20
+TREE_MAX_DEPTH = 3
+SLEEP_BETWEEN_BATCH = 0.05
 
-# ===== 获取系统内存信息 =====
-def get_system_memory():
-    """获取系统内存信息"""
-    mem = psutil.virtual_memory()
-    return {
-        'total': mem.total,
-        'available': mem.available,
-        'used': mem.used,
-        'percent': mem.percent,
-        'total_mb': round(mem.total / 1024 / 1024, 2),
-        'available_mb': round(mem.available / 1024 / 1024, 2),
-        'used_mb': round(mem.used / 1024 / 1024, 2)
-    }
-
-def get_process_memory():
-    """获取当前进程内存使用"""
+# ===== 获取内存使用 =====
+def get_memory_info():
     try:
-        process = psutil.Process(os.getpid())
-        return {
-            'rss': process.memory_info().rss,
-            'rss_mb': round(process.memory_info().rss / 1024 / 1024, 2),
-            'percent': round(process.memory_percent(), 2)
-        }
+        with open('/proc/meminfo', 'r') as f:
+            meminfo = {}
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2:
+                    key = parts[0].rstrip(':')
+                    meminfo[key] = int(parts[1])
+            total_mb = meminfo.get('MemTotal', 0) / 1024
+            available_mb = meminfo.get('MemAvailable', meminfo.get('MemFree', 0)) / 1024
+            used_mb = total_mb - available_mb
+            percent = (used_mb / total_mb) * 100 if total_mb > 0 else 0
+            return {
+                'total_mb': round(total_mb, 2),
+                'available_mb': round(available_mb, 2),
+                'used_mb': round(used_mb, 2),
+                'percent': round(percent, 2)
+            }
     except:
-        return {'rss': 0, 'rss_mb': 0, 'percent': 0}
+        return None
+
+def get_process_memory_mb():
+    try:
+        with open('/proc/self/status', 'r') as f:
+            for line in f:
+                if line.startswith('VmRSS:'):
+                    return int(line.split()[1]) / 1024
+    except:
+        pass
+    return 0
 
 def check_memory_limit():
-    """检查内存是否超过限制，超过则触发垃圾回收"""
-    mem = get_system_memory()
-    process = get_process_memory()
-    
-    if process['percent'] > MAX_MEMORY_PERCENT:
+    mem = get_memory_info()
+    if not mem:
+        return {'exceeded': False}
+    process_mb = get_process_memory_mb()
+    percent = (process_mb / mem['total_mb']) * 100 if mem['total_mb'] > 0 else 0
+    if percent > 20:
         gc.collect()
-        # 再次检查
-        process2 = get_process_memory()
-        if process2['percent'] > MAX_MEMORY_PERCENT:
+        process_mb2 = get_process_memory_mb()
+        percent2 = (process_mb2 / mem['total_mb']) * 100 if mem['total_mb'] > 0 else 0
+        if percent2 > 20:
             return {
                 'exceeded': True,
-                'current_percent': process2['percent'],
-                'limit_percent': MAX_MEMORY_PERCENT,
-                'memory_mb': process2['rss_mb']
+                'current_percent': round(percent2, 2),
+                'memory_mb': round(process_mb2, 2)
             }
     return {'exceeded': False}
 
 def memory_cleanup():
-    """强制内存清理"""
     gc.collect()
-    if hasattr(gc, 'collect'):
-        gc.collect(2)  # 更彻底的垃圾回收
 
 # ===== 全局变量 =====
 rename_history = deque(maxlen=MAX_HISTORY)
 
-# ===== 定时自动清理（1小时） =====
+# ===== 定时自动清理（30分钟） =====
 def auto_cleanup():
     while True:
-        time.sleep(3600)  # 1小时
+        time.sleep(1800)
         memory_cleanup()
-        mem = get_system_memory()
-        proc = get_process_memory()
-        print(f'[自动清理] 内存: 系统 {mem["percent"]}%, 进程 {proc["percent"]}%, {proc["rss_mb"]}MB')
 
 cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
 cleanup_thread.start()
+
+# ===== 多点采样签名（动态采样） =====
+def get_file_signature(file_path):
+    """
+    动态采样：小文件全文MD5，大文件多点采样
+    - < 1MB：全文 MD5（100%准确）
+    - 1-100MB：200点 × 4KB = 800KB
+    - > 100MB：500点 × 4KB = 2MB
+    """
+    stat = file_path.stat()
+    size = stat.st_size
+    sample_size = 4096
+
+    # 文件太小，直接全文 MD5
+    if size < 1024 * 1024:
+        try:
+            with open(file_path, 'rb') as f:
+                return f'{file_path.name}_{size}_' + hashlib.md5(f.read()).hexdigest()
+        except:
+            return f'{file_path.name}_{size}_0'
+
+    # 根据文件大小决定采样点数
+    if size < 100 * 1024 * 1024:
+        points = 200
+    else:
+        points = 500
+
+    signature = f'{file_path.name}_{size}_'
+
+    try:
+        with open(file_path, 'rb') as f:
+            step = (size - sample_size) / (points - 1) if points > 1 else 0
+            combined = b''
+            for i in range(points):
+                pos = int(i * step)
+                f.seek(pos)
+                combined += f.read(sample_size)
+            signature += hashlib.md5(combined).hexdigest()
+    except:
+        signature += '0'
+
+    return signature
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# ===== 获取目录树（限制递归深度） =====
+# ===== 获取目录树 =====
 @app.route('/api/tree', methods=['POST'])
 def get_tree():
     data = request.json
@@ -108,9 +149,8 @@ def get_tree():
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
 
-    # 限制递归深度防止内存溢出
-    def build_tree(path, depth=0, max_depth=4):
-        if depth > max_depth:
+    def build_tree(path, depth=0):
+        if depth > TREE_MAX_DEPTH:
             return []
         nodes = []
         try:
@@ -121,7 +161,7 @@ def get_tree():
                         'path': str(item.relative_to(work_dir)),
                         'is_dir': True,
                         'size': 0,
-                        'children': build_tree(item, depth + 1, max_depth)
+                        'children': build_tree(item, depth + 1)
                     }
                     nodes.append(node)
         except PermissionError:
@@ -131,14 +171,12 @@ def get_tree():
     tree = build_tree(target)
     return jsonify({'tree': tree, 'current': base_path})
 
-# ===== 获取文件列表（分页） =====
+# ===== 获取文件列表 =====
 @app.route('/api/files', methods=['POST'])
 def get_files():
     data = request.json
     base_path = data.get('path', '/')
     work_dir = '/data'
-    page = data.get('page', 1)
-    per_page = data.get('per_page', 100)
 
     if base_path == '/':
         target = Path(work_dir)
@@ -166,19 +204,7 @@ def get_files():
     except PermissionError:
         pass
 
-    # 分页
-    total = len(files)
-    start = (page - 1) * per_page
-    end = start + per_page
-    paginated_files = files[start:end]
-
-    return jsonify({
-        'files': paginated_files,
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'current': base_path
-    })
+    return jsonify({'files': files, 'current': base_path})
 
 # ===== 预览重命名 =====
 @app.route('/api/preview', methods=['POST'])
@@ -186,8 +212,7 @@ def preview():
     data = request.json
     action = data.get('action')
     files = data.get('files', [])
-    
-    # 限制文件数量
+
     if len(files) > MAX_FILES_PER_OPERATION:
         return jsonify({'error': f'一次最多预览 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
@@ -296,11 +321,10 @@ def execute():
     files = data.get('files', [])
     work_dir = '/data'
 
-    # 检查内存限制
     mem_check = check_memory_limit()
     if mem_check['exceeded']:
         return jsonify({
-            'error': f'内存使用超过限制 ({mem_check["current_percent"]}% > {mem_check["limit_percent"]}%)，请稍后再试',
+            'error': f'内存使用超过限制，请稍后再试',
             'memory_mb': mem_check['memory_mb']
         }), 503
 
@@ -320,6 +344,7 @@ def execute():
             for idx, file_path in enumerate(all_files):
                 if idx % BATCH_SIZE == 0:
                     memory_cleanup()
+                    time.sleep(SLEEP_BETWEEN_BATCH)
                 old_name = Path(file_path).name
                 new_name = old_name
 
@@ -367,10 +392,10 @@ def execute():
             target_dir = data.get('target_dir', '')
             overwrite = data.get('overwrite', False)
             filters = data.get('filters', {})
-            
+
             if not target_dir:
                 return jsonify({'error': '目标目录不能为空'}), 400
-            
+
             target_path = Path(work_dir) / target_dir.lstrip('/')
             if not target_path.exists():
                 try:
@@ -378,9 +403,9 @@ def execute():
                     logs.append({'text': f'📁 创建目标目录: {target_dir}', 'type': 'info'})
                 except Exception as e:
                     return jsonify({'error': f'无法创建目标目录: {str(e)}'}), 400
-            
+
             all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
-            
+
             if filters and any(filters.values()):
                 filtered_paths = apply_file_filters(all_file_paths, filters)
                 filtered_set = set(filtered_paths)
@@ -388,22 +413,23 @@ def execute():
                 logs.append({'text': f'📋 过滤后匹配 {len(items_to_process)} 个文件（共 {len(files)} 个）', 'type': 'info'})
             else:
                 items_to_process = files
-            
+
             if not items_to_process:
                 logs.append({'text': '⚠️ 没有文件匹配过滤条件', 'type': 'warning'})
                 stats['message'] = '没有文件匹配过滤条件'
                 return jsonify({'logs': logs, 'stats': stats})
-            
+
             for i, item in enumerate(items_to_process):
                 if i % BATCH_SIZE == 0:
                     memory_cleanup()
+                    time.sleep(SLEEP_BETWEEN_BATCH)
                 old_path = Path(work_dir) / item['old_path']
                 old_name = old_path.name
                 new_path = target_path / old_name
-                
+
                 if overwrite and new_path.exists():
                     new_path.unlink()
-                
+
                 try:
                     if action == 'move':
                         shutil.move(str(old_path), str(new_path))
@@ -415,7 +441,7 @@ def execute():
                     history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': old_name})
                 except Exception as e:
                     logs.append({'text': f'❌ 处理失败: {old_name} - {str(e)}', 'type': 'error'})
-            
+
             stats['message'] = f'成功处理 {stats["processed"]} 个文件'
 
         elif action in ['replace', 'regex', 'prefix', 'suffix', 'remove', 'removepos',
@@ -423,6 +449,7 @@ def execute():
             for i, item in enumerate(files):
                 if i % BATCH_SIZE == 0:
                     memory_cleanup()
+                    time.sleep(SLEEP_BETWEEN_BATCH)
                 old_path = Path(work_dir) / item['old_path']
                 new_path = Path(work_dir) / item['new_path']
                 if old_path.exists() and not new_path.exists():
@@ -449,7 +476,6 @@ def execute():
         memory_cleanup()
         return jsonify({'error': str(e), 'trace': error_msg}), 500
 
-# ===== 文件过滤函数 =====
 def apply_file_filters(file_list, filters):
     filtered = []
     for file_path in file_list:
@@ -540,22 +566,19 @@ def undo():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ===== 去重（内存优化版） =====
+# ===== 去重（动态采样版） =====
 @app.route('/api/dedup', methods=['POST'])
 def dedup():
     data = request.json
-    method = data.get('method', 'md5')
+    mode = data.get('mode', 'standard')
     action = data.get('action', 'find')
     recursive = data.get('recursive', True)
     base_path = data.get('path', '/')
     work_dir = '/data'
 
-    # 检查内存
     mem_check = check_memory_limit()
     if mem_check['exceeded']:
-        return jsonify({
-            'error': f'内存使用超过限制 ({mem_check["current_percent"]}%)，请稍后再试'
-        }), 503
+        return jsonify({'error': f'内存使用超过限制，请稍后再试'}), 503
 
     if base_path == '/':
         target = Path(work_dir)
@@ -569,40 +592,34 @@ def dedup():
     # 快速检查目录是否为空
     try:
         has_files = False
-        count = 0
         for item in target.iterdir():
             if item.is_file():
                 has_files = True
-                count += 1
-                if count > 10:
-                    break
+                break
         if not has_files:
             return jsonify({'duplicates': [], 'deleted': 0, 'message': '目录为空'})
     except PermissionError:
         return jsonify({'error': '无法读取目录'}), 403
 
-    # 收集文件（限制数量）
+    # 收集文件
     all_files = []
-    file_count = 0
     try:
         if recursive:
             for item in target.rglob('*'):
                 if item.is_file():
-                    file_count += 1
-                    if file_count > MAX_DEDUP_FILES:
+                    if len(all_files) >= MAX_DEDUP_FILES:
                         return jsonify({
-                            'error': f'文件数量超过限制({MAX_DEDUP_FILES}个)，请使用过滤条件缩小范围',
-                            'total_files': file_count
+                            'error': f'文件数量超过 {MAX_DEDUP_FILES}，请缩小范围',
+                            'total': len(all_files)
                         }), 400
                     all_files.append(item)
         else:
             for item in target.iterdir():
                 if item.is_file():
-                    file_count += 1
-                    if file_count > MAX_DEDUP_FILES:
+                    if len(all_files) >= MAX_DEDUP_FILES:
                         return jsonify({
-                            'error': f'文件数量超过限制({MAX_DEDUP_FILES}个)，请使用过滤条件缩小范围',
-                            'total_files': file_count
+                            'error': f'文件数量超过 {MAX_DEDUP_FILES}，请缩小范围',
+                            'total': len(all_files)
                         }), 400
                     all_files.append(item)
     except PermissionError:
@@ -611,65 +628,50 @@ def dedup():
     if not all_files:
         return jsonify({'duplicates': [], 'deleted': 0, 'message': '没有文件'})
 
-    # 分批处理
     groups = {}
     processed = 0
-    BATCH = 50
 
-    try:
-        for file_path in all_files:
-            try:
-                if method == 'md5':
-                    hash_md5 = hashlib.md5()
-                    with open(file_path, 'rb') as f:
-                        for chunk in iter(lambda: f.read(8192), b''):
-                            hash_md5.update(chunk)
-                    key = hash_md5.hexdigest()
-                elif method == 'name':
-                    key = file_path.name
-                elif method == 'size':
-                    key = file_path.stat().st_size
-                elif method == 'name_size':
-                    key = f'{file_path.name}_{file_path.stat().st_size}'
-                else:
-                    key = file_path.name
+    for file_path in all_files:
+        try:
+            if mode == 'fast':
+                key = file_path.stat().st_size
+            elif mode == 'precise':
+                if len(all_files) > 500:
+                    return jsonify({
+                        'error': '精确模式最多支持500个文件，请改用 standard 模式'
+                    }), 400
+                hash_md5 = hashlib.md5()
+                with open(file_path, 'rb') as f:
+                    for chunk in iter(lambda: f.read(8192), b''):
+                        hash_md5.update(chunk)
+                key = hash_md5.hexdigest()
+            else:
+                # standard 模式：动态采样
+                key = get_file_signature(file_path)
 
-                if key not in groups:
-                    groups[key] = []
-                groups[key].append(str(file_path))
-                processed += 1
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(str(file_path))
+            processed += 1
 
-                # 每处理一批释放内存
-                if processed % BATCH == 0:
-                    memory_cleanup()
-                    # 检查内存是否超限
-                    mem_check2 = check_memory_limit()
-                    if mem_check2['exceeded']:
-                        # 已经处理的部分返回结果，不再继续
-                        duplicates = [v for v in groups.values() if len(v) > 1]
-                        return jsonify({
-                            'duplicates': duplicates,
-                            'deleted': 0,
-                            'warning': f'内存超限，仅返回已处理的部分 ({processed} 个文件)',
-                            'partial': True
-                        })
+            if processed % 100 == 0:
+                gc.collect()
 
-            except Exception as e:
-                print(f'处理文件失败: {file_path} - {e}')
-                continue
+        except Exception as e:
+            print(f'处理失败: {file_path} - {e}')
+            continue
 
-    except MemoryError:
-        memory_cleanup()
-        return jsonify({'error': '内存不足，请缩小扫描范围'}), 503
-
-    # 找出重复组
     duplicates = [v for v in groups.values() if len(v) > 1]
-
-    # 释放大对象
     groups.clear()
-    memory_cleanup()
+    gc.collect()
 
-    result = {'duplicates': duplicates, 'deleted': 0}
+    mode_labels = {
+        'fast': '快速（按大小）',
+        'standard': '标准（动态采样）',
+        'precise': '精确（MD5）'
+    }
+
+    result = {'duplicates': duplicates, 'deleted': 0, 'mode': mode_labels.get(mode, '标准')}
 
     if action == 'find':
         pass
@@ -710,7 +712,6 @@ def dedup():
                 except:
                     pass
 
-    memory_cleanup()
     return jsonify(result)
 
 # ===== 删除 =====
@@ -729,6 +730,7 @@ def delete_files():
     for i, file_path in enumerate(files):
         if i % BATCH_SIZE == 0:
             memory_cleanup()
+            time.sleep(SLEEP_BETWEEN_BATCH)
         target = Path(work_dir) / file_path
         if target.exists():
             try:
@@ -771,12 +773,13 @@ def filter_preview():
 # ===== 内存状态 =====
 @app.route('/api/memory', methods=['GET'])
 def memory_status():
-    system = get_system_memory()
-    process = get_process_memory()
+    mem = get_memory_info()
+    process_mb = get_process_memory_mb()
+    percent = (process_mb / mem['total_mb']) * 100 if mem and mem['total_mb'] > 0 else 0
     return jsonify({
-        'system': system,
-        'process': process,
-        'limit_percent': MAX_MEMORY_PERCENT,
+        'system': mem,
+        'process_memory_mb': round(process_mb, 2),
+        'process_percent': round(percent, 2),
         'history_count': len(rename_history),
         'max_history': MAX_HISTORY
     })
@@ -785,13 +788,11 @@ def memory_status():
 @app.route('/api/cleanup', methods=['POST'])
 def cleanup():
     memory_cleanup()
-    system = get_system_memory()
-    process = get_process_memory()
+    mem = get_memory_info()
+    process_mb = get_process_memory_mb()
     return jsonify({
         'message': '内存已清理',
-        'system_memory_percent': system['percent'],
-        'process_memory_mb': process['rss_mb'],
-        'process_memory_percent': process['percent']
+        'process_memory_mb': round(process_mb, 2)
     })
 
 if __name__ == '__main__':
