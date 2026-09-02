@@ -1,7 +1,6 @@
 name: 构建并推送 Docker 镜像到 GitHub Container Registry
 
 on:
-  # 删除 push 触发，只保留手动触发
   workflow_dispatch:
 
 jobs:
@@ -33,4 +32,3 @@ jobs:
           push: true
           tags: |
             ghcr.io/gruntfish/nas-file-tool:latest
-            ghcr.io/gruntfish/nas-file-tool:${{ github.sha }}
