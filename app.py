@@ -157,7 +157,7 @@ def get_tree():
             return jsonify({'tree': file_cache[cache_key], 'current': base_path, 'cached': True})
 
     def build_tree(path):
-        """完整递归，不限制深度，遍历所有子目录"""
+        """完整递归，不限制深度"""
         nodes = []
         try:
             for item in sorted(path.iterdir()):
