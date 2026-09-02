@@ -433,6 +433,7 @@ function renderTree(nodes, container) {
     });
 }
 
+// 加载目录文件列表 - 实时读取，不使用缓存
 async function loadFiles(path) {
     currentPath = path;
     currentPathDisplay.textContent = path;
@@ -487,6 +488,8 @@ async function initTree() {
 }
 
 async function navigateTo(path) {
+    // 切换目录时清空预览缓存
+    renamePreview = {};
     await loadFiles(path);
 }
 
@@ -725,8 +728,12 @@ document.getElementById('previewRenameBtn').addEventListener('click', async func
                 div.textContent = f.old_name + '  →  ' + f.new_name;
                 list.appendChild(div);
                 pendingRenameFiles.push(f);
+                // 更新预览缓存
+                renamePreview[f.old_path] = f.new_name;
             });
             document.getElementById('renamePreviewConfirmBtn').disabled = false;
+            // 预览后刷新文件列表显示新名称
+            renderFiles(fileList);
             showLog('📋 预览完成，' + result.files.length + ' 个文件将修改', 'info');
         } else {
             list.innerHTML = '<div style="color:#4a4e62;">没有文件需要修改</div>';
@@ -757,6 +764,7 @@ document.getElementById('renamePreviewConfirmBtn').addEventListener('click', asy
             renameHistory.push(...result.history);
             document.getElementById('undoBtn').disabled = false;
         }
+        // 清空预览缓存并刷新
         renamePreview = {};
         pendingRenameFiles = [];
         await loadFiles(currentPath);
@@ -798,6 +806,7 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
             renameHistory.push(...result.history);
             document.getElementById('undoBtn').disabled = false;
         }
+        // 清空预览缓存并刷新
         renamePreview = {};
         await loadFiles(currentPath);
     } catch(e) {
@@ -805,8 +814,15 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
     }
 });
 
-document.getElementById('refreshBtn').addEventListener('click', function() { loadFiles(currentPath); });
-document.getElementById('refreshTreeBtn').addEventListener('click', function() { initTree(); });
+// 刷新按钮 - 强制刷新，清空预览缓存
+document.getElementById('refreshBtn').addEventListener('click', function() {
+    renamePreview = {};
+    loadFiles(currentPath);
+});
+
+document.getElementById('refreshTreeBtn').addEventListener('click', function() {
+    initTree();
+});
 
 document.getElementById('undoBtn').addEventListener('click', async function() {
     if (renameHistory.length === 0) return;
@@ -816,6 +832,7 @@ document.getElementById('undoBtn').addEventListener('click', async function() {
         showLog('↩ ' + result.message, 'success');
         renameHistory.pop();
         if (renameHistory.length === 0) this.disabled = true;
+        renamePreview = {};
         await loadFiles(currentPath);
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
@@ -898,6 +915,7 @@ document.getElementById('moveCopyConfirmBtn').addEventListener('click', async fu
             renameHistory.push(...result.history);
             document.getElementById('undoBtn').disabled = false;
         }
+        renamePreview = {};
         await loadFiles(currentPath);
     } catch(e) {
         showLog('❌ ' + e.message, 'error');
@@ -944,6 +962,7 @@ document.getElementById('dedupConfirmBtn').addEventListener('click', async funct
             result.duplicates.forEach(g => { showLog('  ├─ ' + g[0].split('/').pop() + ' (' + (g.length - 1) + ' 个重复)', 'info'); });
             if (result.deleted > 0) showLog('✅ 已删除 ' + result.deleted + ' 个重复文件', 'success');
         } else { showLog('✅ 没有重复文件', 'success'); }
+        renamePreview = {};
         await loadFiles(currentPath);
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
