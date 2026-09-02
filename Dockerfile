@@ -1,16 +1,20 @@
-FROM alpine:latest
+FROM ubuntu:22.04
 
-# 安装系统工具和 Python
-RUN apk add --no-cache \
+# 设置非交互式安装，避免卡住
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 更新系统并安装依赖
+RUN apt-get update && apt-get install -y \
     python3 \
-    py3-pip \
+    python3-pip \
+    python3-dev \
     jpegoptim \
     optipng \
-    libwebp-tools \
-    && rm -rf /var/cache/apk/*
+    webp \
+    && rm -rf /var/lib/apt/lists/*
 
-# 用 pip 安装 Flask
-RUN pip3 install --no-cache-dir flask
+# 安装 Flask
+RUN pip3 install flask --break-system-packages
 
 WORKDIR /app
 
