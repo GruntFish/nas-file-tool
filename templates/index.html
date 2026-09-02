@@ -253,7 +253,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <h2>📦 移动/复制文件</h2>
         <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
             源目录：<strong id="moveSourcePath" style="color:#e4e6eb;">/</strong>
-            <span style="color:#4a4e62;margin-left:8px;">（当前目录下所有文件）</span>
+            <span style="color:#4a4e62;margin-left:8px;" id="moveFileCount">（当前目录所有文件）</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -317,6 +317,54 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <div class="btn-row">
             <button class="btn-cancel" onclick="closeModal('moveCopyModal')">取消</button>
             <button class="btn-confirm" id="moveCopyConfirmBtn">确认执行</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除模态框 -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <h2>🗑️ 删除文件/目录</h2>
+        <div style="color:#e53e3e;font-size:13px;margin-bottom:10px;">
+            ⚠️ 警告：删除操作不可恢复！
+        </div>
+        <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
+            源目录：<strong id="deleteSourcePath" style="color:#e4e6eb;">/</strong>
+            <span style="color:#4a4e62;margin-left:8px;" id="deleteFileCount">（当前目录所有文件）</span>
+        </div>
+
+        <hr>
+        <h3>📋 过滤条件（可选）</h3>
+
+        <div class="filter-grid">
+            <div class="form-group"><label>文件名包含</label><input type="text" id="delFilterNameContains" placeholder="IMG_"></div>
+            <div class="form-group"><label>文件名不包含</label><input type="text" id="delFilterNameNotContains" placeholder="temp"></div>
+            <div class="form-group"><label>扩展名</label><input type="text" id="delFilterExtensions" placeholder=".jpg,.png"></div>
+            <div class="form-group"><label>排除扩展名</label><input type="text" id="delFilterExtNot" placeholder=".tmp"></div>
+            <div class="form-group"><label>最小大小(KB)</label><input type="number" id="delFilterMinSize" placeholder="1024"></div>
+            <div class="form-group"><label>最大大小(KB)</label><input type="number" id="delFilterMaxSize" placeholder="10240"></div>
+            <div class="form-group"><label>日期(晚于)</label><input type="date" id="delFilterDateAfter"></div>
+            <div class="form-group"><label>日期(早于)</label><input type="date" id="delFilterDateBefore"></div>
+            <div class="form-group"><label>文件类型</label>
+                <select id="delFilterFileTypes">
+                    <option value="">全部</option>
+                    <option value="image">图片</option>
+                    <option value="video">视频</option>
+                    <option value="audio">音频</option>
+                    <option value="document">文档</option>
+                    <option value="archive">压缩包</option>
+                </select>
+            </div>
+            <div class="form-group full-width"><label>正则匹配</label><input type="text" id="delFilterRegex" placeholder="^IMG_.*\.jpg$"></div>
+        </div>
+
+        <div id="delFilterPreview" style="display:none;margin-top:6px;">
+            <div class="preview-info" id="delFilterPreviewInfo"></div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn-cancel" onclick="closeModal('deleteModal')">取消</button>
+            <button class="btn-confirm" id="deleteConfirmBtn" style="background:#e53e3e;color:#fff;">确认删除</button>
         </div>
     </div>
 </div>
@@ -486,7 +534,6 @@ function renderTree(nodes, container) {
     });
 }
 
-// ===== 获取当前目录所有文件路径（不限于选中） =====
 function getAllFilePaths() {
     const paths = [];
     for (let file of fileList) {
@@ -501,6 +548,7 @@ async function loadFiles(path) {
     currentPath = path;
     currentPathDisplay.textContent = path;
     document.getElementById('moveSourcePath').textContent = path;
+    document.getElementById('deleteSourcePath').textContent = path;
     statusLeft.textContent = '📂 加载中...';
     try {
         const result = await fetchFiles(path);
@@ -731,7 +779,6 @@ function getSelectedPaths() {
 }
 
 function autoPreview() {
-    // 重命名预览只对选中的文件生效
     const files = getSelectedPaths();
     const params = getRenameParams();
     
@@ -990,15 +1037,20 @@ document.getElementById('dateType').addEventListener('change', autoPreview);
 document.getElementById('dateFormat').addEventListener('change', autoPreview);
 document.getElementById('datePos').addEventListener('change', autoPreview);
 
-// ===== 执行重命名 - 对选中的文件生效 =====
+// ===== 执行重命名 =====
 document.getElementById('executeRenameBtn').addEventListener('click', async function() {
-    const files = getSelectedPaths();
+    // 如果没有选中文件，则使用当前目录所有文件
+    let files = getSelectedPaths();
     if (files.length === 0) {
-        showLog('⚠️ 请先勾选要重命名的文件', 'warning');
-        return;
+        files = getAllFilePaths();
+        if (files.length === 0) {
+            showLog('⚠️ 当前目录没有文件', 'warning');
+            return;
+        }
+        showLog('📋 未选中文件，将对当前目录所有 ' + files.length + ' 个文件执行重命名', 'info');
     }
-    const params = getRenameParams();
     
+    const params = getRenameParams();
     const previewParams = { ...params, files: files };
     
     try {
@@ -1051,13 +1103,100 @@ document.getElementById('undoBtn').addEventListener('click', async function() {
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
 
-// ===== 删除功能 - 对选中的文件/目录生效 =====
+// ===== 删除功能 =====
 document.getElementById('deleteBtn').addEventListener('click', function() {
-    const files = getSelectedPaths();
-    if (files.length === 0) {
-        showLog('⚠️ 请先勾选要删除的文件或目录', 'warning');
+    const selected = getSelectedPaths();
+    // 如果有选中文件，直接弹窗确认删除
+    if (selected.length > 0) {
+        const fileNames = selected.map(f => getFileName(f)).join('\n  ');
+        if (!confirm('⚠️ 确定要删除以下 ' + selected.length + ' 个文件/目录吗？\n\n  ' + fileNames + '\n\n此操作不可恢复！')) {
+            return;
+        }
+        deleteItems(selected);
         return;
     }
+    
+    // 没有选中文件，弹出过滤窗口
+    const allFiles = getAllFilePaths();
+    if (allFiles.length === 0) {
+        showLog('⚠️ 当前目录没有文件可删除', 'warning');
+        return;
+    }
+    
+    document.getElementById('deleteSourcePath').textContent = currentPath;
+    document.getElementById('deleteFileCount').textContent = '（当前目录 ' + allFiles.length + ' 个文件）';
+    
+    // 清空过滤条件
+    ['delFilterNameContains','delFilterNameNotContains','delFilterExtensions','delFilterExtNot','delFilterMinSize','delFilterMaxSize','delFilterDateAfter','delFilterDateBefore','delFilterRegex'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('delFilterFileTypes').value = '';
+    document.getElementById('delFilterPreview').style.display = 'none';
+    openModal('deleteModal');
+});
+
+function getDeleteFilters() {
+    const filters = {};
+    const v = (id) => document.getElementById(id).value.trim();
+    if (v('delFilterNameContains')) filters.name_contains = v('delFilterNameContains');
+    if (v('delFilterNameNotContains')) filters.name_not_contains = v('delFilterNameNotContains');
+    if (v('delFilterExtensions')) filters.extensions = v('delFilterExtensions').split(',').map(s => s.trim()).filter(s => s);
+    if (v('delFilterExtNot')) filters.extensions_not = v('delFilterExtNot').split(',').map(s => s.trim()).filter(s => s);
+    if (v('delFilterMinSize')) filters.min_size = parseInt(v('delFilterMinSize'));
+    if (v('delFilterMaxSize')) filters.max_size = parseInt(v('delFilterMaxSize'));
+    if (v('delFilterDateAfter')) filters.date_after = v('delFilterDateAfter');
+    if (v('delFilterDateBefore')) filters.date_before = v('delFilterDateBefore');
+    if (v('delFilterFileTypes')) filters.file_types = v('delFilterFileTypes');
+    if (v('delFilterRegex')) filters.regex = v('delFilterRegex');
+    return filters;
+}
+
+// 删除过滤预览
+document.querySelectorAll('#deleteModal input, #deleteModal select').forEach(el => {
+    el.addEventListener('input', deletePreviewFilter);
+    el.addEventListener('change', deletePreviewFilter);
+});
+
+async function deletePreviewFilter() {
+    const filters = getDeleteFilters();
+    const files = getAllFilePaths();
+    if (Object.keys(filters).length === 0 || files.length === 0) {
+        document.getElementById('delFilterPreview').style.display = 'none';
+        return;
+    }
+    try {
+        const result = await apiCall('/api/filter_preview', { files, filters });
+        const div = document.getElementById('delFilterPreview');
+        div.style.display = 'block';
+        document.getElementById('delFilterPreviewInfo').innerHTML = '<span class="total">总数: ' + result.total + '</span><span class="matched" style="margin-left:16px;">✅ 匹配: ' + result.matched + '</span>' + (result.matched === 0 ? '<span style="color:#fc8181;margin-left:16px;">⚠️ 无匹配</span>' : '');
+    } catch(e) {}
+}
+
+document.getElementById('deleteConfirmBtn').addEventListener('click', async function() {
+    closeModal('deleteModal');
+    
+    const filters = getDeleteFilters();
+    let files = getAllFilePaths();
+    
+    // 应用过滤条件
+    if (Object.keys(filters).length > 0) {
+        try {
+            const result = await apiCall('/api/filter_preview', { files, filters });
+            if (result.matched === 0) {
+                showLog('⚠️ 没有文件匹配过滤条件', 'warning');
+                return;
+            }
+            files = result.matched_files;
+            showLog('📋 过滤后匹配 ' + files.length + ' 个文件', 'info');
+        } catch(e) {
+            showLog('❌ 过滤失败: ' + e.message, 'error');
+            return;
+        }
+    }
+    
+    if (files.length === 0) {
+        showLog('⚠️ 没有文件可删除', 'warning');
+        return;
+    }
+    
     const fileNames = files.map(f => getFileName(f)).join('\n  ');
     if (!confirm('⚠️ 确定要删除以下 ' + files.length + ' 个文件/目录吗？\n\n  ' + fileNames + '\n\n此操作不可恢复！')) {
         return;
@@ -1102,14 +1241,24 @@ async function deleteItems(files) {
     await loadFiles(currentPath);
 }
 
-// ===== 移动/复制 - 对整个目录所有文件生效（不需要勾选） =====
+// ===== 移动/复制 =====
 document.getElementById('moveCopyBtn').addEventListener('click', function() {
-    const files = getAllFilePaths();
-    if (files.length === 0) {
-        showLog('⚠️ 当前目录没有文件可移动/复制', 'warning');
-        return;
+    // 如果有选中文件，只移动选中的
+    let files = getSelectedPaths();
+    let fileInfo = '';
+    if (files.length > 0) {
+        fileInfo = '（已选 ' + files.length + ' 个文件）';
+    } else {
+        files = getAllFilePaths();
+        if (files.length === 0) {
+            showLog('⚠️ 当前目录没有文件可移动/复制', 'warning');
+            return;
+        }
+        fileInfo = '（当前目录 ' + files.length + ' 个文件）';
     }
+    
     document.getElementById('moveSourcePath').textContent = currentPath;
+    document.getElementById('moveFileCount').textContent = fileInfo;
     document.getElementById('moveTargetSelect').value = '';
     document.getElementById('moveTargetInput').value = '';
     document.getElementById('moveOverwrite').checked = false;
@@ -1150,8 +1299,11 @@ document.getElementById('moveCopyConfirmBtn').addEventListener('click', async fu
         return;
     }
 
-    // 获取当前目录所有文件（不限于选中）
-    const files = getAllFilePaths();
+    // 获取文件列表：优先选中，否则全部
+    let files = getSelectedPaths();
+    if (files.length === 0) {
+        files = getAllFilePaths();
+    }
     if (files.length === 0) {
         showLog('⚠️ 当前目录没有文件', 'warning');
         closeModal('moveCopyModal');
@@ -1193,8 +1345,11 @@ document.querySelectorAll('#moveCopyModal input, #moveCopyModal select').forEach
 });
 
 async function previewFilter() {
+    let files = getSelectedPaths();
+    if (files.length === 0) {
+        files = getAllFilePaths();
+    }
     const filters = getFilters();
-    const files = getAllFilePaths();
     if (Object.keys(filters).length === 0 || files.length === 0) {
         document.getElementById('filterPreview').style.display = 'none';
         return;
