@@ -7,123 +7,111 @@ import shutil
 import gc
 import threading
 import time
+import resource
+import sys
 from pathlib import Path
 from datetime import datetime
 from collections import deque
+import psutil
 
 app = Flask(__name__)
+
+# ===== 内存限制配置 =====
+MAX_HISTORY = 100
+MAX_MEMORY_PERCENT = 20  # 最大内存使用百分比
+MAX_FILES_PER_OPERATION = 500  # 单次操作最大文件数
+MAX_DEDUP_FILES = 2000  # 去重最大文件数
+BATCH_SIZE = 50  # 批处理大小
+
+# ===== 获取系统内存信息 =====
+def get_system_memory():
+    """获取系统内存信息"""
+    mem = psutil.virtual_memory()
+    return {
+        'total': mem.total,
+        'available': mem.available,
+        'used': mem.used,
+        'percent': mem.percent,
+        'total_mb': round(mem.total / 1024 / 1024, 2),
+        'available_mb': round(mem.available / 1024 / 1024, 2),
+        'used_mb': round(mem.used / 1024 / 1024, 2)
+    }
+
+def get_process_memory():
+    """获取当前进程内存使用"""
+    try:
+        process = psutil.Process(os.getpid())
+        return {
+            'rss': process.memory_info().rss,
+            'rss_mb': round(process.memory_info().rss / 1024 / 1024, 2),
+            'percent': round(process.memory_percent(), 2)
+        }
+    except:
+        return {'rss': 0, 'rss_mb': 0, 'percent': 0}
+
+def check_memory_limit():
+    """检查内存是否超过限制，超过则触发垃圾回收"""
+    mem = get_system_memory()
+    process = get_process_memory()
+    
+    if process['percent'] > MAX_MEMORY_PERCENT:
+        gc.collect()
+        # 再次检查
+        process2 = get_process_memory()
+        if process2['percent'] > MAX_MEMORY_PERCENT:
+            return {
+                'exceeded': True,
+                'current_percent': process2['percent'],
+                'limit_percent': MAX_MEMORY_PERCENT,
+                'memory_mb': process2['rss_mb']
+            }
+    return {'exceeded': False}
+
+def memory_cleanup():
+    """强制内存清理"""
+    gc.collect()
+    if hasattr(gc, 'collect'):
+        gc.collect(2)  # 更彻底的垃圾回收
+
+# ===== 全局变量 =====
+rename_history = deque(maxlen=MAX_HISTORY)
+
+# ===== 定时自动清理（1小时） =====
+def auto_cleanup():
+    while True:
+        time.sleep(3600)  # 1小时
+        memory_cleanup()
+        mem = get_system_memory()
+        proc = get_process_memory()
+        print(f'[自动清理] 内存: 系统 {mem["percent"]}%, 进程 {proc["percent"]}%, {proc["rss_mb"]}MB')
+
+cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
+cleanup_thread.start()
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-MAX_HISTORY = 100
-
-rename_history = deque(maxlen=MAX_HISTORY)
-
-def auto_cleanup():
-    while True:
-        time.sleep(7200)
-        gc.collect()
-        print(f'[自动清理] 内存已清理，时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-
-cleanup_thread = threading.Thread(target=auto_cleanup, daemon=True)
-cleanup_thread.start()
-
-def get_memory_usage():
-    try:
-        import psutil
-        process = psutil.Process(os.getpid())
-        return round(process.memory_info().rss / 1024 / 1024, 2)
-    except:
-        return 0
-
-def get_file_type(file_path):
-    ext = file_path.suffix.lower()
-    image_exts = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif'}
-    video_exts = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'}
-    audio_exts = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a'}
-    doc_exts = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf', '.md'}
-    archive_exts = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'}
-    if ext in image_exts: return 'image'
-    if ext in video_exts: return 'video'
-    if ext in audio_exts: return 'audio'
-    if ext in doc_exts: return 'document'
-    if ext in archive_exts: return 'archive'
-    return 'other'
-
-def apply_file_filters(file_list, filters):
-    filtered = []
-    for file_path in file_list:
-        file_path = Path(file_path)
-        if filters.get('name_contains'):
-            if filters['name_contains'].lower() not in file_path.name.lower():
-                continue
-        if filters.get('name_not_contains'):
-            if filters['name_not_contains'].lower() in file_path.name.lower():
-                continue
-        ext = file_path.suffix.lower()
-        if filters.get('extensions'):
-            ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions']]
-            if ext not in ext_list:
-                continue
-        if filters.get('extensions_not'):
-            ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions_not']]
-            if ext in ext_list:
-                continue
-        try:
-            size = file_path.stat().st_size
-            if filters.get('min_size') and size < filters['min_size'] * 1024:
-                continue
-            if filters.get('max_size') and size > filters['max_size'] * 1024:
-                continue
-        except:
-            pass
-        try:
-            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-            if filters.get('date_after'):
-                try:
-                    date_after = datetime.strptime(filters['date_after'], '%Y-%m-%d')
-                    if mtime.date() < date_after.date():
-                        continue
-                except:
-                    pass
-            if filters.get('date_before'):
-                try:
-                    date_before = datetime.strptime(filters['date_before'], '%Y-%m-%d')
-                    if mtime.date() > date_before.date():
-                        continue
-                except:
-                    pass
-        except:
-            pass
-        if filters.get('file_types'):
-            file_type = get_file_type(file_path)
-            if file_type != filters['file_types']:
-                continue
-        if filters.get('regex'):
-            try:
-                if not re.search(filters['regex'], file_path.name):
-                    continue
-            except:
-                pass
-        filtered.append(str(file_path))
-    return filtered
-
+# ===== 获取目录树（限制递归深度） =====
 @app.route('/api/tree', methods=['POST'])
 def get_tree():
     data = request.json
     base_path = data.get('path', '/')
     work_dir = '/data'
+
     if base_path == '/':
         target = Path(work_dir)
     else:
         clean = base_path.lstrip('/')
         target = Path(work_dir) / clean
+
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
-    
-    def build_tree(path):
+
+    # 限制递归深度防止内存溢出
+    def build_tree(path, depth=0, max_depth=4):
+        if depth > max_depth:
+            return []
         nodes = []
         try:
             for item in sorted(path.iterdir()):
@@ -133,28 +121,34 @@ def get_tree():
                         'path': str(item.relative_to(work_dir)),
                         'is_dir': True,
                         'size': 0,
-                        'children': build_tree(item)
+                        'children': build_tree(item, depth + 1, max_depth)
                     }
                     nodes.append(node)
         except PermissionError:
             pass
         return nodes
+
     tree = build_tree(target)
     return jsonify({'tree': tree, 'current': base_path})
 
+# ===== 获取文件列表（分页） =====
 @app.route('/api/files', methods=['POST'])
 def get_files():
     data = request.json
     base_path = data.get('path', '/')
     work_dir = '/data'
+    page = data.get('page', 1)
+    per_page = data.get('per_page', 100)
+
     if base_path == '/':
         target = Path(work_dir)
     else:
         clean = base_path.lstrip('/')
         target = Path(work_dir) / clean
+
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
-    
+
     files = []
     try:
         for item in target.iterdir():
@@ -171,13 +165,32 @@ def get_files():
                 pass
     except PermissionError:
         pass
-    return jsonify({'files': files, 'current': base_path})
 
+    # 分页
+    total = len(files)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_files = files[start:end]
+
+    return jsonify({
+        'files': paginated_files,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'current': base_path
+    })
+
+# ===== 预览重命名 =====
 @app.route('/api/preview', methods=['POST'])
 def preview():
     data = request.json
     action = data.get('action')
     files = data.get('files', [])
+    
+    # 限制文件数量
+    if len(files) > MAX_FILES_PER_OPERATION:
+        return jsonify({'error': f'一次最多预览 {MAX_FILES_PER_OPERATION} 个文件'}), 400
+
     results = []
     for file_path in files:
         old_name = Path(file_path).name
@@ -194,6 +207,7 @@ def preview():
                 'old_name': old_name,
                 'new_name': new_name,
             })
+
     return jsonify({'files': results})
 
 def apply_rename_action(old_name, action, data):
@@ -274,6 +288,7 @@ def apply_rename_action(old_name, action, data):
         new_name = old_name
     return new_name
 
+# ===== 执行操作 =====
 @app.route('/api/execute', methods=['POST'])
 def execute():
     data = request.json
@@ -281,11 +296,18 @@ def execute():
     files = data.get('files', [])
     work_dir = '/data'
 
+    # 检查内存限制
+    mem_check = check_memory_limit()
+    if mem_check['exceeded']:
+        return jsonify({
+            'error': f'内存使用超过限制 ({mem_check["current_percent"]}% > {mem_check["limit_percent"]}%)，请稍后再试',
+            'memory_mb': mem_check['memory_mb']
+        }), 503
+
     logs = []
     stats = {'processed': 0, 'message': '成功'}
     history = []
 
-    MAX_FILES_PER_OPERATION = 500
     if len(files) > MAX_FILES_PER_OPERATION:
         return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
@@ -296,6 +318,8 @@ def execute():
                 all_files = [f['old_path'] for f in files]
 
             for idx, file_path in enumerate(all_files):
+                if idx % BATCH_SIZE == 0:
+                    memory_cleanup()
                 old_name = Path(file_path).name
                 new_name = old_name
 
@@ -355,10 +379,8 @@ def execute():
                 except Exception as e:
                     return jsonify({'error': f'无法创建目标目录: {str(e)}'}), 400
             
-            # 从 files 中提取所有 old_path
             all_file_paths = [Path(work_dir) / f['old_path'] for f in files]
             
-            # 应用过滤
             if filters and any(filters.values()):
                 filtered_paths = apply_file_filters(all_file_paths, filters)
                 filtered_set = set(filtered_paths)
@@ -372,7 +394,9 @@ def execute():
                 stats['message'] = '没有文件匹配过滤条件'
                 return jsonify({'logs': logs, 'stats': stats})
             
-            for item in items_to_process:
+            for i, item in enumerate(items_to_process):
+                if i % BATCH_SIZE == 0:
+                    memory_cleanup()
                 old_path = Path(work_dir) / item['old_path']
                 old_name = old_path.name
                 new_path = target_path / old_name
@@ -396,7 +420,9 @@ def execute():
 
         elif action in ['replace', 'regex', 'prefix', 'suffix', 'remove', 'removepos',
                         'lowercase', 'uppercase', 'capitalize', 'titlecase', 'camelcase', 'extension']:
-            for item in files:
+            for i, item in enumerate(files):
+                if i % BATCH_SIZE == 0:
+                    memory_cleanup()
                 old_path = Path(work_dir) / item['old_path']
                 new_path = Path(work_dir) / item['new_path']
                 if old_path.exists() and not new_path.exists():
@@ -411,7 +437,7 @@ def execute():
         for h in history:
             rename_history.append(h)
 
-        gc.collect()
+        memory_cleanup()
 
         stats['message'] = f'成功处理 {stats["processed"]} 个文件'
         return jsonify({'logs': logs, 'stats': stats, 'history': history})
@@ -420,8 +446,83 @@ def execute():
         import traceback
         error_msg = traceback.format_exc()
         print(f'execute error: {error_msg}')
+        memory_cleanup()
         return jsonify({'error': str(e), 'trace': error_msg}), 500
 
+# ===== 文件过滤函数 =====
+def apply_file_filters(file_list, filters):
+    filtered = []
+    for file_path in file_list:
+        file_path = Path(file_path)
+        if filters.get('name_contains'):
+            if filters['name_contains'].lower() not in file_path.name.lower():
+                continue
+        if filters.get('name_not_contains'):
+            if filters['name_not_contains'].lower() in file_path.name.lower():
+                continue
+        ext = file_path.suffix.lower()
+        if filters.get('extensions'):
+            ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions']]
+            if ext not in ext_list:
+                continue
+        if filters.get('extensions_not'):
+            ext_list = [e.lower() if e.startswith('.') else f'.{e.lower()}' for e in filters['extensions_not']]
+            if ext in ext_list:
+                continue
+        try:
+            size = file_path.stat().st_size
+            if filters.get('min_size') and size < filters['min_size'] * 1024:
+                continue
+            if filters.get('max_size') and size > filters['max_size'] * 1024:
+                continue
+        except:
+            pass
+        try:
+            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+            if filters.get('date_after'):
+                try:
+                    date_after = datetime.strptime(filters['date_after'], '%Y-%m-%d')
+                    if mtime.date() < date_after.date():
+                        continue
+                except:
+                    pass
+            if filters.get('date_before'):
+                try:
+                    date_before = datetime.strptime(filters['date_before'], '%Y-%m-%d')
+                    if mtime.date() > date_before.date():
+                        continue
+                except:
+                    pass
+        except:
+            pass
+        if filters.get('file_types'):
+            file_type = get_file_type(file_path)
+            if file_type != filters['file_types']:
+                continue
+        if filters.get('regex'):
+            try:
+                if not re.search(filters['regex'], file_path.name):
+                    continue
+            except:
+                pass
+        filtered.append(str(file_path))
+    return filtered
+
+def get_file_type(file_path):
+    ext = file_path.suffix.lower()
+    image_exts = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif'}
+    video_exts = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'}
+    audio_exts = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a'}
+    doc_exts = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf', '.md'}
+    archive_exts = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz'}
+    if ext in image_exts: return 'image'
+    if ext in video_exts: return 'video'
+    if ext in audio_exts: return 'audio'
+    if ext in doc_exts: return 'document'
+    if ext in archive_exts: return 'archive'
+    return 'other'
+
+# ===== 撤销 =====
 @app.route('/api/undo', methods=['POST'])
 def undo():
     global rename_history
@@ -439,6 +540,7 @@ def undo():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== 去重（内存优化版） =====
 @app.route('/api/dedup', methods=['POST'])
 def dedup():
     data = request.json
@@ -447,6 +549,13 @@ def dedup():
     recursive = data.get('recursive', True)
     base_path = data.get('path', '/')
     work_dir = '/data'
+
+    # 检查内存
+    mem_check = check_memory_limit()
+    if mem_check['exceeded']:
+        return jsonify({
+            'error': f'内存使用超过限制 ({mem_check["current_percent"]}%)，请稍后再试'
+        }), 503
 
     if base_path == '/':
         target = Path(work_dir)
@@ -457,37 +566,109 @@ def dedup():
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
 
-    all_files = []
-    if recursive:
-        for item in target.rglob('*'):
-            if item.is_file():
-                all_files.append(item)
-    else:
+    # 快速检查目录是否为空
+    try:
+        has_files = False
+        count = 0
         for item in target.iterdir():
             if item.is_file():
-                all_files.append(item)
+                has_files = True
+                count += 1
+                if count > 10:
+                    break
+        if not has_files:
+            return jsonify({'duplicates': [], 'deleted': 0, 'message': '目录为空'})
+    except PermissionError:
+        return jsonify({'error': '无法读取目录'}), 403
 
+    # 收集文件（限制数量）
+    all_files = []
+    file_count = 0
+    try:
+        if recursive:
+            for item in target.rglob('*'):
+                if item.is_file():
+                    file_count += 1
+                    if file_count > MAX_DEDUP_FILES:
+                        return jsonify({
+                            'error': f'文件数量超过限制({MAX_DEDUP_FILES}个)，请使用过滤条件缩小范围',
+                            'total_files': file_count
+                        }), 400
+                    all_files.append(item)
+        else:
+            for item in target.iterdir():
+                if item.is_file():
+                    file_count += 1
+                    if file_count > MAX_DEDUP_FILES:
+                        return jsonify({
+                            'error': f'文件数量超过限制({MAX_DEDUP_FILES}个)，请使用过滤条件缩小范围',
+                            'total_files': file_count
+                        }), 400
+                    all_files.append(item)
+    except PermissionError:
+        return jsonify({'error': '无法读取目录'}), 403
+
+    if not all_files:
+        return jsonify({'duplicates': [], 'deleted': 0, 'message': '没有文件'})
+
+    # 分批处理
     groups = {}
-    for file_path in all_files:
-        try:
-            if method == 'md5':
-                with open(file_path, 'rb') as f:
-                    key = hashlib.md5(f.read()).hexdigest()
-            elif method == 'name':
-                key = file_path.name
-            elif method == 'size':
-                key = file_path.stat().st_size
-            elif method == 'name_size':
-                key = f'{file_path.name}_{file_path.stat().st_size}'
-            else:
-                key = file_path.name
-            if key not in groups:
-                groups[key] = []
-            groups[key].append(str(file_path))
-        except:
-            pass
+    processed = 0
+    BATCH = 50
 
+    try:
+        for file_path in all_files:
+            try:
+                if method == 'md5':
+                    hash_md5 = hashlib.md5()
+                    with open(file_path, 'rb') as f:
+                        for chunk in iter(lambda: f.read(8192), b''):
+                            hash_md5.update(chunk)
+                    key = hash_md5.hexdigest()
+                elif method == 'name':
+                    key = file_path.name
+                elif method == 'size':
+                    key = file_path.stat().st_size
+                elif method == 'name_size':
+                    key = f'{file_path.name}_{file_path.stat().st_size}'
+                else:
+                    key = file_path.name
+
+                if key not in groups:
+                    groups[key] = []
+                groups[key].append(str(file_path))
+                processed += 1
+
+                # 每处理一批释放内存
+                if processed % BATCH == 0:
+                    memory_cleanup()
+                    # 检查内存是否超限
+                    mem_check2 = check_memory_limit()
+                    if mem_check2['exceeded']:
+                        # 已经处理的部分返回结果，不再继续
+                        duplicates = [v for v in groups.values() if len(v) > 1]
+                        return jsonify({
+                            'duplicates': duplicates,
+                            'deleted': 0,
+                            'warning': f'内存超限，仅返回已处理的部分 ({processed} 个文件)',
+                            'partial': True
+                        })
+
+            except Exception as e:
+                print(f'处理文件失败: {file_path} - {e}')
+                continue
+
+    except MemoryError:
+        memory_cleanup()
+        return jsonify({'error': '内存不足，请缩小扫描范围'}), 503
+
+    # 找出重复组
     duplicates = [v for v in groups.values() if len(v) > 1]
+
+    # 释放大对象
+    groups.clear()
+    memory_cleanup()
+
     result = {'duplicates': duplicates, 'deleted': 0}
 
     if action == 'find':
@@ -529,50 +710,25 @@ def dedup():
                 except:
                     pass
 
+    memory_cleanup()
     return jsonify(result)
 
-@app.route('/api/memory', methods=['GET'])
-def memory_status():
-    return jsonify({
-        'memory_mb': get_memory_usage(),
-        'history_count': len(rename_history),
-        'max_history': MAX_HISTORY
-    })
-
-@app.route('/api/cleanup', methods=['POST'])
-def cleanup():
-    gc.collect()
-    return jsonify({
-        'message': '内存已清理',
-        'memory_mb': get_memory_usage()
-    })
-
-@app.route('/api/filter_preview', methods=['POST'])
-def filter_preview():
-    data = request.json
-    files = data.get('files', [])
-    filters = data.get('filters', {})
-    work_dir = '/data'
-    
-    all_file_paths = [Path(work_dir) / f for f in files]
-    filtered_paths = apply_file_filters(all_file_paths, filters)
-    
-    return jsonify({
-        'total': len(files),
-        'matched': len(filtered_paths),
-        'matched_files': [str(p) for p in filtered_paths]
-    })
-
+# ===== 删除 =====
 @app.route('/api/delete', methods=['POST'])
 def delete_files():
     data = request.json
     files = data.get('files', [])
     work_dir = '/data'
-    
+
+    if len(files) > MAX_FILES_PER_OPERATION:
+        return jsonify({'error': f'一次最多删除 {MAX_FILES_PER_OPERATION} 个文件'}), 400
+
     logs = []
     deleted = 0
-    
-    for file_path in files:
+
+    for i, file_path in enumerate(files):
+        if i % BATCH_SIZE == 0:
+            memory_cleanup()
         target = Path(work_dir) / file_path
         if target.exists():
             try:
@@ -588,8 +744,55 @@ def delete_files():
                 logs.append({'text': f'❌ 删除失败: {target.name} - {str(e)}', 'type': 'error'})
         else:
             logs.append({'text': f'⚠️ 不存在: {file_path}', 'type': 'warning'})
-    
+
+    memory_cleanup()
     return jsonify({'logs': logs, 'deleted': deleted})
+
+# ===== 过滤预览 =====
+@app.route('/api/filter_preview', methods=['POST'])
+def filter_preview():
+    data = request.json
+    files = data.get('files', [])
+    filters = data.get('filters', {})
+    work_dir = '/data'
+
+    if len(files) > MAX_FILES_PER_OPERATION:
+        return jsonify({'error': f'一次最多预览 {MAX_FILES_PER_OPERATION} 个文件'}), 400
+
+    all_file_paths = [Path(work_dir) / f for f in files]
+    filtered_paths = apply_file_filters(all_file_paths, filters)
+
+    return jsonify({
+        'total': len(files),
+        'matched': len(filtered_paths),
+        'matched_files': [str(p) for p in filtered_paths]
+    })
+
+# ===== 内存状态 =====
+@app.route('/api/memory', methods=['GET'])
+def memory_status():
+    system = get_system_memory()
+    process = get_process_memory()
+    return jsonify({
+        'system': system,
+        'process': process,
+        'limit_percent': MAX_MEMORY_PERCENT,
+        'history_count': len(rename_history),
+        'max_history': MAX_HISTORY
+    })
+
+# ===== 清理内存 =====
+@app.route('/api/cleanup', methods=['POST'])
+def cleanup():
+    memory_cleanup()
+    system = get_system_memory()
+    process = get_process_memory()
+    return jsonify({
+        'message': '内存已清理',
+        'system_memory_percent': system['percent'],
+        'process_memory_mb': process['rss_mb'],
+        'process_memory_percent': process['percent']
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
