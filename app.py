@@ -107,9 +107,8 @@ def preview():
 
         try:
             new_name = apply_rename_action(old_name, action, data)
-
         except Exception as e:
-            print(f"Error processing {old_name}: {e}")
+            print(f'Error processing {old_name}: {e}')
             new_name = old_name
 
         if new_name != old_name:
@@ -122,7 +121,6 @@ def preview():
 
     return jsonify({'files': results})
 
-# ===== 应用重命名规则 =====
 def apply_rename_action(old_name, action, data):
     name, ext = os.path.splitext(old_name)
 
@@ -205,18 +203,12 @@ def apply_rename_action(old_name, action, data):
             new_name = name + '.' + ext_value if ext_value else name
 
     elif action == 'number':
-        # 编号在 execute 时处理，预览时返回原名称
         new_name = old_name
 
     elif action == 'date':
-        date_type = data.get('date_type', 'created')
-        date_format = data.get('date_format', 'YYYY-MM-DD')
-        date_pos = data.get('date_pos', 'prefix')
-        # 在 execute 时处理，预览时返回原名称
         new_name = old_name
 
     elif action == 'move' or action == 'copy':
-        # 在 execute 时处理
         new_name = old_name
 
     else:
@@ -237,10 +229,8 @@ def execute():
     history = []
 
     if action in ['number', 'date']:
-        # 特殊处理：需要遍历所有文件
         all_files = data.get('all_files', [])
         if not all_files:
-            # 如果没有传，使用 files
             all_files = [f['old_path'] for f in files]
 
         for idx, file_path in enumerate(all_files):
@@ -252,8 +242,6 @@ def execute():
                 step = int(data.get('step', 1))
                 digits = int(data.get('digits', 2))
                 position = data.get('position', 'suffix')
-                reset = data.get('reset', False)
-
                 num = str(start + idx * step).zfill(digits)
                 name, ext = os.path.splitext(old_name)
                 if position == 'prefix':
@@ -265,7 +253,6 @@ def execute():
                 date_type = data.get('date_type', 'created')
                 date_format = data.get('date_format', 'YYYY-MM-DD')
                 date_pos = data.get('date_pos', 'prefix')
-
                 file_path_obj = Path(work_dir) / file_path
                 if date_type == 'created':
                     dt = datetime.fromtimestamp(file_path_obj.stat().st_ctime)
@@ -273,10 +260,8 @@ def execute():
                     dt = datetime.fromtimestamp(file_path_obj.stat().st_mtime)
                 else:
                     dt = datetime.now()
-
                 fmt = date_format.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
                 date_str = dt.strftime(fmt)
-
                 name, ext = os.path.splitext(old_name)
                 if date_pos == 'prefix':
                     new_name = date_str + '_' + name + ext
@@ -288,10 +273,7 @@ def execute():
                 new_path = Path(work_dir) / str(Path(file_path).parent / new_name)
                 if old_path.exists() and not new_path.exists():
                     old_path.rename(new_path)
-                    logs.append({
-                        'text': f'✏️ {action}: {old_name} → {new_name}',
-                        'type': 'success'
-                    })
+                    logs.append({'text': f'✏️ {action}: {old_name} → {new_name}', 'type': 'success'})
                     history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': old_name})
                     stats['processed'] += 1
 
@@ -300,17 +282,13 @@ def execute():
         overwrite = data.get('overwrite', False)
         if not target_dir:
             return jsonify({'error': '目标目录不能为空'}), 400
-
         target_path = Path(work_dir) / target_dir.lstrip('/')
         target_path.mkdir(parents=True, exist_ok=True)
-
         for item in files:
             old_path = Path(work_dir) / item['old_path']
             new_path = target_path / item['old_name']
-
             if overwrite and new_path.exists():
                 new_path.unlink()
-
             if action == 'move':
                 shutil.move(str(old_path), str(new_path))
                 logs.append({'text': f'📦 移动: {item["old_name"]} → {target_dir}', 'type': 'success'})
@@ -327,20 +305,15 @@ def execute():
             new_path = Path(work_dir) / item['new_path']
             if old_path.exists() and not new_path.exists():
                 old_path.rename(new_path)
-                logs.append({
-                    'text': f'✏️ 重命名: {item["old_name"]} → {item["new_name"]}',
-                    'type': 'success'
-                })
+                logs.append({'text': f'✏️ 重命名: {item["old_name"]} → {item["new_name"]}', 'type': 'success'})
                 history.append({'old_path': str(old_path), 'new_path': str(new_path), 'old_name': item['old_name']})
                 stats['processed'] += 1
 
     else:
         return jsonify({'error': f'未知操作: {action}'}), 400
 
-    # 保存历史
     global rename_history
     rename_history.extend(history)
-
     stats['message'] = f'成功处理 {stats["processed"]} 个文件'
     return jsonify({'logs': logs, 'stats': stats, 'history': history})
 
@@ -350,7 +323,6 @@ def undo():
     global rename_history
     if not rename_history:
         return jsonify({'error': '没有可撤销的操作'}), 400
-
     last = rename_history.pop()
     try:
         old_path = Path(last['old_path'])
@@ -382,7 +354,6 @@ def dedup():
     if not target.exists():
         return jsonify({'error': f'路径不存在: {target}'}), 404
 
-    # 收集所有文件
     all_files = []
     if recursive:
         for item in target.rglob('*'):
@@ -393,35 +364,31 @@ def dedup():
             if item.is_file():
                 all_files.append(item)
 
-    # 按方式分组
     groups = {}
     for file_path in all_files:
-        if method == 'md5':
-            try:
+        try:
+            if method == 'md5':
                 with open(file_path, 'rb') as f:
                     key = hashlib.md5(f.read()).hexdigest()
-            except:
-                continue
-        elif method == 'name':
-            key = file_path.name
-        elif method == 'size':
-            key = file_path.stat().st_size
-        elif method == 'name_size':
-            key = f"{file_path.name}_{file_path.stat().st_size}"
-        else:
-            key = file_path.name
+            elif method == 'name':
+                key = file_path.name
+            elif method == 'size':
+                key = file_path.stat().st_size
+            elif method == 'name_size':
+                key = f'{file_path.name}_{file_path.stat().st_size}'
+            else:
+                key = file_path.name
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(str(file_path))
+        except:
+            pass
 
-        if key not in groups:
-            groups[key] = []
-        groups[key].append(str(file_path))
-
-    # 找出重复组
     duplicates = [v for v in groups.values() if len(v) > 1]
     result = {'duplicates': duplicates, 'deleted': 0}
 
     if action == 'find':
-        pass  # 只返回列表
-
+        pass
     elif action == 'delete_first':
         for group in duplicates:
             for f in group[1:]:
@@ -430,7 +397,6 @@ def dedup():
                     result['deleted'] += 1
                 except:
                     pass
-
     elif action == 'delete_last':
         for group in duplicates:
             for f in group[:-1]:
@@ -439,22 +405,20 @@ def dedup():
                     result['deleted'] += 1
                 except:
                     pass
-
     elif action == 'delete_smallest':
         for group in duplicates:
             sizes = [(f, Path(f).stat().st_size) for f in group]
-            sizes.sort(key=lambda x: x[1], reverse=True)  # 保留最大的
+            sizes.sort(key=lambda x: x[1], reverse=True)
             for f, _ in sizes[1:]:
                 try:
                     Path(f).unlink()
                     result['deleted'] += 1
                 except:
                     pass
-
     elif action == 'delete_largest':
         for group in duplicates:
             sizes = [(f, Path(f).stat().st_size) for f in group]
-            sizes.sort(key=lambda x: x[1])  # 保留最小的
+            sizes.sort(key=lambda x: x[1])
             for f, _ in sizes[1:]:
                 try:
                     Path(f).unlink()
