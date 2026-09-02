@@ -37,7 +37,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rename-bar{padding:3px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:3px 5px;align-items:center;flex-shrink:0;min-height:30px}
 .rename-bar select,.rename-bar input{background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px}
 .rename-bar select:focus,.rename-bar input:focus{border-color:#667eea}
-.rename-bar input[type=text]{min-width:60px}
+.rename-bar input[type=text]{min-width:120px;flex:1}
 .rename-bar input[type=number]{width:42px}
 .rename-bar .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
 .rename-bar .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:3px}
@@ -174,9 +174,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 </select>
 
                 <span id="findLabel" class="label">查找</span>
-                <input type="text" id="findText" placeholder="查找">
+                <input type="text" id="findText" placeholder="查找" style="min-width:180px;flex:1">
                 <span id="replaceLabel" class="label">替换为</span>
-                <input type="text" id="replaceText" placeholder="替换为">
+                <input type="text" id="replaceText" placeholder="替换为" style="min-width:180px;flex:1">
                 <label class="checkbox-label"><input type="checkbox" id="caseSensitive"> 大小写敏感</label>
 
                 <span id="numParams" style="display:none;">
@@ -253,7 +253,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <h2>📦 移动/复制文件</h2>
         <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
             源目录：<strong id="moveSourcePath" style="color:#e4e6eb;">/</strong>
-            <span style="color:#4a4e62;margin-left:8px;">（该目录下选中的文件）</span>
+            <span style="color:#4a4e62;margin-left:8px;">（当前目录下所有文件）</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -484,6 +484,17 @@ function renderTree(nodes, container) {
             }
         }
     });
+}
+
+// ===== 获取当前目录所有文件路径（不限于选中） =====
+function getAllFilePaths() {
+    const paths = [];
+    for (let file of fileList) {
+        if (!file.is_dir) {
+            paths.push(file.path);
+        }
+    }
+    return paths;
 }
 
 async function loadFiles(path) {
@@ -720,6 +731,7 @@ function getSelectedPaths() {
 }
 
 function autoPreview() {
+    // 重命名预览只对选中的文件生效
     const files = getSelectedPaths();
     const params = getRenameParams();
     
@@ -814,7 +826,6 @@ function updateSelectedInfo() {
     } else {
         selectedInfo.textContent = '';
     }
-    // 更新全选状态
     const allCheckboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]');
     const checkedCheckboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:checked');
     const selectAll = document.getElementById('selectAll');
@@ -854,7 +865,6 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 });
 
-// ===== 全选/取消 =====
 document.getElementById('selectAllBtn').addEventListener('click', function() {
     document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
         cb.checked = true;
@@ -980,10 +990,11 @@ document.getElementById('dateType').addEventListener('change', autoPreview);
 document.getElementById('dateFormat').addEventListener('change', autoPreview);
 document.getElementById('datePos').addEventListener('change', autoPreview);
 
+// ===== 执行重命名 - 对选中的文件生效 =====
 document.getElementById('executeRenameBtn').addEventListener('click', async function() {
     const files = getSelectedPaths();
     if (files.length === 0) {
-        showLog('⚠️ 请先选择文件', 'warning');
+        showLog('⚠️ 请先勾选要重命名的文件', 'warning');
         return;
     }
     const params = getRenameParams();
@@ -1040,11 +1051,11 @@ document.getElementById('undoBtn').addEventListener('click', async function() {
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
 
-// ===== 删除功能 =====
+// ===== 删除功能 - 对选中的文件/目录生效 =====
 document.getElementById('deleteBtn').addEventListener('click', function() {
     const files = getSelectedPaths();
     if (files.length === 0) {
-        showLog('⚠️ 请先选择要删除的文件或目录', 'warning');
+        showLog('⚠️ 请先勾选要删除的文件或目录', 'warning');
         return;
     }
     const fileNames = files.map(f => getFileName(f)).join('\n  ');
@@ -1091,10 +1102,11 @@ async function deleteItems(files) {
     await loadFiles(currentPath);
 }
 
+// ===== 移动/复制 - 对整个目录所有文件生效（不需要勾选） =====
 document.getElementById('moveCopyBtn').addEventListener('click', function() {
-    const files = getSelectedPaths();
+    const files = getAllFilePaths();
     if (files.length === 0) {
-        showLog('⚠️ 请先选择文件', 'warning');
+        showLog('⚠️ 当前目录没有文件可移动/复制', 'warning');
         return;
     }
     document.getElementById('moveSourcePath').textContent = currentPath;
@@ -1138,9 +1150,10 @@ document.getElementById('moveCopyConfirmBtn').addEventListener('click', async fu
         return;
     }
 
-    const files = getSelectedPaths();
+    // 获取当前目录所有文件（不限于选中）
+    const files = getAllFilePaths();
     if (files.length === 0) {
-        showLog('⚠️ 请先选择文件', 'warning');
+        showLog('⚠️ 当前目录没有文件', 'warning');
         closeModal('moveCopyModal');
         return;
     }
@@ -1181,7 +1194,7 @@ document.querySelectorAll('#moveCopyModal input, #moveCopyModal select').forEach
 
 async function previewFilter() {
     const filters = getFilters();
-    const files = getSelectedPaths();
+    const files = getAllFilePaths();
     if (Object.keys(filters).length === 0 || files.length === 0) {
         document.getElementById('filterPreview').style.display = 'none';
         return;
