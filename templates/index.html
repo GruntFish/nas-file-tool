@@ -31,29 +31,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tree-children{padding-left:16px;overflow:hidden}
 .tree-children.collapsed{display:none}
 .content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.top-toolbar{padding:6px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;flex-shrink:0;min-height:44px}
-.top-toolbar .path-display{color:#8b8fa3;font-size:12px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}
-.top-toolbar .path-display strong{color:#e4e6eb}
-.top-toolbar .btn-group{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
-.top-toolbar button{background:#2d313e;border:0;color:#b5b9c9;padding:4px 12px;border-radius:4px;font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap;height:28px}
-.top-toolbar button:hover:not(:disabled){background:#3d4150;color:#e4e6eb}
-.top-toolbar button.primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
-.top-toolbar button.primary:hover:not(:disabled){opacity:.85}
-.top-toolbar button.danger{background:#e53e3e;color:#fff}
-.top-toolbar button.danger:hover:not(:disabled){opacity:.85}
-.top-toolbar button.undo-btn{background:#f6ad55;color:#1a1d27}
-.top-toolbar button.undo-btn:hover:not(:disabled){background:#ed8936}
-.top-toolbar button:disabled{opacity:.4;cursor:not-allowed}
-.top-toolbar .sep{color:#2d313e;font-size:16px;padding:0 2px;user-select:none}
-.rename-bar{padding:4px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;flex-shrink:0;min-height:34px}
-.rename-bar select,.rename-bar input{background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:3px 6px;font-size:12px;outline:0;font-family:inherit;height:26px}
+.path-bar{padding:4px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;display:flex;align-items:center;flex-shrink:0;min-height:32px}
+.path-bar .path-display{color:#8b8fa3;font-size:12px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.path-bar .path-display strong{color:#e4e6eb}
+.toolbar{padding:4px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;flex-shrink:0;min-height:34px}
+.toolbar .sep{color:#2d313e;font-size:14px;padding:0 2px;user-select:none}
+.toolbar button{background:#2d313e;border:0;color:#b5b9c9;padding:3px 10px;border-radius:4px;font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap;height:26px}
+.toolbar button:hover:not(:disabled){background:#3d4150;color:#e4e6eb}
+.toolbar button.primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.toolbar button.primary:hover:not(:disabled){opacity:.85}
+.toolbar button.danger{background:#e53e3e;color:#fff}
+.toolbar button.danger:hover:not(:disabled){opacity:.85}
+.toolbar button.undo-btn{background:#f6ad55;color:#1a1d27}
+.toolbar button.undo-btn:hover:not(:disabled){background:#ed8936}
+.toolbar button:disabled{opacity:.4;cursor:not-allowed}
+.rename-bar{padding:3px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:3px 5px;align-items:center;flex-shrink:0;min-height:30px}
+.rename-bar select,.rename-bar input{background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px}
 .rename-bar select:focus,.rename-bar input:focus{border-color:#667eea}
-.rename-bar input[type=text]{min-width:70px}
-.rename-bar input[type=number]{width:45px}
+.rename-bar input[type=text]{min-width:60px}
+.rename-bar input[type=number]{width:42px}
 .rename-bar .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
 .rename-bar .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:3px}
-.rename-bar .checkbox-label input[type=checkbox]{accent-color:#667eea;width:13px;height:13px;margin:0}
-.rename-bar .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 12px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:26px}
+.rename-bar .checkbox-label input[type=checkbox]{accent-color:#667eea;width:12px;height:12px;margin:0}
+.rename-bar .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:2px 12px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:24px}
 .rename-bar .btn-execute:hover:not(:disabled){opacity:.85}
 .file-list-container{flex:1;overflow:auto;padding:0}
 .file-list-container::-webkit-scrollbar{width:6px;height:6px}
@@ -61,8 +61,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .file-list-container::-webkit-scrollbar-thumb{background:#2d313e;border-radius:4px}
 .file-table{width:100%;border-collapse:collapse;font-size:13px}
 .file-table thead{position:sticky;top:0;z-index:10}
-.file-table th{text-align:left;padding:6px 10px;color:#8b8fa3;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #2d313e;background:#1a1d27}
-.file-table td{padding:5px 10px;color:#b5b9c9;border-bottom:1px solid #1f222c;font-size:12px}
+.file-table th{text-align:left;padding:5px 10px;color:#8b8fa3;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #2d313e;background:#1a1d27}
+.file-table td{padding:4px 10px;color:#b5b9c9;border-bottom:1px solid #1f222c;font-size:12px}
 .file-table tr:hover td{background:#222632}
 .file-table .name-col{font-weight:500}
 .file-table .new-name-col{color:#68d391;font-weight:500}
@@ -74,8 +74,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .file-table .status-col.ok{color:#68d391}
 .file-table .folder-row .name-col{color:#f0c94d}
 .file-table .empty-row td{padding:40px;text-align:center;color:#4a4e62;font-size:14px}
-.status-bar{padding:4px 16px;background:#14171f;border-top:1px solid #2d313e;display:flex;justify-content:space-between;font-size:11px;color:#4a4e62;flex-shrink:0}
-.log-area{max-height:80px;overflow-y:auto;background:#14171f;border-top:1px solid #2d313e;padding:4px 16px;font-family:'Courier New',monospace;font-size:11px;line-height:1.5;display:none;flex-shrink:0}
+.status-bar{padding:3px 16px;background:#14171f;border-top:1px solid #2d313e;display:flex;justify-content:space-between;font-size:11px;color:#4a4e62;flex-shrink:0}
+.log-area{max-height:60px;overflow-y:auto;background:#14171f;border-top:1px solid #2d313e;padding:3px 16px;font-family:'Courier New',monospace;font-size:11px;line-height:1.4;display:none;flex-shrink:0}
 .log-area.show{display:block}
 .log-area .log-line{color:#8b8fa3;padding:1px 0}
 .log-area .log-line.success{color:#68d391}
@@ -105,6 +105,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .modal .preview-info{background:#14171f;border-radius:6px;padding:8px 12px;margin:6px 0;font-size:12px;color:#b5b9c9}
 .modal .preview-info .matched{color:#68d391}
 .modal .preview-info .total{color:#8b8fa3}
+.modal .preview-list{max-height:150px;overflow-y:auto;background:#14171f;border-radius:6px;padding:6px 10px;margin:6px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
+.modal .preview-list .changed{color:#68d391}
 @media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%}.filter-grid{grid-template-columns:1fr}}
 @media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}}
 .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
@@ -131,21 +133,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             </div>
         </div>
         <div class="content">
-            <div class="top-toolbar">
+            <!-- 路径显示 -->
+            <div class="path-bar">
                 <div class="path-display">
                     📂 <strong id="currentPathDisplay">/</strong>
                     <span id="fileCountDisplay" style="margin-left:12px;color:#4a4e62;">0 项</span>
                 </div>
-                <div class="btn-group">
-                    <button id="refreshBtn">⟳ 刷新</button>
-                    <span class="sep">|</span>
-                    <button id="moveCopyBtn" class="primary">📦 移动/复制</button>
-                    <button id="dedupBtn" class="danger">🧹 去重</button>
-                    <button id="undoBtn" class="undo-btn" disabled>↩ 撤销</button>
-                    <span class="sep">|</span>
-                    <button id="cleanupBtn">🧹 清理</button>
-                </div>
             </div>
+
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <button id="moveCopyBtn" class="primary">📦 移动/复制</button>
+                <button id="dedupBtn" class="danger">🧹 去重</button>
+                <button id="undoBtn" class="undo-btn" disabled>↩ 撤销</button>
+                <span class="sep">|</span>
+                <button id="cleanupBtn">🧹 清理内存</button>
+            </div>
+
+            <!-- 重命名栏 -->
             <div class="rename-bar" id="renameBar">
                 <span class="label">操作</span>
                 <select id="renameAction">
@@ -164,11 +169,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <option value="removepos">按位置删除</option>
                     <option value="date">添加日期</option>
                 </select>
+
                 <span id="findLabel" class="label">查找</span>
                 <input type="text" id="findText" placeholder="查找">
                 <span id="replaceLabel" class="label">替换为</span>
                 <input type="text" id="replaceText" placeholder="替换为">
                 <label class="checkbox-label"><input type="checkbox" id="caseSensitive"> 大小写敏感</label>
+
                 <span id="numParams" style="display:none;">
                     <span class="label">起始</span>
                     <input type="number" id="startNum" value="1">
@@ -179,10 +186,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <span class="label">位置</span>
                     <select id="numberPos"><option value="suffix">后缀</option><option value="prefix">前缀</option></select>
                 </span>
+
                 <span id="extParams" style="display:none;">
                     <select id="extAction"><option value="change">更改</option><option value="add">添加</option><option value="remove">删除</option><option value="replace">替换</option></select>
                     <input type="text" id="extValue" placeholder="新扩展名">
                 </span>
+
                 <span id="removePosParams" style="display:none;">
                     <span class="label">起始</span>
                     <input type="number" id="removeStart" value="1">
@@ -190,13 +199,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <input type="number" id="removeLen" value="1">
                     <label class="checkbox-label"><input type="checkbox" id="removeFromEnd"> 从末尾</label>
                 </span>
+
                 <span id="dateParams" style="display:none;">
                     <select id="dateType"><option value="created">创建日期</option><option value="modified">修改日期</option><option value="custom">自定义</option></select>
                     <select id="dateFormat"><option value="YYYY-MM-DD">2024-01-15</option><option value="YYYYMMDD">20240115</option><option value="YYMMDD">240115</option></select>
                     <select id="datePos"><option value="prefix">前缀</option><option value="suffix">后缀</option></select>
                 </span>
+
                 <button class="btn-execute" id="executeRenameBtn">✅ 执行重命名</button>
             </div>
+
+            <!-- 文件列表 -->
             <div class="file-list-container" id="fileListContainer">
                 <table class="file-table">
                     <thead><tr>
@@ -211,6 +224,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     </tbody>
                 </table>
             </div>
+
             <div class="log-area" id="logArea"></div>
         </div>
     </div>
@@ -220,6 +234,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
 </div>
 
+<!-- 移动/复制模态框 -->
 <div class="modal-overlay" id="moveCopyModal">
     <div class="modal">
         <h2>📦 移动/复制文件</h2>
@@ -271,6 +286,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
 </div>
 
+<!-- 去重模态框 -->
 <div class="modal-overlay" id="dedupModal">
     <div class="modal">
         <h2>🧹 文件去重</h2>
@@ -317,7 +333,6 @@ let fileList = [];
 let renamePreview = {};
 let renameHistory = [];
 let fullTreeData = [];
-let pendingRenameFiles = [];
 
 const treeContainer = document.getElementById('treeContainer');
 const fileTableBody = document.getElementById('fileTableBody');
@@ -429,7 +444,6 @@ async function loadFiles(path) {
         updateTreeHighlight(path);
         statusLeft.textContent = '📂 ' + path;
         updateTargetSelect();
-        // 自动预览
         autoPreview();
     } catch (err) {
         statusLeft.textContent = '❌ 加载失败: ' + err.message;
@@ -690,21 +704,17 @@ function autoPreview() {
     const params = getRenameParams();
     
     if (files.length === 0 || !params.action) {
-        // 没有文件或没有操作，清空预览
         renamePreview = {};
         renderFiles(fileList);
         return;
     }
 
-    // 对于编号和日期操作，需要特殊处理
     if (params.action === 'number' || params.action === 'date') {
-        // 这两种操作需要执行时才确定，预览保持原样
         renamePreview = {};
         renderFiles(fileList);
         return;
     }
 
-    // 计算每个文件的新名称
     const previewMap = {};
     let hasChanges = false;
     for (let filePath of files) {
@@ -877,7 +887,6 @@ document.getElementById('renameAction').addEventListener('change', function() {
             document.getElementById('caseSensitive').parentElement.style.display = 'inline-flex';
             break;
     }
-    // 触发预览
     autoPreview();
 });
 
@@ -907,7 +916,6 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
     }
     const params = getRenameParams();
     
-    // 先预览获取结果
     const previewParams = { ...params, files: files };
     
     try {
@@ -939,11 +947,6 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
     } catch(e) {
         showLog('❌ ' + e.message, 'error');
     }
-});
-
-document.getElementById('refreshBtn').addEventListener('click', function() {
-    renamePreview = {};
-    loadFiles(currentPath);
 });
 
 document.getElementById('refreshTreeBtn').addEventListener('click', function() {
