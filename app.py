@@ -574,15 +574,20 @@ def delete_files():
     
     for file_path in files:
         target = Path(work_dir) / file_path
-        if target.exists() and target.is_file():
+        if target.exists():
             try:
-                target.unlink()
-                logs.append({'text': f'🗑️ 删除: {target.name}', 'type': 'success'})
-                deleted += 1
+                if target.is_file():
+                    target.unlink()
+                    logs.append({'text': f'🗑️ 删除文件: {target.name}', 'type': 'success'})
+                    deleted += 1
+                elif target.is_dir():
+                    shutil.rmtree(target)
+                    logs.append({'text': f'🗑️ 删除目录: {target.name}', 'type': 'success'})
+                    deleted += 1
             except Exception as e:
                 logs.append({'text': f'❌ 删除失败: {target.name} - {str(e)}', 'type': 'error'})
         else:
-            logs.append({'text': f'⚠️ 文件不存在: {file_path}', 'type': 'warning'})
+            logs.append({'text': f'⚠️ 不存在: {file_path}', 'type': 'warning'})
     
     return jsonify({'logs': logs, 'deleted': deleted})
 
