@@ -1045,62 +1045,69 @@
         async function undoRename() { return apiCall('/api/undo', {}); }
         async function dedupFiles(data) { return apiCall('/api/dedup', data); }
 
-        // ===== 渲染目录树 =====
-        function renderTree(nodes, container) {
-            container.innerHTML = '';
-            if (!nodes || nodes.length === 0) {
-                container.innerHTML = `<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 空目录</div>`;
-                return;
-            }
+// ===== 渲染目录树（完整递归，所有层级一次性展示） =====
+function renderTree(nodes, container) {
+    container.innerHTML = '';
+    if (!nodes || nodes.length === 0) {
+        container.innerHTML = `<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 此目录下没有子文件夹</div>`;
+        return;
+    }
 
-            const folders = nodes.filter(n => n.is_dir);
-            if (folders.length === 0) {
-                container.innerHTML = `<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>`;
-                return;
-            }
+    // 只显示文件夹
+    const folders = nodes.filter(n => n.is_dir);
+    if (folders.length === 0) {
+        container.innerHTML = `<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>`;
+        return;
+    }
 
-            folders.sort((a, b) => a.name.localeCompare(b.name));
+    folders.sort((a, b) => a.name.localeCompare(b.name));
 
-            folders.forEach(node => {
-                const item = document.createElement('div');
-                item.className = `tree-item`;
-                if (node.path === currentPath) item.classList.add('active');
-
-                const hasChildren = node.children && node.children.some(c => c.is_dir);
-
-                item.innerHTML = `
-                    <span class="icon">📁</span>
-                    <span class="name">${escapeHtml(node.name)}</span>
-                    ${hasChildren ? `<span class="arrow">▶</span>` : ''}
-                `;
-
-                item.addEventListener('click', () => navigateTo(node.path));
-
-                container.appendChild(item);
-
-                if (hasChildren) {
-                    const childrenContainer = document.createElement('div');
-                    childrenContainer.className = 'tree-children';
-                    if (currentPath.startsWith(node.path)) {
-                        childrenContainer.classList.remove('collapsed');
-                    } else {
-                        childrenContainer.classList.add('collapsed');
-                    }
-                    const childFolders = node.children.filter(c => c.is_dir);
-                    renderTree(childFolders, childrenContainer);
-                    container.appendChild(childrenContainer);
-
-                    const arrow = item.querySelector('.arrow');
-                    if (arrow) {
-                        arrow.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            childrenContainer.classList.toggle('collapsed');
-                            arrow.classList.toggle('open');
-                        });
-                    }
-                }
-            });
+    folders.forEach(node => {
+        const item = document.createElement('div');
+        item.className = `tree-item`;
+        if (node.path === currentPath) {
+            item.classList.add('active');
         }
+
+        const hasChildren = node.children && node.children.length > 0;
+
+        item.innerHTML = `
+            <span class="icon">📁</span>
+            <span class="name">${escapeHtml(node.name)}</span>
+            ${hasChildren ? `<span class="arrow open">▼</span>` : ''}
+        `;
+
+        item.addEventListener('click', () => {
+            navigateTo(node.path);
+        });
+
+        container.appendChild(item);
+
+        // 如果有子目录，递归渲染
+        if (hasChildren) {
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'tree-children';
+            // 默认全部展开（或者根据是否在当前路径下决定）
+            if (currentPath.startsWith(node.path)) {
+                childrenContainer.classList.remove('collapsed');
+            } else {
+                childrenContainer.classList.add('collapsed');
+            }
+            renderTree(node.children, childrenContainer);
+            container.appendChild(childrenContainer);
+
+            // 点击箭头切换展开/折叠
+            const arrow = item.querySelector('.arrow');
+            if (arrow) {
+                arrow.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    childrenContainer.classList.toggle('collapsed');
+                    arrow.classList.toggle('open');
+                });
+            }
+        }
+    });
+}
 
         // ===== 渲染文件列表 =====
         function renderFiles(files) {
