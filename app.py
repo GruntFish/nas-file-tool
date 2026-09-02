@@ -130,6 +130,9 @@ def get_file_signature(file_path):
     return signature
 
 @app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory('.', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
