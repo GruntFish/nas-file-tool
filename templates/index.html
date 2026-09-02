@@ -65,6 +65,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .file-table th{text-align:left;padding:5px 10px;color:#8b8fa3;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #2d313e;background:#1a1d27}
 .file-table td{padding:4px 10px;color:#b5b9c9;border-bottom:1px solid #1f222c;font-size:12px}
 .file-table tr:hover td{background:#222632}
+.file-table tr.selected td{background:#2d3b6e}
+.file-table .checkbox-col{width:28px;text-align:center}
+.file-table .checkbox-col input[type=checkbox]{accent-color:#667eea;width:14px;height:14px;cursor:pointer}
 .file-table .name-col{font-weight:500}
 .file-table .new-name-col{color:#68d391;font-weight:500}
 .file-table .new-name-col.unchanged{color:#4a4e62;font-weight:400}
@@ -143,6 +146,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                 <div class="path-display">
                     📂 <strong id="currentPathDisplay">/</strong>
                     <span id="fileCountDisplay" style="margin-left:12px;color:#4a4e62;">0 项</span>
+                    <span id="selectedInfo" style="margin-left:12px;color:#667eea;"></span>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button id="selectAllBtn" style="background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;height:22px;">全选</button>
+                    <button id="clearAllBtn" style="background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;height:22px;">取消</button>
                 </div>
             </div>
 
@@ -206,19 +214,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <span class="sep">|</span>
                     <button id="moveCopyBtn" class="primary">📦 移动/复制</button>
                     <span class="btn-spacer"></span>
+                    <button id="dedupBtn" class="primary">🧹 去重</button>
+                    <span class="btn-spacer"></span>
                     <button id="deleteBtn" class="danger">🗑️ 删除</button>
                     <span class="btn-spacer"></span>
-                    <button id="dedupBtn" class="danger">🧹 去重</button>
-                    <span class="btn-spacer"></span>
                     <button id="undoBtn" class="undo-btn" disabled>↩ 撤销</button>
-                    <span class="btn-spacer"></span>
-                    <button id="cleanupBtn">🧹 清理内存</button>
                 </div>
             </div>
 
             <div class="file-list-container" id="fileListContainer">
                 <table class="file-table">
                     <thead><tr>
+                        <th class="checkbox-col"><input type="checkbox" id="selectAll"></th>
                         <th class="name-col">名称</th>
                         <th class="new-name-col">新名称</th>
                         <th class="size-col">大小</th>
@@ -226,7 +233,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                         <th class="status-col">状态</th>
                     </tr></thead>
                     <tbody id="fileTableBody">
-                        <tr class="empty-row"><td colspan="5">📭 此目录为空</td></tr>
+                        <tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -246,7 +253,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <h2>📦 移动/复制文件</h2>
         <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
             源目录：<strong id="moveSourcePath" style="color:#e4e6eb;">/</strong>
-            <span style="color:#4a4e62;margin-left:8px;">（该目录下所有文件）</span>
+            <span style="color:#4a4e62;margin-left:8px;">（该目录下选中的文件）</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -361,11 +368,13 @@ let fileList = [];
 let renamePreview = {};
 let renameHistory = [];
 let fullTreeData = [];
+let selectedFiles = new Set();
 
 const treeContainer = document.getElementById('treeContainer');
 const fileTableBody = document.getElementById('fileTableBody');
 const currentPathDisplay = document.getElementById('currentPathDisplay');
 const fileCountDisplay = document.getElementById('fileCountDisplay');
+const selectedInfo = document.getElementById('selectedInfo');
 const statusLeft = document.getElementById('statusLeft');
 const logArea = document.getElementById('logArea');
 
@@ -486,6 +495,7 @@ async function loadFiles(path) {
         const result = await fetchFiles(path);
         if (result.error) throw new Error(result.error);
         fileList = result.files || [];
+        selectedFiles.clear();
         renderFiles(fileList);
         updateTreeHighlight(path);
         statusLeft.textContent = '📂 ' + path;
@@ -705,18 +715,12 @@ function getRenameParams() {
     return params;
 }
 
-function getAllFilePaths() {
-    const paths = [];
-    for (let file of fileList) {
-        if (!file.is_dir) {
-            paths.push(file.path);
-        }
-    }
-    return paths;
+function getSelectedPaths() {
+    return Array.from(selectedFiles);
 }
 
 function autoPreview() {
-    const files = getAllFilePaths();
+    const files = getSelectedPaths();
     const params = getRenameParams();
     
     if (files.length === 0 || !params.action) {
@@ -754,8 +758,9 @@ function renderFiles(files) {
     const tbody = fileTableBody;
     tbody.innerHTML = '';
     if (!files || files.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">📭 此目录为空</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>';
         fileCountDisplay.textContent = '0 项';
+        updateSelectedInfo();
         return;
     }
     fileList = files;
@@ -775,14 +780,47 @@ function renderFiles(files) {
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
+        const checked = selectedFiles.has(file.path) ? 'checked' : '';
         tr.innerHTML =
+            '<td class="checkbox-col"><input type="checkbox" value="' + escapeHtml(file.path) + '" ' + checked + '></td>' +
             '<td class="name-col' + (isDir ? ' folder-row' : '') + '">' + icon + ' ' + escapeHtml(file.name) + '</td>' +
             '<td class="new-name-col' + (isChanged && !isDir ? '' : ' unchanged') + '">' + (isDir ? '-' : escapeHtml(newName)) + '</td>' +
             '<td class="size-col">' + size + '</td>' +
             '<td class="date-col">' + date + '</td>' +
             '<td class="status-col ' + statusClass + '">' + statusText + '</td>';
+        
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                selectedFiles.add(file.path);
+                tr.classList.add('selected');
+            } else {
+                selectedFiles.delete(file.path);
+                tr.classList.remove('selected');
+            }
+            updateSelectedInfo();
+            autoPreview();
+        });
+        
         tbody.appendChild(tr);
     });
+    updateSelectedInfo();
+}
+
+function updateSelectedInfo() {
+    const count = selectedFiles.size;
+    if (count > 0) {
+        selectedInfo.textContent = '✅ 已选 ' + count + ' 项';
+    } else {
+        selectedInfo.textContent = '';
+    }
+    // 更新全选状态
+    const allCheckboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]');
+    const checkedCheckboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:checked');
+    const selectAll = document.getElementById('selectAll');
+    if (allCheckboxes.length > 0) {
+        selectAll.checked = allCheckboxes.length === checkedCheckboxes.length;
+    }
 }
 
 function formatSize(bytes) {
@@ -814,6 +852,28 @@ function openModal(id) { document.getElementById(id).classList.add('show'); }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+});
+
+// ===== 全选/取消 =====
+document.getElementById('selectAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change'));
+    });
+});
+
+document.getElementById('clearAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+        cb.dispatchEvent(new Event('change'));
+    });
+});
+
+document.getElementById('selectAll').addEventListener('change', function() {
+    document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+        cb.checked = this.checked;
+        cb.dispatchEvent(new Event('change'));
+    });
 });
 
 document.getElementById('renameAction').addEventListener('change', function() {
@@ -921,9 +981,9 @@ document.getElementById('dateFormat').addEventListener('change', autoPreview);
 document.getElementById('datePos').addEventListener('change', autoPreview);
 
 document.getElementById('executeRenameBtn').addEventListener('click', async function() {
-    const files = getAllFilePaths();
+    const files = getSelectedPaths();
     if (files.length === 0) {
-        showLog('⚠️ 当前目录没有文件', 'warning');
+        showLog('⚠️ 请先选择文件', 'warning');
         return;
     }
     const params = getRenameParams();
@@ -955,6 +1015,7 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
             document.getElementById('undoBtn').disabled = false;
         }
         renamePreview = {};
+        selectedFiles.clear();
         await loadFiles(currentPath);
     } catch(e) {
         showLog('❌ ' + e.message, 'error');
@@ -974,34 +1035,28 @@ document.getElementById('undoBtn').addEventListener('click', async function() {
         renameHistory.pop();
         if (renameHistory.length === 0) this.disabled = true;
         renamePreview = {};
+        selectedFiles.clear();
         await loadFiles(currentPath);
-    } catch(e) { showLog('❌ ' + e.message, 'error'); }
-});
-
-document.getElementById('cleanupBtn').addEventListener('click', async function() {
-    try {
-        const res = await fetch('/api/cleanup', { method: 'POST' });
-        const data = await res.json();
-        showLog('🧹 ' + data.message + ' (内存: ' + data.memory_mb + 'MB)', 'success');
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
 
 // ===== 删除功能 =====
 document.getElementById('deleteBtn').addEventListener('click', function() {
-    const files = getAllFilePaths();
+    const files = getSelectedPaths();
     if (files.length === 0) {
-        showLog('⚠️ 当前目录没有文件可删除', 'warning');
+        showLog('⚠️ 请先选择要删除的文件或目录', 'warning');
         return;
     }
-    if (!confirm('⚠️ 确定要删除当前目录下的 ' + files.length + ' 个文件吗？\n此操作不可恢复！')) {
+    const fileNames = files.map(f => getFileName(f)).join('\n  ');
+    if (!confirm('⚠️ 确定要删除以下 ' + files.length + ' 个文件/目录吗？\n\n  ' + fileNames + '\n\n此操作不可恢复！')) {
         return;
     }
-    deleteFiles(files);
+    deleteItems(files);
 });
 
-async function deleteFiles(files) {
+async function deleteItems(files) {
     clearLog();
-    showLog('⏳ 开始删除 ' + files.length + ' 个文件...', 'info');
+    showLog('⏳ 开始删除 ' + files.length + ' 个文件/目录...', 'info');
     
     let deleted = 0;
     let failed = 0;
@@ -1025,17 +1080,23 @@ async function deleteFiles(files) {
     }
     
     if (deleted > 0) {
-        showLog('✅ 成功删除 ' + deleted + ' 个文件', 'success');
+        showLog('✅ 成功删除 ' + deleted + ' 个文件/目录', 'success');
     }
     if (failed > 0) {
-        showLog('⚠️ 删除失败 ' + failed + ' 个文件', 'error');
+        showLog('⚠️ 删除失败 ' + failed + ' 个文件/目录', 'error');
     }
     
     renamePreview = {};
+    selectedFiles.clear();
     await loadFiles(currentPath);
 }
 
 document.getElementById('moveCopyBtn').addEventListener('click', function() {
+    const files = getSelectedPaths();
+    if (files.length === 0) {
+        showLog('⚠️ 请先选择文件', 'warning');
+        return;
+    }
     document.getElementById('moveSourcePath').textContent = currentPath;
     document.getElementById('moveTargetSelect').value = '';
     document.getElementById('moveTargetInput').value = '';
@@ -1077,9 +1138,9 @@ document.getElementById('moveCopyConfirmBtn').addEventListener('click', async fu
         return;
     }
 
-    const files = getAllFilePaths();
+    const files = getSelectedPaths();
     if (files.length === 0) {
-        showLog('⚠️ 当前目录没有文件可移动/复制', 'warning');
+        showLog('⚠️ 请先选择文件', 'warning');
         closeModal('moveCopyModal');
         return;
     }
@@ -1106,6 +1167,7 @@ document.getElementById('moveCopyConfirmBtn').addEventListener('click', async fu
             document.getElementById('undoBtn').disabled = false;
         }
         renamePreview = {};
+        selectedFiles.clear();
         await loadFiles(currentPath);
     } catch(e) {
         showLog('❌ ' + e.message, 'error');
@@ -1119,7 +1181,7 @@ document.querySelectorAll('#moveCopyModal input, #moveCopyModal select').forEach
 
 async function previewFilter() {
     const filters = getFilters();
-    const files = getAllFilePaths();
+    const files = getSelectedPaths();
     if (Object.keys(filters).length === 0 || files.length === 0) {
         document.getElementById('filterPreview').style.display = 'none';
         return;
@@ -1153,6 +1215,7 @@ document.getElementById('dedupConfirmBtn').addEventListener('click', async funct
             if (result.deleted > 0) showLog('✅ 已删除 ' + result.deleted + ' 个重复文件', 'success');
         } else { showLog('✅ 没有重复文件', 'success'); }
         renamePreview = {};
+        selectedFiles.clear();
         await loadFiles(currentPath);
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
