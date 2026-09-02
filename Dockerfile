@@ -15,10 +15,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-# 复制所有文件
 COPY processor.py .
 COPY app.py .
 COPY templates/ ./templates/
+COPY favicon.ico .         
 
 EXPOSE 5000
 
