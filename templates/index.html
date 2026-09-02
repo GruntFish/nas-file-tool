@@ -53,10 +53,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rename-bar .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
 .rename-bar .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:3px}
 .rename-bar .checkbox-label input[type=checkbox]{accent-color:#667eea;width:13px;height:13px;margin:0}
-.rename-bar .btn{background:linear-gradient(135deg,#48bb78,#38a169);border:0;color:#fff;padding:3px 12px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:26px}
-.rename-bar .btn:hover:not(:disabled){opacity:.85}
-.rename-bar .btn:disabled{opacity:.4;cursor:not-allowed}
-.rename-bar .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2)}
+.rename-bar .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 12px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:26px}
 .rename-bar .btn-execute:hover:not(:disabled){opacity:.85}
 .file-list-container{flex:1;overflow:auto;padding:0}
 .file-list-container::-webkit-scrollbar{width:6px;height:6px}
@@ -108,8 +105,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .modal .preview-info{background:#14171f;border-radius:6px;padding:8px 12px;margin:6px 0;font-size:12px;color:#b5b9c9}
 .modal .preview-info .matched{color:#68d391}
 .modal .preview-info .total{color:#8b8fa3}
-.modal .preview-list{max-height:200px;overflow-y:auto;background:#14171f;border-radius:6px;padding:6px 10px;margin:6px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
-.modal .preview-list .changed{color:#68d391}
 @media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%}.filter-grid{grid-template-columns:1fr}}
 @media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}}
 .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
@@ -200,8 +195,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
                     <select id="dateFormat"><option value="YYYY-MM-DD">2024-01-15</option><option value="YYYYMMDD">20240115</option><option value="YYMMDD">240115</option></select>
                     <select id="datePos"><option value="prefix">前缀</option><option value="suffix">后缀</option></select>
                 </span>
-                <button class="btn" id="previewRenameBtn">🔄 预览</button>
-                <button class="btn btn-execute" id="executeRenameBtn">✅ 执行</button>
+                <button class="btn-execute" id="executeRenameBtn">✅ 执行重命名</button>
             </div>
             <div class="file-list-container" id="fileListContainer">
                 <table class="file-table">
@@ -223,17 +217,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="status-bar">
         <span id="statusLeft">就绪</span>
         <span id="statusRight">ghcr.io/gruntfish/nas-file-tool</span>
-    </div>
-</div>
-
-<div class="modal-overlay" id="renamePreviewModal">
-    <div class="modal">
-        <h2>🔄 重命名预览</h2>
-        <div id="renamePreviewList" class="preview-list"></div>
-        <div class="btn-row">
-            <button class="btn-cancel" onclick="closeModal('renamePreviewModal')">取消</button>
-            <button class="btn-confirm" id="renamePreviewConfirmBtn">确认执行</button>
-        </div>
     </div>
 </div>
 
@@ -433,7 +416,6 @@ function renderTree(nodes, container) {
     });
 }
 
-// 加载目录文件列表 - 实时读取，不使用缓存
 async function loadFiles(path) {
     currentPath = path;
     currentPathDisplay.textContent = path;
@@ -447,6 +429,8 @@ async function loadFiles(path) {
         updateTreeHighlight(path);
         statusLeft.textContent = '📂 ' + path;
         updateTargetSelect();
+        // 自动预览
+        autoPreview();
     } catch (err) {
         statusLeft.textContent = '❌ 加载失败: ' + err.message;
     }
@@ -488,11 +472,259 @@ async function initTree() {
 }
 
 async function navigateTo(path) {
-    // 切换目录时清空预览缓存
     renamePreview = {};
     await loadFiles(path);
 }
 
+function applyRenameAction(old_name, action, data) {
+    let name, ext, new_name;
+    
+    switch(action) {
+        case 'replace':
+            const findStr = data.find || '';
+            const replaceStr = data.replace || '';
+            if (findStr) {
+                if (data.case_sensitive) {
+                    new_name = old_name.replace(findStr, replaceStr);
+                } else {
+                    new_name = old_name.toLowerCase().replace(findStr.toLowerCase(), replaceStr);
+                }
+            } else {
+                new_name = old_name;
+            }
+            break;
+        case 'regex':
+            const regexFind = data.find || '';
+            const regexReplace = data.replace || '';
+            if (regexFind) {
+                try {
+                    const flags = data.case_sensitive ? '' : 'i';
+                    new_name = old_name.replace(new RegExp(regexFind, flags), regexReplace);
+                } catch(e) {
+                    new_name = old_name;
+                }
+            } else {
+                new_name = old_name;
+            }
+            break;
+        case 'prefix':
+            new_name = (data.replace || '') + old_name;
+            break;
+        case 'suffix':
+            name = old_name;
+            ext = '';
+            const dotIndex = old_name.lastIndexOf('.');
+            if (dotIndex > 0) {
+                name = old_name.substring(0, dotIndex);
+                ext = old_name.substring(dotIndex);
+            }
+            new_name = name + (data.replace || '') + ext;
+            break;
+        case 'number':
+            new_name = old_name;
+            break;
+        case 'lowercase':
+            new_name = old_name.toLowerCase();
+            break;
+        case 'uppercase':
+            new_name = old_name.toUpperCase();
+            break;
+        case 'capitalize':
+            name = old_name;
+            ext = '';
+            const dotIdx = old_name.lastIndexOf('.');
+            if (dotIdx > 0) {
+                name = old_name.substring(0, dotIdx);
+                ext = old_name.substring(dotIdx);
+            }
+            new_name = name.charAt(0).toUpperCase() + name.slice(1) + ext;
+            break;
+        case 'titlecase':
+            name = old_name;
+            ext = '';
+            const dotI = old_name.lastIndexOf('.');
+            if (dotI > 0) {
+                name = old_name.substring(0, dotI);
+                ext = old_name.substring(dotI);
+            }
+            new_name = name.replace(/\w\S*/g, function(txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            }) + ext;
+            break;
+        case 'camelcase':
+            name = old_name;
+            ext = '';
+            const dotIndex2 = old_name.lastIndexOf('.');
+            if (dotIndex2 > 0) {
+                name = old_name.substring(0, dotIndex2);
+                ext = old_name.substring(dotIndex2);
+            }
+            const parts = name.replace(/[_\-\s]+/g, ' ').split(' ');
+            if (parts.length > 0) {
+                new_name = parts[0].toLowerCase() + parts.slice(1).map(function(p) {
+                    return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+                }).join('') + ext;
+            } else {
+                new_name = old_name;
+            }
+            break;
+        case 'extension':
+            name = old_name;
+            const dotIdx3 = old_name.lastIndexOf('.');
+            if (dotIdx3 > 0) {
+                name = old_name.substring(0, dotIdx3);
+            }
+            const extAction = data.ext_action || 'change';
+            const extValue = data.ext_value || '';
+            if (extAction === 'change') {
+                new_name = name + (extValue ? '.' + extValue : '');
+            } else if (extAction === 'add') {
+                new_name = old_name + (extValue ? '.' + extValue : '');
+            } else if (extAction === 'remove') {
+                new_name = name;
+            } else if (extAction === 'replace') {
+                new_name = name + (extValue ? '.' + extValue : '');
+            } else {
+                new_name = old_name;
+            }
+            break;
+        case 'remove':
+            const removeStr = data.find || '';
+            if (removeStr) {
+                new_name = old_name.replace(new RegExp(removeStr, 'g'), '');
+            } else {
+                new_name = old_name;
+            }
+            break;
+        case 'removepos':
+            const startPos = (data.start || 1) - 1;
+            const length = data.length || 1;
+            const fromEnd = data.from_end || false;
+            name = old_name;
+            ext = '';
+            const dotI4 = old_name.lastIndexOf('.');
+            if (dotI4 > 0) {
+                name = old_name.substring(0, dotI4);
+                ext = old_name.substring(dotI4);
+            }
+            let pos = startPos;
+            if (fromEnd) {
+                pos = name.length - startPos - length + 1;
+            }
+            if (pos >= 0 && pos < name.length) {
+                new_name = name.substring(0, pos) + name.substring(pos + length) + ext;
+            } else {
+                new_name = old_name;
+            }
+            break;
+        case 'date':
+            new_name = old_name;
+            break;
+        default:
+            new_name = old_name;
+            break;
+    }
+    return new_name;
+}
+
+function getRenameParams() {
+    const action = document.getElementById('renameAction').value;
+    const params = { action: action };
+    switch(action) {
+        case 'replace':
+        case 'regex':
+            params.find = document.getElementById('findText').value || '';
+            params.replace = document.getElementById('replaceText').value || '';
+            params.case_sensitive = document.getElementById('caseSensitive').checked;
+            break;
+        case 'prefix':
+        case 'suffix':
+            params.replace = document.getElementById('replaceText').value || '';
+            break;
+        case 'remove':
+            params.find = document.getElementById('findText').value || '';
+            break;
+        case 'number':
+            params.start = parseInt(document.getElementById('startNum').value) || 1;
+            params.step = parseInt(document.getElementById('stepNum').value) || 1;
+            params.digits = parseInt(document.getElementById('digitsNum').value) || 2;
+            params.position = document.getElementById('numberPos').value;
+            break;
+        case 'extension':
+            params.ext_action = document.getElementById('extAction').value;
+            params.ext_value = document.getElementById('extValue').value || '';
+            break;
+        case 'removepos':
+            params.start = parseInt(document.getElementById('removeStart').value) || 1;
+            params.length = parseInt(document.getElementById('removeLen').value) || 1;
+            params.from_end = document.getElementById('removeFromEnd').checked;
+            break;
+        case 'date':
+            params.date_type = document.getElementById('dateType').value;
+            params.date_format = document.getElementById('dateFormat').value;
+            params.date_pos = document.getElementById('datePos').value;
+            break;
+        case 'lowercase':
+        case 'uppercase':
+        case 'capitalize':
+        case 'titlecase':
+        case 'camelcase':
+            break;
+    }
+    return params;
+}
+
+function getAllFilePaths() {
+    const paths = [];
+    for (let file of fileList) {
+        if (!file.is_dir) {
+            paths.push(file.path);
+        }
+    }
+    return paths;
+}
+
+// ===== 实时预览 =====
+function autoPreview() {
+    const files = getAllFilePaths();
+    const params = getRenameParams();
+    
+    if (files.length === 0 || !params.action) {
+        // 没有文件或没有操作，清空预览
+        renamePreview = {};
+        renderFiles(fileList);
+        return;
+    }
+
+    // 对于编号和日期操作，需要特殊处理
+    if (params.action === 'number' || params.action === 'date') {
+        // 这两种操作需要执行时才确定，预览保持原样
+        renamePreview = {};
+        renderFiles(fileList);
+        return;
+    }
+
+    // 计算每个文件的新名称
+    const previewMap = {};
+    let hasChanges = false;
+    for (let filePath of files) {
+        const oldName = Path(filePath).name;
+        const newName = applyRenameAction(oldName, params.action, params);
+        if (newName !== oldName) {
+            previewMap[filePath] = newName;
+            hasChanges = true;
+        }
+    }
+    
+    if (hasChanges) {
+        renamePreview = previewMap;
+    } else {
+        renamePreview = {};
+    }
+    renderFiles(fileList);
+}
+
+// ===== 渲染文件列表 =====
 function renderFiles(files) {
     const tbody = fileTableBody;
     tbody.innerHTML = '';
@@ -559,6 +791,7 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 });
 
+// ===== 重命名操作切换显示参数 =====
 document.getElementById('renameAction').addEventListener('change', function() {
     const action = this.value;
     document.getElementById('findLabel').style.display = 'inline';
@@ -644,135 +877,28 @@ document.getElementById('renameAction').addEventListener('change', function() {
             document.getElementById('caseSensitive').parentElement.style.display = 'inline-flex';
             break;
     }
-});
-document.getElementById('renameAction').dispatchEvent(new Event('change'));
-
-function getRenameParams() {
-    const action = document.getElementById('renameAction').value;
-    const params = { action };
-    switch(action) {
-        case 'replace':
-        case 'regex':
-            params.find = document.getElementById('findText').value || '';
-            params.replace = document.getElementById('replaceText').value || '';
-            params.case_sensitive = document.getElementById('caseSensitive').checked;
-            break;
-        case 'prefix':
-        case 'suffix':
-            params.replace = document.getElementById('replaceText').value || '';
-            break;
-        case 'remove':
-            params.find = document.getElementById('findText').value || '';
-            break;
-        case 'number':
-            params.start = parseInt(document.getElementById('startNum').value) || 1;
-            params.step = parseInt(document.getElementById('stepNum').value) || 1;
-            params.digits = parseInt(document.getElementById('digitsNum').value) || 2;
-            params.position = document.getElementById('numberPos').value;
-            break;
-        case 'extension':
-            params.ext_action = document.getElementById('extAction').value;
-            params.ext_value = document.getElementById('extValue').value || '';
-            break;
-        case 'removepos':
-            params.start = parseInt(document.getElementById('removeStart').value) || 1;
-            params.length = parseInt(document.getElementById('removeLen').value) || 1;
-            params.from_end = document.getElementById('removeFromEnd').checked;
-            break;
-        case 'date':
-            params.date_type = document.getElementById('dateType').value;
-            params.date_format = document.getElementById('dateFormat').value;
-            params.date_pos = document.getElementById('datePos').value;
-            break;
-        case 'lowercase':
-        case 'uppercase':
-        case 'capitalize':
-        case 'titlecase':
-        case 'camelcase':
-            break;
-    }
-    return params;
-}
-
-function getAllFilePaths() {
-    const paths = [];
-    for (let file of fileList) {
-        if (!file.is_dir) {
-            paths.push(file.path);
-        }
-    }
-    return paths;
-}
-
-document.getElementById('previewRenameBtn').addEventListener('click', async function() {
-    const files = getAllFilePaths();
-    if (files.length === 0) {
-        showLog('⚠️ 当前目录没有文件', 'warning');
-        return;
-    }
-    const params = getRenameParams();
-    params.files = files;
-
-    try {
-        const result = await apiCall('/api/preview', params);
-        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-        const list = document.getElementById('renamePreviewList');
-        list.innerHTML = '';
-        pendingRenameFiles = [];
-
-        if (result.files && result.files.length > 0) {
-            result.files.forEach(f => {
-                const div = document.createElement('div');
-                div.className = 'changed';
-                div.textContent = f.old_name + '  →  ' + f.new_name;
-                list.appendChild(div);
-                pendingRenameFiles.push(f);
-                // 更新预览缓存
-                renamePreview[f.old_path] = f.new_name;
-            });
-            document.getElementById('renamePreviewConfirmBtn').disabled = false;
-            // 预览后刷新文件列表显示新名称
-            renderFiles(fileList);
-            showLog('📋 预览完成，' + result.files.length + ' 个文件将修改', 'info');
-        } else {
-            list.innerHTML = '<div style="color:#4a4e62;">没有文件需要修改</div>';
-            document.getElementById('renamePreviewConfirmBtn').disabled = true;
-        }
-        openModal('renamePreviewModal');
-    } catch(e) {
-        showLog('❌ ' + e.message, 'error');
-    }
+    // 触发预览
+    autoPreview();
 });
 
-document.getElementById('renamePreviewConfirmBtn').addEventListener('click', async function() {
-    if (pendingRenameFiles.length === 0) return;
-    closeModal('renamePreviewModal');
-    clearLog();
-    showLog('⏳ 开始重命名 ' + pendingRenameFiles.length + ' 个文件...', 'info');
+// ===== 输入框变化时自动预览 =====
+document.getElementById('findText').addEventListener('input', autoPreview);
+document.getElementById('replaceText').addEventListener('input', autoPreview);
+document.getElementById('caseSensitive').addEventListener('change', autoPreview);
+document.getElementById('startNum').addEventListener('input', autoPreview);
+document.getElementById('stepNum').addEventListener('input', autoPreview);
+document.getElementById('digitsNum').addEventListener('input', autoPreview);
+document.getElementById('numberPos').addEventListener('change', autoPreview);
+document.getElementById('extAction').addEventListener('change', autoPreview);
+document.getElementById('extValue').addEventListener('input', autoPreview);
+document.getElementById('removeStart').addEventListener('input', autoPreview);
+document.getElementById('removeLen').addEventListener('input', autoPreview);
+document.getElementById('removeFromEnd').addEventListener('change', autoPreview);
+document.getElementById('dateType').addEventListener('change', autoPreview);
+document.getElementById('dateFormat').addEventListener('change', autoPreview);
+document.getElementById('datePos').addEventListener('change', autoPreview);
 
-    try {
-        const result = await apiCall('/api/execute', {
-            action: document.getElementById('renameAction').value,
-            files: pendingRenameFiles,
-            ...getRenameParams()
-        });
-        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-        if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-        if (result.stats) showLog('✅ ' + result.stats.message, 'success');
-        if (result.history && result.history.length > 0) {
-            renameHistory.push(...result.history);
-            document.getElementById('undoBtn').disabled = false;
-        }
-        // 清空预览缓存并刷新
-        renamePreview = {};
-        pendingRenameFiles = [];
-        await loadFiles(currentPath);
-    } catch(e) {
-        showLog('❌ ' + e.message, 'error');
-    }
-});
-
+// ===== 执行重命名 =====
 document.getElementById('executeRenameBtn').addEventListener('click', async function() {
     const files = getAllFilePaths();
     if (files.length === 0) {
@@ -780,10 +906,12 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
         return;
     }
     const params = getRenameParams();
-    params.files = files;
-
+    
+    // 先预览获取结果
+    const previewParams = { ...params, files: files };
+    
     try {
-        const previewResult = await apiCall('/api/preview', params);
+        const previewResult = await apiCall('/api/preview', previewParams);
         if (previewResult.error) { showLog('❌ ' + previewResult.error, 'error'); return; }
         if (!previewResult.files || previewResult.files.length === 0) {
             showLog('⚠️ 没有文件需要修改', 'warning');
@@ -795,9 +923,9 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
         showLog('⏳ 开始重命名 ' + previewResult.files.length + ' 个文件...', 'info');
 
         const result = await apiCall('/api/execute', {
-            action: document.getElementById('renameAction').value,
+            action: params.action,
             files: previewResult.files,
-            ...getRenameParams()
+            ...params
         });
         if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
         if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
@@ -806,7 +934,6 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
             renameHistory.push(...result.history);
             document.getElementById('undoBtn').disabled = false;
         }
-        // 清空预览缓存并刷新
         renamePreview = {};
         await loadFiles(currentPath);
     } catch(e) {
@@ -814,7 +941,6 @@ document.getElementById('executeRenameBtn').addEventListener('click', async func
     }
 });
 
-// 刷新按钮 - 强制刷新，清空预览缓存
 document.getElementById('refreshBtn').addEventListener('click', function() {
     renamePreview = {};
     loadFiles(currentPath);
@@ -966,6 +1092,13 @@ document.getElementById('dedupConfirmBtn').addEventListener('click', async funct
         await loadFiles(currentPath);
     } catch(e) { showLog('❌ ' + e.message, 'error'); }
 });
+
+// ===== Path 工具 =====
+if (typeof Path === 'undefined') {
+    window.Path = {
+        basename: function(p) { return p.split('/').pop(); }
+    };
+}
 
 initTree();
 </script>
