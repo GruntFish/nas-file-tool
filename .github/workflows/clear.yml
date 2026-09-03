@@ -1,11 +1,7 @@
 name: 清理 Actions 编译记录（保留最新3个）
 
 on:
-  workflow_run:
-    workflows:
-      - "构建 Docker 镜像和 FPK 包"
-    types:
-      - completed
+  workflow_dispatch:
 
 jobs:
   cleanup:
@@ -24,7 +20,6 @@ jobs:
           import os
           import requests
           import time
-          import json
 
           token = os.environ['GITHUB_TOKEN']
           repo = os.environ['REPO']
@@ -43,16 +38,16 @@ jobs:
               response = requests.get(url, headers=headers, params=params)
               if response.status_code != 200:
                   print(f'❌ 获取失败: {response.status_code}')
-                  print(f'返回内容: {response.text}')
                   break
               data = response.json()
-              if not data:
-                  break
-              # 确保是列表
-              if isinstance(data, list):
-                  all_runs.extend(data)
+              # GitHub API 返回的是 dict，workflow_runs 才是列表
+              if isinstance(data, dict):
+                  runs = data.get('workflow_runs', [])
+                  if not runs:
+                      break
+                  all_runs.extend(runs)
               else:
-                  print(f'⚠️ 返回数据不是列表: {type(data)}')
+                  print(f'⚠️ 未知返回格式: {type(data)}')
                   break
               params['page'] += 1
 
@@ -63,19 +58,9 @@ jobs:
               print('✅ 只有 3 条或更少，无需清理')
               exit(0)
 
-          # 只保留有效的记录（必须有 created_at 字段）
-          valid_runs = [r for r in all_runs if isinstance(r, dict) and 'created_at' in r]
-          print(f'📊 有效记录: {len(valid_runs)} 条')
-
-          if len(valid_runs) <= 3:
-              print('✅ 有效记录只有 3 条或更少，无需清理')
-              exit(0)
-
           # 按创建时间排序，保留最新3个
-          valid_runs.sort(key=lambda x: x['created_at'], reverse=True)
-          to_delete = valid_runs[3:]
-
-          print(f'📊 将删除 {len(to_delete)} 条记录')
+          all_runs.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+          to_delete = all_runs[3:]
 
           deleted = 0
           for run in to_delete:
@@ -83,7 +68,9 @@ jobs:
               if not run_id:
                   continue
               title = run.get('display_title', 'unknown')
-              created = run.get('created_at', 'unknown')[:10] if run.get('created_at') else 'unknown'
+              created = run.get('created_at', 'unknown')
+              if created != 'unknown':
+                  created = created[:10]
 
               # 跳过运行中的
               if run.get('status') in ['queued', 'in_progress', 'pending']:
