@@ -16,7 +16,6 @@ const RenameModule = {
             this.autoPreview();
         });
 
-        // 输入实时预览
         ['findText', 'replaceText', 'caseSensitive', 'startNum', 'stepNum', 'digitsNum',
             'numberPos', 'extAction', 'extValue', 'removeStart', 'removeLen', 'removeFromEnd',
             'dateType', 'dateFormat', 'datePos'
@@ -170,8 +169,8 @@ const RenameModule = {
     },
 
     autoPreview() {
-        const files = getSelectedFiles();
-        const targetFiles = files.length > 0 ? files : getAllFiles().filter(f => !f.is_dir).map(f => f.path);
+        const files = Array.from(selectedFiles);
+        const targetFiles = files.length > 0 ? files : window.fileList.filter(f => !f.is_dir).map(f => f.path);
         const params = this.getParams();
 
         if (targetFiles.length === 0 || !params.action) {
@@ -317,16 +316,15 @@ const RenameModule = {
     },
 
     async execute() {
-        let files = getSelectedFiles();
+        let files = Array.from(selectedFiles);
         if (files.length === 0) {
-            files = getAllFiles().filter(f => !f.is_dir).map(f => f.path);
+            files = window.fileList.filter(f => !f.is_dir).map(f => f.path);
         }
         if (files.length === 0) {
             showLog('⚠️ 当前目录没有文件', 'warning');
             return;
         }
 
-        // 检查是否有文件需要修改
         let hasChange = false;
         for (let f of files) {
             if (window.renamePreview[f] && window.renamePreview[f] !== getFileName(f)) {
@@ -384,15 +382,12 @@ const RenameModule = {
     },
 
     onFileLoad(files) {
-        // 文件加载后自动预览
         this.autoPreview();
     },
 
     onSelectChange(selected) {
-        // 选择变化后自动预览
         this.autoPreview();
     }
 };
 
-// 注册模块
-ModuleManager.register('rename', RenameModule);
+ModuleRegistry.register('rename', RenameModule);
