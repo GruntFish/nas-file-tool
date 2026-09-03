@@ -1,5 +1,9 @@
 // static/js/modules/chmod.js
 
+if (typeof ModuleRegistry === 'undefined') {
+    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
+}
+
 const ChmodModule = {
     name: 'chmod',
 
