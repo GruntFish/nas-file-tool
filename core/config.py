@@ -29,3 +29,12 @@ FILE_TYPES = {
     '安装包': {'.exe', '.msi', '.dmg', '.pkg', '.deb', '.rpm', '.apk', '.appimage'},
     '数据库': {'.db', '.sqlite', '.sql', '.mdb', '.accdb'},
 }
+
+# ===== 【新增】获取文件类型 =====
+def get_file_type(ext):
+    """根据扩展名获取文件类型分类"""
+    ext = ext.lower()
+    for type_name, exts in FILE_TYPES.items():
+        if ext in exts:
+            return type_name
+    return '其他'
