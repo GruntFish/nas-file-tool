@@ -1,29 +1,24 @@
-# Dockerfile
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
-# 安装系统依赖（包括媒体处理工具）
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     jpegoptim \
     optipng \
-    webp \
-    imagemagick \
-    && rm -rf /var/lib/apt/lists/*
+    webp-tools \
+    vips \
+    vips-tools \
+    && rm -rf /var/cache/apk/*
 
-# 设置工作目录
 WORKDIR /app
 
-# 复制依赖文件
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
+    && find /usr/local/lib/python3.11/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-# 复制源代码
 COPY . .
 
-# 创建数据目录
 RUN mkdir -p /data
 
-# 暴露端口
 EXPOSE 8658
 
-# 启动命令
 CMD ["python", "app.py"]
