@@ -38,9 +38,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
 
     steps:
       - name: 检出代码
@@ -60,29 +57,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 构建并推送 Docker 镜像
+      - name: 构建并推送 Docker 镜像（仅 amd64）
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/${{ matrix.arch }}
+          platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}-${{ matrix.arch }}
-            ghcr.io/${{ env.REPO_LOWER }}:latest-${{ matrix.arch }}
+            ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}
+            ghcr.io/${{ env.REPO_LOWER }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: 合并多架构镜像
-        run: |
-          docker manifest create ghcr.io/${{ env.REPO_LOWER }}:latest \
-            ghcr.io/${{ env.REPO_LOWER }}:latest-amd64 \
-            ghcr.io/${{ env.REPO_LOWER }}:latest-arm64
-          docker manifest push ghcr.io/${{ env.REPO_LOWER }}:latest
-
-          docker manifest create ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }} \
-            ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}-amd64 \
-            ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}-arm64
-          docker manifest push ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}
 
       - name: 创建 Release
         uses: softprops/action-gh-release@v1
