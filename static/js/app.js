@@ -55,6 +55,32 @@ const ModuleRegistry = {
         if (typeof renderFiles === 'function') {
             renderFiles(window.fileList);
         }
+
+        // ===== 【修复】切换模块后重新应用正则过滤 =====
+        if (window.filterRegex) {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            try {
+                const regex = new RegExp(window.filterRegex);
+                checkboxes.forEach(cb => {
+                    const fileName = getFileName(cb.value);
+                    const isMatch = regex.test(fileName);
+                    cb.checked = isMatch;
+                    const tr = cb.closest('tr');
+                    if (tr) {
+                        isMatch ? tr.classList.add('selected') : tr.classList.remove('selected');
+                    }
+                    if (isMatch) {
+                        window.selectedFiles.add(cb.value);
+                    } else {
+                        window.selectedFiles.delete(cb.value);
+                    }
+                });
+            } catch (e) {
+                // 正则无效，忽略
+            }
+            updateSelectedInfo();
+            updateSelectAllState();
+        }
     }
 };
 
@@ -492,7 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== 【新增】键盘快捷键 =====
+    // ===== 键盘快捷键 =====
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && e.key === 'a') {
             e.preventDefault();
