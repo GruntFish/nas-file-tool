@@ -2,6 +2,18 @@
 const MediaModule = {
     name: 'media',
 
+    destroy() {
+    // 如果有弹窗，关闭弹窗
+    closeModal();
+    // 清空选中
+    selectedFiles.clear();
+    updateSelectedInfo();
+    // 刷新文件列表
+    if (typeof renderFiles === 'function' && window.fileList) {
+        renderFiles(window.fileList);
+        }
+    }
+    
     init() {
         document.getElementById('mediaCompressBtn').addEventListener('click', () => this.compress());
         document.getElementById('mediaConvertBtn').addEventListener('click', () => this.convert());
