@@ -23,6 +23,7 @@ COPY app.py .
 COPY core/ ./core/
 COPY modules/ ./modules/
 COPY templates/ ./templates/
+COPY static/ ./static/
 COPY favicon.ico .
 
 EXPOSE 8658
