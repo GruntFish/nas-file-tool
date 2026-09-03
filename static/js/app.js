@@ -12,10 +12,9 @@ const ModuleRegistry = {
         if (this.currentModule === name && this.modules[name]?.loaded) return;
 
         // ===== 切换模块时重置状态 =====
-        selectedFiles.clear();
+        window.selectedFiles.clear();
         updateSelectedInfo();
         window.renamePreview = {};
-        renamePreview = {};
         closeModal();
 
         if (this.currentModule && this.modules[this.currentModule] && this.modules[this.currentModule].destroy) {
@@ -41,7 +40,7 @@ const ModuleRegistry = {
             container.innerHTML = `<div style="padding:20px;color:#fc8181;">❌ 模块加载失败: ${e.message}</div>`;
         }
 
-        if (typeof renderFiles === 'function' && window.fileList) {
+        if (typeof renderFiles === 'function') {
             renderFiles(window.fileList);
         }
     }
@@ -49,21 +48,14 @@ const ModuleRegistry = {
 
 window.ModuleRegistry = ModuleRegistry;
 
-// ===== 全局状态 =====
+// ===== 全局状态（统一使用 window.xxx） =====
 window.currentPath = '/';
 window.fileList = [];
 window.selectedFiles = new Set();
 window.renamePreview = {};
 window.renameHistory = [];
 window.fullTreeData = [];
-
-let currentPath = window.currentPath;
-let fileList = window.fileList;
-let selectedFiles = window.selectedFiles;
-let renamePreview = window.renamePreview;
-let renameHistory = window.renameHistory;
-let fullTreeData = window.fullTreeData;
-let filterRegex = null;
+window.filterRegex = null;
 
 // ===== API 调用 =====
 async function apiCall(endpoint, data) {
@@ -114,6 +106,7 @@ function escapeHtml(text) {
 
 function showLog(msg, type) {
     const logArea = document.getElementById('logArea');
+    if (!logArea) return;
     logArea.classList.add('show');
     const div = document.createElement('div');
     div.className = 'log-line ' + (type || 'info');
@@ -124,6 +117,7 @@ function showLog(msg, type) {
 
 function clearLog() {
     const logArea = document.getElementById('logArea');
+    if (!logArea) return;
     logArea.innerHTML = '';
     logArea.classList.remove('show');
 }
@@ -151,14 +145,15 @@ async function loadTree(path) {
     try {
         const result = await fetchTree(path);
         if (result.error) throw new Error(result.error);
-        fullTreeData = result.tree || [];
-        renderTree(fullTreeData, document.getElementById('treeContainer'));
+        window.fullTreeData = result.tree || [];
+        renderTree(window.fullTreeData, document.getElementById('treeContainer'));
     } catch (err) {
         console.error(err);
     }
 }
 
 function renderTree(nodes, container) {
+    if (!container) return;
     container.innerHTML = '';
     if (!nodes || nodes.length === 0) {
         container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>';
@@ -173,20 +168,20 @@ function renderTree(nodes, container) {
     folders.forEach(node => {
         const item = document.createElement('div');
         item.className = 'tree-item';
-        if (node.path === currentPath) item.classList.add('active');
+        if (node.path === window.currentPath) item.classList.add('active');
         const hasChildren = node.children && node.children.length > 0;
         item.innerHTML =
             `<span class="icon">📁</span><span class="name">${escapeHtml(node.name)}</span>${hasChildren ? '<span class="arrow open">▼</span>' : ''}`;
         item.addEventListener('click', function(e) {
             if (e.target.classList.contains('arrow')) return;
-            currentPath = node.path;
+            window.currentPath = node.path;
             loadFiles(node.path);
         });
         container.appendChild(item);
         if (hasChildren) {
             const childContainer = document.createElement('div');
             childContainer.className = 'tree-children';
-            if (currentPath.startsWith(node.path)) {
+            if (window.currentPath.startsWith(node.path)) {
                 childContainer.classList.remove('collapsed');
             } else {
                 childContainer.classList.add('collapsed');
@@ -205,18 +200,17 @@ function renderTree(nodes, container) {
     });
 }
 
-// ===== 文件列表（支持过滤） =====
+// ===== 文件列表 =====
 async function loadFiles(path) {
     try {
         const result = await fetchFiles(path);
         if (result.error) throw new Error(result.error);
-        selectedFiles.clear();
-        window.selectedFiles = selectedFiles;
-        fileList = result.files || [];
-        renderFiles(fileList);
+        window.selectedFiles.clear();
+        window.fileList = result.files || [];
+        renderFiles(window.fileList);
         document.getElementById('currentPathDisplay').textContent = path;
-        document.getElementById('fileCountDisplay').textContent = fileList.length + ' 项';
-        document.dispatchEvent(new CustomEvent('filesLoaded', { detail: { files: fileList } }));
+        document.getElementById('fileCountDisplay').textContent = window.fileList.length + ' 项';
+        document.dispatchEvent(new CustomEvent('filesLoaded', { detail: { files: window.fileList } }));
     } catch (err) {
         showLog('❌ 加载失败: ' + err.message, 'error');
     }
@@ -226,30 +220,28 @@ function renderFiles(files) {
     const tbody = document.getElementById('fileTableBody');
     if (!tbody) return;
 
-    if (!files) {
-        files = fileList || [];
-    }
+    const fileData = files || window.fileList || [];
 
     // 应用过滤
-    let filteredFiles = files;
-    if (filterRegex) {
+    let filteredFiles = fileData;
+    if (window.filterRegex) {
         try {
-            const regex = new RegExp(filterRegex, 'i');
-            filteredFiles = files.filter(f => {
+            const regex = new RegExp(window.filterRegex, 'i');
+            filteredFiles = fileData.filter(f => {
                 if (f.is_dir) return true;
                 return regex.test(f.name);
             });
         } catch (e) {
-            filteredFiles = files;
+            filteredFiles = fileData;
         }
     }
 
     // 更新过滤计数
     const filterCountEl = document.getElementById('filterCount');
     if (filterCountEl) {
-        const total = files.length;
+        const total = fileData.length;
         const matched = filteredFiles.length;
-        if (filterRegex && matched < total) {
+        if (window.filterRegex && matched < total) {
             filterCountEl.textContent = `🔍 ${matched}/${total}`;
         } else {
             filterCountEl.textContent = '';
@@ -274,11 +266,11 @@ function renderFiles(files) {
         const icon = isDir ? '📁' : '📄';
         const size = isDir ? '' : formatSize(file.size);
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
-        const newName = renamePreview[file.path] || file.name;
+        const newName = window.renamePreview[file.path] || file.name;
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
-        const checked = selectedFiles.has(file.path) ? 'checked' : '';
+        const checked = window.selectedFiles.has(file.path) ? 'checked' : '';
 
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
@@ -292,14 +284,14 @@ function renderFiles(files) {
         if (!isDir) {
             cb.addEventListener('change', function() {
                 if (this.checked) {
-                    selectedFiles.add(file.path);
+                    window.selectedFiles.add(file.path);
                     tr.classList.add('selected');
                 } else {
-                    selectedFiles.delete(file.path);
+                    window.selectedFiles.delete(file.path);
                     tr.classList.remove('selected');
                 }
                 updateSelectedInfo();
-                document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: selectedFiles } }));
+                document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: window.selectedFiles } }));
             });
         } else {
             cb.disabled = true;
@@ -311,7 +303,7 @@ function renderFiles(files) {
 }
 
 function updateSelectedInfo() {
-    const count = selectedFiles.size;
+    const count = window.selectedFiles.size;
     const el = document.getElementById('selectedInfo');
     if (el) {
         el.textContent = count > 0 ? `✅ 已选 ${count} 项` : '';
@@ -329,10 +321,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterInput) {
         filterInput.addEventListener('input', function() {
             const val = this.value.trim();
-            filterRegex = val || null;
-            if (typeof renderFiles === 'function') {
-                renderFiles(window.fileList || []);
-            }
+            window.filterRegex = val || null;
+            renderFiles(window.fileList);
         });
     }
 
@@ -384,17 +374,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const undoBtn = document.getElementById('undoBtn');
     if (undoBtn) {
         undoBtn.addEventListener('click', async function() {
-            if (renameHistory.length === 0) return;
+            if (window.renameHistory.length === 0) return;
             try {
                 const result = await apiCall('/api/undo', {});
                 if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
                 showLog('↩ ' + result.message, 'success');
-                renameHistory.pop();
-                if (renameHistory.length === 0) this.disabled = true;
-                renamePreview = {};
-                selectedFiles.clear();
-                await loadFiles(currentPath);
+                window.renameHistory.pop();
+                if (window.renameHistory.length === 0) this.disabled = true;
+                window.renamePreview = {};
+                window.selectedFiles.clear();
+                await loadFiles(window.currentPath);
             } catch (e) { showLog('❌ ' + e.message, 'error'); }
         });
     }
+
+    // 刷新树
+    document.getElementById('refreshTreeBtn')?.addEventListener('click', function() {
+        loadTree(window.currentPath);
+    });
 });
