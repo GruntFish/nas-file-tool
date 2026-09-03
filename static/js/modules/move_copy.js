@@ -1,5 +1,9 @@
 // static/js/modules/move_copy.js
 
+if (typeof ModuleRegistry === 'undefined') {
+    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
+}
+
 const MoveCopyModule = {
     name: 'move_copy',
 
@@ -194,4 +198,6 @@ const MoveCopyModule = {
     }
 };
 
-ModuleManager.register('move_copy', MoveCopyModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(XXXModule);
+}
