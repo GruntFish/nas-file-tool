@@ -128,7 +128,7 @@
             color: #e4e6eb;
         }
 
-        /* ===== 【修复】执行重命名按钮样式 ===== */
+        /* ===== 执行重命名按钮样式 ===== */
         .module-rename .btn-execute {
             background: linear-gradient(135deg, #667eea, #764ba2) !important;
             border: none !important;
@@ -177,10 +177,39 @@
         .module-delete button{background:#e53e3e}
         .module-scheduler #schedulerList{padding:8px 0;flex:1;overflow-y:auto}
 
-        /* ===== 模态框 ===== */
-        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;justify-content:center;align-items:center}
-        .modal-overlay.show{display:flex}
-        .modal{background:#1a1d27;border-radius:12px;padding:24px;max-width:550px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
+        /* ===== 【修复】模态框样式 ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+        .modal-overlay.show {
+            display: flex !important;
+        }
+        .modal {
+            background: #1a1d27;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 550px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 1px solid #2d313e;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            position: relative;
+            margin: auto;
+        }
         .modal h2{color:#e4e6eb;font-size:17px;margin-bottom:12px}
         .modal h3{color:#8b8fa3;font-size:13px;margin:10px 0 6px}
         .modal hr{border:0;border-top:1px solid #2d313e;margin:10px 0}
