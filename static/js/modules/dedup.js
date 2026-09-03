@@ -82,9 +82,6 @@ const DedupModule = {
             const result = await dedupFiles({ method: 'md5', mode, action, recursive, path: currentPath });
             if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
 
-            const previewList = document.getElementById('dedupPreviewList');
-            const stats = document.getElementById('dedupStats');
-
             if (result.duplicates && result.duplicates.length > 0) {
                 showLog('📋 发现 ' + result.duplicates.length + ' 组重复', 'info');
                 let totalDup = 0;
