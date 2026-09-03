@@ -1,15 +1,11 @@
 // static/js/modules/move_copy.js
-
 const MoveCopyModule = {
     name: 'move_copy',
 
     init() {
         document.getElementById('moveCopyOpenBtn').addEventListener('click', () => this.openModal());
         this.updateCount();
-    },
-
-    onSelectChange(selected) {
-        this.updateCount();
+        document.addEventListener('selectionChanged', () => { this.updateCount(); });
     },
 
     updateCount() {
@@ -108,12 +104,11 @@ const MoveCopyModule = {
                     <button class="btn-confirm" id="mcConfirmBtn">确认执行</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-        document.getElementById('mcConfirmBtn').addEventListener('click', () => this.execute());
-        document.querySelectorAll('#moveCopyModal input, #moveCopyModal select').forEach(el => {
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#mcConfirmBtn').addEventListener('click', () => this.execute());
+        overlay.querySelectorAll('input, select').forEach(el => {
             el.addEventListener('input', () => this.previewFilter());
             el.addEventListener('change', () => this.previewFilter());
         });
@@ -124,8 +119,10 @@ const MoveCopyModule = {
         const filters = {};
         if (v('mcFilterNameContains')) filters.name_contains = v('mcFilterNameContains');
         if (v('mcFilterNameNotContains')) filters.name_not_contains = v('mcFilterNameNotContains');
-        if (v('mcFilterExtensions')) filters.extensions = v('mcFilterExtensions').split(',').map(s => s.trim()).filter(s => s);
-        if (v('mcFilterExtNot')) filters.extensions_not = v('mcFilterExtNot').split(',').map(s => s.trim()).filter(s => s);
+        if (v('mcFilterExtensions')) filters.extensions = v('mcFilterExtensions').split(',').map(s => s.trim())
+            .filter(s => s);
+        if (v('mcFilterExtNot')) filters.extensions_not = v('mcFilterExtNot').split(',').map(s => s.trim())
+            .filter(s => s);
         if (v('mcFilterMinSize')) filters.min_size = parseInt(v('mcFilterMinSize'));
         if (v('mcFilterMaxSize')) filters.max_size = parseInt(v('mcFilterMaxSize'));
         if (v('mcFilterDateAfter')) filters.date_after = v('mcFilterDateAfter');
@@ -168,7 +165,8 @@ const MoveCopyModule = {
 
         const filters = this.getFilters();
         if (Object.keys(filters).length > 0) showLog('📋 应用过滤条件...', 'info');
-        showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件到: ' + targetDir, 'info');
+        showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件到: ' + targetDir,
+            'info');
 
         try {
             const result = await apiCall('/api/move_copy', {
@@ -183,7 +181,8 @@ const MoveCopyModule = {
             if (result.results) {
                 result.results.forEach(r => {
                     if (r.status === 'success') showLog('✅ ' + r.file + ' → ' + r.to, 'success');
-                    else if (r.status === 'error') showLog('❌ ' + r.file + ' - ' + r.reason, 'error');
+                    else if (r.status === 'error') showLog('❌ ' + r.file + ' - ' + r.reason,
+                    'error');
                 });
             }
             showLog('✅ ' + (result.stats?.message || '处理完成'), 'success');
