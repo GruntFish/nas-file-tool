@@ -12,18 +12,12 @@ const ModuleRegistry = {
         if (this.currentModule === name && this.modules[name]?.loaded) return;
 
         // ===== 切换模块时重置状态 =====
-        // 1. 清空选中的文件
         selectedFiles.clear();
         updateSelectedInfo();
-
-        // 2. 清空重命名预览
         window.renamePreview = {};
         renamePreview = {};
-
-        // 3. 如果有弹窗，关闭弹窗
         closeModal();
 
-        // 4. 如果有旧的模块，调用其 destroy 方法
         if (this.currentModule && this.modules[this.currentModule] && this.modules[this.currentModule].destroy) {
             this.modules[this.currentModule].destroy();
         }
@@ -47,7 +41,6 @@ const ModuleRegistry = {
             container.innerHTML = `<div style="padding:20px;color:#fc8181;">❌ 模块加载失败: ${e.message}</div>`;
         }
 
-        // 刷新文件列表（清除高亮）
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
@@ -70,6 +63,7 @@ let selectedFiles = window.selectedFiles;
 let renamePreview = window.renamePreview;
 let renameHistory = window.renameHistory;
 let fullTreeData = window.fullTreeData;
+let filterRegex = null;
 
 // ===== API 调用 =====
 async function apiCall(endpoint, data) {
@@ -135,7 +129,6 @@ function clearLog() {
 }
 
 function openModal(html) {
-    // 移除已有的弹窗
     const existing = document.querySelectorAll('.modal-overlay');
     existing.forEach(el => el.remove());
 
@@ -212,12 +205,11 @@ function renderTree(nodes, container) {
     });
 }
 
-// ===== 文件列表 =====
+// ===== 文件列表（支持过滤） =====
 async function loadFiles(path) {
     try {
         const result = await fetchFiles(path);
         if (result.error) throw new Error(result.error);
-        // 清空选中
         selectedFiles.clear();
         window.selectedFiles = selectedFiles;
         fileList = result.files || [];
@@ -238,19 +230,45 @@ function renderFiles(files) {
         files = fileList || [];
     }
 
+    // 应用过滤
+    let filteredFiles = files;
+    if (filterRegex) {
+        try {
+            const regex = new RegExp(filterRegex, 'i');
+            filteredFiles = files.filter(f => {
+                if (f.is_dir) return true;
+                return regex.test(f.name);
+            });
+        } catch (e) {
+            filteredFiles = files;
+        }
+    }
+
+    // 更新过滤计数
+    const filterCountEl = document.getElementById('filterCount');
+    if (filterCountEl) {
+        const total = files.length;
+        const matched = filteredFiles.length;
+        if (filterRegex && matched < total) {
+            filterCountEl.textContent = `🔍 ${matched}/${total}`;
+        } else {
+            filterCountEl.textContent = '';
+        }
+    }
+
     tbody.innerHTML = '';
-    if (!files || files.length === 0) {
+    if (!filteredFiles || filteredFiles.length === 0) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>';
         return;
     }
 
-    files.sort((a, b) => {
+    filteredFiles.sort((a, b) => {
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
         return a.name.localeCompare(b.name);
     });
 
-    files.forEach(file => {
+    filteredFiles.forEach(file => {
         const tr = document.createElement('tr');
         const isDir = file.is_dir;
         const icon = isDir ? '📁' : '📄';
@@ -271,17 +289,21 @@ function renderFiles(files) {
             `<td class="status-col ${statusClass}">${statusText}</td>`;
 
         const cb = tr.querySelector('input[type="checkbox"]');
-        cb.addEventListener('change', function() {
-            if (this.checked) {
-                selectedFiles.add(file.path);
-                tr.classList.add('selected');
-            } else {
-                selectedFiles.delete(file.path);
-                tr.classList.remove('selected');
-            }
-            updateSelectedInfo();
-            document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: selectedFiles } }));
-        });
+        if (!isDir) {
+            cb.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedFiles.add(file.path);
+                    tr.classList.add('selected');
+                } else {
+                    selectedFiles.delete(file.path);
+                    tr.classList.remove('selected');
+                }
+                updateSelectedInfo();
+                document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: selectedFiles } }));
+            });
+        } else {
+            cb.disabled = true;
+        }
 
         tbody.appendChild(tr);
     });
@@ -302,9 +324,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearAllBtn = document.getElementById('clearAllBtn');
     const selectAll = document.getElementById('selectAll');
 
+    // 过滤输入框
+    const filterInput = document.getElementById('filterInput');
+    if (filterInput) {
+        filterInput.addEventListener('input', function() {
+            const val = this.value.trim();
+            filterRegex = val || null;
+            if (typeof renderFiles === 'function') {
+                renderFiles(window.fileList || []);
+            }
+        });
+    }
+
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', function() {
-            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            checkboxes.forEach(cb => {
                 cb.checked = true;
                 cb.dispatchEvent(new Event('change'));
             });
@@ -313,7 +348,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', function() {
-            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            checkboxes.forEach(cb => {
                 cb.checked = false;
                 cb.dispatchEvent(new Event('change'));
             });
@@ -322,7 +358,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (selectAll) {
         selectAll.addEventListener('change', function() {
-            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            checkboxes.forEach(cb => {
                 cb.checked = this.checked;
                 cb.dispatchEvent(new Event('change'));
             });
