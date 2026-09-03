@@ -1,5 +1,9 @@
 // static/js/modules/scheduler.js
 
+if (typeof ModuleRegistry === 'undefined') {
+    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
+}
+
 const SchedulerModule = {
     name: 'scheduler',
 
@@ -205,4 +209,6 @@ const SchedulerModule = {
     }
 };
 
-ModuleManager.register('scheduler', SchedulerModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(XXXModule);
+}
