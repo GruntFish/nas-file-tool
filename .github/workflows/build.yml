@@ -73,6 +73,9 @@ jobs:
     name: 构建 FPK 包
     runs-on: ubuntu-latest
     needs: [create-tag, build-docker]
+    strategy:
+      matrix:
+        arch: [amd64]   # 只打 amd64
 
     steps:
       - name: 检出代码
