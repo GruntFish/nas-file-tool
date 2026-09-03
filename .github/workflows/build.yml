@@ -82,7 +82,7 @@ jobs:
               image: ghcr.io/${{ env.REPO_LOWER }}:latest-${{ matrix.arch }}
               container_name: file-tool
               ports:
-                - "5000:5000"
+                - "8658:8658"
               volumes:
                 - /vol1/1000/:/data
               restart: unless-stopped
