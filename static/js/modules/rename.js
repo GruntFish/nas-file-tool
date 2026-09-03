@@ -15,6 +15,17 @@ const RenameModule = {
         });
     },
 
+    destroy() {
+        // 清空预览
+        window.renamePreview = {};
+        // 清空选中的文件
+        selectedFiles.clear();
+        updateSelectedInfo();
+        // 刷新文件列表
+        if (typeof renderFiles === 'function' && window.fileList) {
+            renderFiles(window.fileList);
+        }
+    
     bindEvents() {
         const executeBtn = document.getElementById('executeRenameBtn');
         if (executeBtn) {
