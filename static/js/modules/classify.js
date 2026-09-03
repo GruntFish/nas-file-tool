@@ -1,175 +1,204 @@
-const ClassifyModule = {
-    name: 'classify',
+# modules/classify.py
+from flask import jsonify, request
+from pathlib import Path
+import shutil
+import time
+from datetime import datetime
 
-    init() {
-        document.getElementById('classifyOpenBtn').addEventListener('click', () => this.openModal());
-        this.updateCount();
-        document.addEventListener('selectionChanged', () => { this.updateCount(); });
-    },
+from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, FILE_TYPES
 
-    destroy() {
-        closeModal();
-        selectedFiles.clear();
-        updateSelectedInfo();
-        if (typeof renderFiles === 'function' && window.fileList) {
-            renderFiles(window.fileList);
-        }
-    },
+def register(app):
+    """注册分类整理路由"""
 
-    updateCount() {
-        const count = selectedFiles.size;
-        const el = document.getElementById('classifySelectedCount');
-        if (el) el.textContent = count;
-    },
+    def get_file_type(ext):
+        ext = ext.lower()
+        for type_name, exts in FILE_TYPES.items():
+            if ext in exts:
+                return type_name
+        return '其他'
 
-    openModal() {
-        const files = Array.from(selectedFiles);
-        if (files.length === 0) {
-            showLog('⚠️ 请先选择要分类的文件', 'warning');
-            return;
-        }
+    @app.route('/api/classify', methods=['POST'])
+    def classify():
+        data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
+        files = data.get('files', [])
+        method = data.get('method', 'type')
+        target_base = data.get('target_base', '分类整理')
+        copy_mode = data.get('copy_mode', False)
+        dry_run = data.get('dry_run', True)
+        work_dir = WORK_DIR
 
-        const modalHtml = `
-        <div class="modal-overlay show">
-            <div class="modal" style="max-width:500px;">
-                <h2>📂 分类整理</h2>
-                <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                    已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件
-                </div>
-                <div class="form-group">
-                    <label>分类方式</label>
-                    <select id="classifyMethod">
-                        <option value="type">按文件类型（图片/视频/文档等）</option>
-                        <option value="date">按创建日期（年-月）</option>
-                        <option value="size">按文件大小</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>目标根目录</label>
-                    <input type="text" id="classifyTarget" value="分类整理" placeholder="分类整理">
-                    <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
-                        💡 将在当前目录下创建该文件夹，所有分类子目录都在里面
-                    </div>
-                </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:8px;">
-                    <input type="checkbox" id="classifyCopyModeModal"> 复制模式（不移动原文件）
-                </div>
-                <div id="classifyPreviewArea" style="display:none;margin-top:8px;">
-                    <div class="preview-list" id="classifyPreviewList" style="max-height:200px;"></div>
-                    <div style="color:#68d391;font-size:12px;margin-top:4px;" id="classifyStats"></div>
-                </div>
-                <div class="btn-row">
-                    <button class="btn-cancel" onclick="closeModal()">取消</button>
-                    <button class="btn-confirm" id="classifyPreviewBtn">👁️ 预览</button>
-                    <button class="btn-confirm" id="classifyConfirmBtn" style="display:none;">确认执行</button>
-                </div>
-            </div>
-        </div>`;
+        if not files:
+            return jsonify({'error': '请选择要分类的文件'}), 400
 
-        const overlay = openModal(modalHtml);
-        overlay.querySelector('#classifyPreviewBtn').addEventListener('click', () => this.preview());
-        overlay.querySelector('#classifyConfirmBtn').addEventListener('click', () => this.execute());
-    },
+        if len(files) > MAX_FILES_PER_OPERATION:
+            return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
-    async preview() {
-        const files = Array.from(selectedFiles);
-        const method = document.getElementById('classifyMethod').value;
-        const targetBase = document.getElementById('classifyTarget').value.trim() || '分类整理';
-        const copyMode = document.getElementById('classifyCopyModeModal').checked;
+        # ===== 【修复】使用所有文件的共同父目录作为基准 =====
+        # 而不是直接使用 WORK_DIR
+        first_file = Path(work_dir) / files[0].lstrip('/')
+        
+        # 找所有文件的共同父目录
+        common_parent = None
+        for file_path_str in files:
+            p = Path(work_dir) / file_path_str.lstrip('/')
+            if common_parent is None:
+                common_parent = p.parent
+            else:
+                # 找共同父目录
+                p_parent = p.parent
+                # 如果当前文件的父目录不是共同父目录的子目录
+                # 则向上回溯共同父目录
+                while p_parent != common_parent and common_parent != Path(work_dir):
+                    # 检查 common_parent 是否是 p_parent 的父目录
+                    try:
+                        p_parent.relative_to(common_parent)
+                        # 如果是，说明 common_parent 是 p_parent 的父目录，不用动
+                        break
+                    except ValueError:
+                        # 不是，则共同父目录向上移一层
+                        common_parent = common_parent.parent
+                        if common_parent == Path(work_dir):
+                            break
+                # 如果共同父目录已经是 WORK_DIR，不再继续
+                if common_parent == Path(work_dir):
+                    # 检查是否所有文件都在 WORK_DIR 的不同子目录
+                    # 如果是，就使用 WORK_DIR
+                    pass
+        
+        # 如果找不到共同父目录或共同父目录是根目录，使用第一个文件的父目录
+        if common_parent is None:
+            common_parent = first_file.parent
+        elif common_parent == Path(work_dir):
+            # 检查所有文件是否都在 WORK_DIR 的直接子目录中
+            # 如果是，使用 WORK_DIR 作为基准
+            all_in_root = True
+            for file_path_str in files:
+                p = Path(work_dir) / file_path_str.lstrip('/')
+                if p.parent != Path(work_dir):
+                    all_in_root = False
+                    break
+            if not all_in_root:
+                # 文件分散在不同目录，使用第一个文件的父目录
+                common_parent = first_file.parent
+        
+        # 如果共同父目录仍然是 WORK_DIR，但文件不在根目录，使用第一个文件的父目录
+        if common_parent == Path(work_dir):
+            # 检查第一个文件是否在根目录
+            if first_file.parent != Path(work_dir):
+                common_parent = first_file.parent
+        
+        target_path = common_parent / target_base
+        
+        results = []
+        stats = {'processed': 0, 'moved': 0, 'copied': 0, 'skipped': 0, 'errors': 0}
 
-        if (files.length === 0) { showLog('⚠️ 请选择文件', 'warning'); return; }
+        for i, file_path_str in enumerate(files):
+            if i % BATCH_SIZE == 0:
+                if hasattr(app, 'memory'):
+                    app.memory['cleanup']()
+                time.sleep(0.05)
 
-        showLog('⏳ 预览分类结果...', 'info');
+            src = Path(work_dir) / file_path_str.lstrip('/')
+            if not src.exists():
+                stats['skipped'] += 1
+                results.append({'file': src.name, 'status': 'skip', 'reason': '文件不存在'})
+                continue
 
-        try {
-            const result = await apiCall('/api/classify', {
-                files: files,
-                method: method,
-                target_base: targetBase,
-                copy_mode: copyMode,
-                dry_run: true
-            });
+            if src.is_dir():
+                stats['skipped'] += 1
+                results.append({'file': src.name, 'status': 'skip', 'reason': '是目录'})
+                continue
 
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+            # 确定分类目标
+            if method == 'type':
+                ext = src.suffix
+                category = get_file_type(ext)
+                dest_dir = target_path / category
+            elif method == 'date':
+                mtime = datetime.fromtimestamp(src.stat().st_mtime)
+                category = mtime.strftime('%Y-%m')
+                dest_dir = target_path / category
+            elif method == 'size':
+                size = src.stat().st_size
+                if size < 1024 * 1024:
+                    category = '小于1MB'
+                elif size < 10 * 1024 * 1024:
+                    category = '1-10MB'
+                elif size < 100 * 1024 * 1024:
+                    category = '10-100MB'
+                else:
+                    category = '大于100MB'
+                dest_dir = target_path / category
+            else:
+                return jsonify({'error': f'未知分类方式: {method}'}), 400
 
-            const previewList = document.getElementById('classifyPreviewList');
-            const stats = document.getElementById('classifyStats');
-            const previewArea = document.getElementById('classifyPreviewArea');
+            dest = dest_dir / src.name
 
-            previewList.innerHTML = '';
-            if (result.results && result.results.length > 0) {
-                const grouped = {};
-                result.results.forEach(r => {
-                    if (r.category) {
-                        if (!grouped[r.category]) grouped[r.category] = [];
-                        grouped[r.category].push(r.file);
-                    }
-                });
+            # 处理重名
+            if dest.exists():
+                stem = src.stem
+                ext = src.suffix
+                counter = 1
+                while True:
+                    new_name = f'{stem}_{counter}{ext}'
+                    new_dest = dest_dir / new_name
+                    if not new_dest.exists():
+                        dest = new_dest
+                        break
+                    counter += 1
 
-                for (let [category, items] of Object.entries(grouped)) {
-                    const div = document.createElement('div');
-                    div.style.cssText = 'color:#f0c94d;font-weight:600;margin-top:4px;';
-                    div.textContent = '📁 ' + category + ' (' + items.length + ' 个)';
-                    previewList.appendChild(div);
-                    items.forEach(file => {
-                        const f = document.createElement('div');
-                        f.style.cssText = 'color:#b5b9c9;padding-left:16px;font-size:11px;';
-                        f.textContent = '  📄 ' + file;
-                        previewList.appendChild(f);
-                    });
-                }
+            if dry_run:
+                stats['processed'] += 1
+                results.append({
+                    'file': src.name,
+                    'from': str(src.relative_to(work_dir)),
+                    'to': str(dest.relative_to(work_dir)),
+                    'category': category,
+                    'status': 'preview'
+                })
+            else:
+                try:
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                    if copy_mode:
+                        shutil.copy2(str(src), str(dest))
+                        stats['copied'] += 1
+                    else:
+                        shutil.move(str(src), str(dest))
+                        stats['moved'] += 1
+                    stats['processed'] += 1
+                    results.append({
+                        'file': src.name,
+                        'from': str(src.relative_to(work_dir)),
+                        'to': str(dest.relative_to(work_dir)),
+                        'category': category,
+                        'status': 'success'
+                    })
+                except Exception as e:
+                    stats['errors'] += 1
+                    results.append({
+                        'file': src.name,
+                        'status': 'error',
+                        'reason': str(e)
+                    })
 
-                stats.textContent = '📊 共 ' + result.results.length + ' 个文件将分类到 ' +
-                    Object.keys(grouped).length + ' 个目录';
-                previewArea.style.display = 'block';
-                document.getElementById('classifyPreviewBtn').style.display = 'none';
-                document.getElementById('classifyConfirmBtn').style.display = 'block';
-            } else {
-                previewList.innerHTML = '<div style="color:#4a4e62;">没有文件需要分类</div>';
-                previewArea.style.display = 'block';
-            }
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    },
+        if hasattr(app, 'memory'):
+            app.memory['cleanup']()
 
-    async execute() {
-        const files = Array.from(selectedFiles);
-        const method = document.getElementById('classifyMethod').value;
-        const targetBase = document.getElementById('classifyTarget').value.trim() || '分类整理';
-        const copyMode = document.getElementById('classifyCopyModeModal').checked;
+        # 返回基准目录信息，方便前端显示
+        base_dir_str = str(common_parent.relative_to(work_dir))
+        if base_dir_str == '.' or not base_dir_str:
+            base_dir_str = '/'
+        elif not base_dir_str.startswith('/'):
+            base_dir_str = '/' + base_dir_str
 
-        closeModal();
-        clearLog();
-        showLog('⏳ 开始分类整理...', 'info');
-
-        try {
-            const result = await apiCall('/api/classify', {
-                files: files,
-                method: method,
-                target_base: targetBase,
-                copy_mode: copyMode,
-                dry_run: false
-            });
-
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-            if (result.results) {
-                const success = result.results.filter(r => r.status === 'success');
-                const errors = result.results.filter(r => r.status === 'error');
-                success.forEach(r => showLog('✅ ' + r.file + ' → ' + r.to, 'success'));
-                errors.forEach(r => showLog('❌ ' + r.file + ' - ' + r.reason, 'error'));
-            }
-
-            showLog('✅ ' + result.stats.processed + ' 个文件处理完成', 'success');
-            selectedFiles.clear();
-            await loadFiles(currentPath);
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    }
-};
-
-if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(ClassifyModule);
-}
+        return jsonify({
+            'results': results,
+            'stats': stats,
+            'dry_run': dry_run,
+            'method': method,
+            'target_base': target_base,
+            'base_dir': base_dir_str
+        })
