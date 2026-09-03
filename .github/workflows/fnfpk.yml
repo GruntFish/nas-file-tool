@@ -71,19 +71,14 @@ jobs:
           app_name: nas-file-tool
           version: ${{ github.event.inputs.version }}
           description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
-          arch:
-            - amd64
-            - arm64
+          arch: amd64,arm64
           developer: ${{ github.repository_owner }}
           homepage: https://github.com/${{ github.repository }}
           type: docker
           desktop_uidir: ui
-          ports:
-            - 8658:8658
-          volumes:
-            - /vol1/1000/:/data
-          services:
-            - docker
+          ports: 8658:8658
+          volumes: /vol1/1000/:/data
+          services: docker
           configurable: true
           EOF
 
