@@ -210,5 +210,5 @@ const SchedulerModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
-    ModuleRegistry.register(XXXModule);
+    ModuleRegistry.register(schedulerModule);
 }
