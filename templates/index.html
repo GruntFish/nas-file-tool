@@ -37,9 +37,17 @@
         .module-menu .menu-btn{background:0;border:0;color:#8b8fa3;padding:5px 14px;font-size:12px;cursor:pointer;border-radius:4px;transition:all .15s;font-family:inherit}
         .module-menu .menu-btn:hover{background:#2d313e;color:#e4e6eb}
         .module-menu .menu-btn.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
-        .path-bar{padding:4px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;display:flex;align-items:center;flex-shrink:0;min-height:32px}
+        .path-bar{padding:4px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;display:flex;align-items:center;flex-shrink:0;min-height:32px;flex-wrap:wrap;gap:4px}
         .path-bar .path-display{color:#8b8fa3;font-size:12px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .path-bar .path-display strong{color:#e4e6eb}
+        .path-bar .path-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+        .path-bar .path-actions input[type="text"]{background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 10px;font-size:12px;height:22px;width:160px;outline:none;font-family:inherit}
+        .path-bar .path-actions input[type="text"]:focus{border-color:#667eea}
+        .path-bar .path-actions button{background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;height:22px}
+        .path-bar .path-actions button:hover{background:#3d4150;color:#e4e6eb}
+        .path-bar .path-actions #undoBtn{background:#f6ad55;color:#1a1d27}
+        .path-bar .path-actions #undoBtn:hover{opacity:0.8}
+        .path-bar .path-actions #undoBtn:disabled{opacity:0.4;cursor:not-allowed}
         .module-content{flex:0 0 auto;min-height:30px;background:#14171f;border-bottom:1px solid #2d313e}
         .file-list-container{flex:1;overflow:auto;padding:0}
         .file-list-container::-webkit-scrollbar{width:6px;height:6px}
@@ -69,6 +77,7 @@
         .log-area .log-line{color:#8b8fa3;padding:1px 0}
         .log-area .log-line.success{color:#68d391}
         .log-area .log-line.error{color:#fc8181}
+        .log-area .log-line.warning{color:#f6ad55}
         .log-area .log-line.info{color:#63b3ed}
         .log-area::-webkit-scrollbar{width:4px}
         .log-area::-webkit-scrollbar-track{background:#14171f}
@@ -76,8 +85,71 @@
         .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
         @keyframes spin{to{transform:rotate(360deg)}}
 
+        /* ===== 模块通用样式 ===== */
+        .module-rename,.module-move-copy,.module-dedup,.module-delete,.module-classify,.module-chmod,.module-media,.module-scheduler{padding:6px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;min-height:34px}
+
+        /* ===== 【修复】重命名模块下拉框强制样式 ===== */
+        .module-rename select,
+        .module-rename input,
+        .module-rename button {
+            background: #1a1d27 !important;
+            border: 1px solid #2d313e;
+            border-radius: 4px;
+            color: #e4e6eb !important;
+            padding: 3px 8px;
+            font-size: 12px;
+            height: 28px;
+            font-family: inherit;
+            outline: 0;
+            -webkit-appearance: auto;
+            appearance: auto;
+        }
+        .module-rename select option {
+            background: #1a1d27 !important;
+            color: #e4e6eb !important;
+        }
+        .module-rename select:disabled,
+        .module-rename select.disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            color: #8b8fa3 !important;
+        }
+        .module-rename select:focus,
+        .module-rename input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+        }
+        .module-rename select:-moz-focusring {
+            color: #e4e6eb !important;
+            text-shadow: 0 0 0 #e4e6eb;
+        }
+        .module-rename select::-ms-expand {
+            background: #1a1d27;
+            color: #e4e6eb;
+        }
+
+        .module-rename .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
+        .module-rename .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:4px}
+        .module-rename .checkbox-label input[type=checkbox]{accent-color:#667eea;margin:0;width:12px;height:12px}
+        .module-rename #numParams,
+        .module-rename #extParams,
+        .module-rename #removePosParams,
+        .module-rename #dateParams{display:none;align-items:center;gap:4px;flex-wrap:wrap}
+        .module-rename #numParams input,
+        .module-rename #extParams input,
+        .module-rename #removePosParams input{width:45px}
+        .module-rename #extParams input{width:60px}
+        .module-rename .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 14px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:26px}
+        .module-rename .btn-execute:hover{opacity:.85}
+
+        /* ===== 其他模块按钮 ===== */
+        .module-dedup button,.module-delete button,.module-classify button,.module-chmod button,.module-media button,.module-scheduler button,.module-move-copy button{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 16px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;height:28px;font-family:inherit}
+        .module-dedup button:hover,.module-delete button:hover,.module-classify button:hover,.module-chmod button:hover,.module-media button:hover,.module-scheduler button:hover,.module-move-copy button:hover{opacity:.85}
+        .module-delete button{background:#e53e3e}
+        .module-scheduler #schedulerList{padding:8px 0;flex:1;overflow-y:auto}
+
         /* ===== 模态框 ===== */
-        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;justify-content:center;align-items:center}
         .modal-overlay.show{display:flex}
         .modal{background:#1a1d27;border-radius:12px;padding:24px;max-width:550px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
         .modal h2{color:#e4e6eb;font-size:17px;margin-bottom:12px}
@@ -104,24 +176,12 @@
         .modal .preview-info .total{color:#8b8fa3}
         .modal .preview-list{max-height:120px;overflow-y:auto;background:#14171f;border-radius:6px;padding:4px 8px;margin:4px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
         .modal .preview-list .changed{color:#68d391}
+        .modal .warning-box{color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a}
+        .modal .warning-box input[type=checkbox]{accent-color:#f6ad55;margin-right:4px}
+        .modal .warning-box .sub{color:#8b8fa3;font-size:10px;margin-top:2px;padding-left:20px}
+
         @media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%;padding:16px}.modal .filter-grid{grid-template-columns:1fr}}
         @media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}.modal .filter-grid{grid-template-columns:1fr}}
-        .module-rename,.module-move-copy,.module-dedup,.module-delete,.module-classify,.module-chmod,.module-media,.module-scheduler{padding:6px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;min-height:34px}
-        .module-rename select,.module-rename input,.module-rename button{background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:3px 8px;font-size:12px;height:28px;font-family:inherit;outline:0}
-        .module-rename select:focus,.module-rename input:focus{border-color:#667eea}
-        .module-rename button{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;font-weight:600;cursor:pointer;padding:3px 16px}
-        .module-rename button:hover{opacity:.85}
-        .module-rename .label{color:#8b8fa3;font-size:11px;font-weight:600}
-        .module-rename .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:4px}
-        .module-rename .checkbox-label input[type=checkbox]{accent-color:#667eea;margin:0}
-        .module-rename #numParams,.module-rename #extParams,.module-rename #removePosParams,.module-rename #dateParams{display:none}
-        .module-rename #numParams>*,.module-rename #extParams>*,.module-rename #removePosParams>*,.module-rename #dateParams>*{display:inline-block;margin-right:2px}
-        .module-rename #numParams input,.module-rename #extParams input,.module-rename #removePosParams input,.module-rename #dateParams select{width:45px}
-        .module-rename #extParams input{width:60px}
-        .module-dedup button,.module-delete button,.module-classify button,.module-chmod button,.module-media button,.module-scheduler button,.module-move-copy button{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 16px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;height:28px;font-family:inherit}
-        .module-dedup button:hover,.module-delete button:hover,.module-classify button:hover,.module-chmod button:hover,.module-media button:hover,.module-scheduler button:hover,.module-move-copy button:hover{opacity:.85}
-        .module-delete button{background:#e53e3e}
-        .module-scheduler #schedulerList{padding:8px 0;flex:1;overflow-y:auto}
     </style>
 </head>
 <body>
@@ -160,17 +220,17 @@
                 <div class="path-bar">
                     <div class="path-display">
                         📂 <strong id="currentPathDisplay">/</strong>
-                       <span id="fileCountDisplay" style="margin-left:12px;color:#4a4e62;">0 项</span>
+                        <span id="fileCountDisplay" style="margin-left:12px;color:#4a4e62;">0 项</span>
                         <span id="selectedInfo" style="margin-left:12px;color:#667eea;"></span>
+                    </div>
+                    <div class="path-actions">
+                        <input type="text" id="filterInput" placeholder="🔍 正则过滤 如: \.jpg$">
+                        <span id="filterCount" style="color:#4a4e62;font-size:11px;"></span>
+                        <button id="selectAllBtn">全选</button>
+                        <button id="clearAllBtn">取消</button>
+                        <button id="undoBtn" disabled>↩ 撤销</button>
+                    </div>
                 </div>
-                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                    <input type="text" id="filterInput" placeholder="🔍 正则过滤 如: \.jpg$" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 10px;font-size:12px;height:22px;width:160px;outline:none;font-family:inherit;">
-                    <span id="filterCount" style="color:#4a4e62;font-size:11px;"></span>
-                    <button id="selectAllBtn" style="background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;height:22px;">全选</button>
-                    <button id="clearAllBtn" style="background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;height:22px;">取消</button>
-                    <button id="undoBtn" style="background:#f6ad55;border:0;color:#1a1d27;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;height:22px;" disabled>↩ 撤销</button>
-                </div>
-            </div>
 
                 <div class="module-content" id="moduleContent"></div>
 
