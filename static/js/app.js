@@ -17,6 +17,21 @@ const ModuleRegistry = {
         window.renamePreview = {};
         closeModal();
 
+        // ===== 重置全选复选框 =====
+        const selectAllCheckbox = document.getElementById('selectAll');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+
+        // ===== 清除所有行的选中样式和复选框 =====
+        document.querySelectorAll('#fileTableBody tr.selected').forEach(tr => {
+            tr.classList.remove('selected');
+        });
+        document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+
         if (this.currentModule && this.modules[this.currentModule] && this.modules[this.currentModule].destroy) {
             this.modules[this.currentModule].destroy();
         }
@@ -200,6 +215,32 @@ function renderTree(nodes, container) {
     });
 }
 
+// ===== 全选状态更新函数 =====
+function updateSelectAllState() {
+    const selectAll = document.getElementById('selectAll');
+    if (!selectAll) return;
+
+    const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+    const checkedBoxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled):checked');
+
+    if (checkboxes.length === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+        return;
+    }
+
+    if (checkedBoxes.length === checkboxes.length) {
+        selectAll.checked = true;
+        selectAll.indeterminate = false;
+    } else if (checkedBoxes.length === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+    } else {
+        selectAll.checked = false;
+        selectAll.indeterminate = true;
+    }
+}
+
 // ===== 文件列表 =====
 async function loadFiles(path) {
     try {
@@ -251,6 +292,11 @@ function renderFiles(files) {
     tbody.innerHTML = '';
     if (!filteredFiles || filteredFiles.length === 0) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>';
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
         return;
     }
 
@@ -270,7 +316,8 @@ function renderFiles(files) {
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
-        const checked = window.selectedFiles.has(file.path) ? 'checked' : '';
+        const isChecked = window.selectedFiles.has(file.path);
+        const checked = isChecked ? 'checked' : '';
 
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
@@ -282,6 +329,9 @@ function renderFiles(files) {
 
         const cb = tr.querySelector('input[type="checkbox"]');
         if (!isDir) {
+            if (isChecked) {
+                tr.classList.add('selected');
+            }
             cb.addEventListener('change', function() {
                 if (this.checked) {
                     window.selectedFiles.add(file.path);
@@ -291,7 +341,10 @@ function renderFiles(files) {
                     tr.classList.remove('selected');
                 }
                 updateSelectedInfo();
-                document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: window.selectedFiles } }));
+                updateSelectAllState();
+                document.dispatchEvent(new CustomEvent('selectionChanged', { 
+                    detail: { selected: window.selectedFiles } 
+                }));
             });
         } else {
             cb.disabled = true;
@@ -299,7 +352,9 @@ function renderFiles(files) {
 
         tbody.appendChild(tr);
     });
+
     updateSelectedInfo();
+    updateSelectAllState();
 }
 
 function updateSelectedInfo() {
@@ -308,6 +363,10 @@ function updateSelectedInfo() {
     if (el) {
         el.textContent = count > 0 ? `✅ 已选 ${count} 项` : '';
     }
+    // 同时更新所有模块的计数
+    document.querySelectorAll('[id$="SelectedCount"]').forEach(el => {
+        el.textContent = count;
+    });
 }
 
 // ===== DOM 初始化 =====
@@ -333,6 +392,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 cb.checked = true;
                 cb.dispatchEvent(new Event('change'));
             });
+            // 手动更新 selectedFiles
+            checkboxes.forEach(cb => {
+                window.selectedFiles.add(cb.value);
+                const tr = cb.closest('tr');
+                if (tr) tr.classList.add('selected');
+            });
+            updateSelectedInfo();
+            updateSelectAllState();
+            document.dispatchEvent(new CustomEvent('selectionChanged', { 
+                detail: { selected: window.selectedFiles } 
+            }));
         });
     }
 
@@ -343,16 +413,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 cb.checked = false;
                 cb.dispatchEvent(new Event('change'));
             });
+            // 手动更新 selectedFiles
+            checkboxes.forEach(cb => {
+                window.selectedFiles.delete(cb.value);
+                const tr = cb.closest('tr');
+                if (tr) tr.classList.remove('selected');
+            });
+            updateSelectedInfo();
+            updateSelectAllState();
+            document.dispatchEvent(new CustomEvent('selectionChanged', { 
+                detail: { selected: window.selectedFiles } 
+            }));
         });
     }
 
+    // ===== 全选复选框事件 =====
     if (selectAll) {
         selectAll.addEventListener('change', function() {
+            const isChecked = this.checked;
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
             checkboxes.forEach(cb => {
-                cb.checked = this.checked;
-                cb.dispatchEvent(new Event('change'));
+                cb.checked = isChecked;
+                const tr = cb.closest('tr');
+                if (tr) {
+                    if (isChecked) {
+                        tr.classList.add('selected');
+                    } else {
+                        tr.classList.remove('selected');
+                    }
+                }
+                if (isChecked) {
+                    window.selectedFiles.add(cb.value);
+                } else {
+                    window.selectedFiles.delete(cb.value);
+                }
             });
+            this.indeterminate = false;
+            updateSelectedInfo();
+            document.dispatchEvent(new CustomEvent('selectionChanged', { 
+                detail: { selected: window.selectedFiles } 
+            }));
         });
     }
 
