@@ -3,7 +3,7 @@ FROM python:3.11-alpine
 RUN apk add --no-cache \
     jpegoptim \
     optipng \
-    webp-tools \
+    libwebp-tools \
     vips \
     vips-dev \
     && rm -rf /var/cache/apk/*
