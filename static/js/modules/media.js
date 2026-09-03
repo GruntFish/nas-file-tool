@@ -349,4 +349,6 @@ const MediaModule = {
     }
 };
 
-ModuleManager.register('media', MediaModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(XXXModule);
+}
