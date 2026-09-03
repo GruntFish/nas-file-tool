@@ -1,4 +1,4 @@
-name: Build Docker and FPK 
+name: 构建 Docker 镜像和 FPK 包
 
 on:
   workflow_dispatch:
@@ -46,7 +46,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ===== 构建 FPK 包 =====
+  # ===== 构建 FPK 包（不用 fnpack） =====
   build-fpk:
     name: 构建 FPK 包
     runs-on: ubuntu-latest
@@ -62,12 +62,6 @@ jobs:
       - name: 设置镜像名称（转小写）
         run: |
           echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: 安装 fnpack
-        run: |
-          wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/latest/download/fnpack-linux-${{ matrix.arch }}
-          chmod +x fnpack
-          sudo mv fnpack /usr/local/bin/
 
       - name: 准备 FPK 打包目录
         run: |
@@ -105,7 +99,7 @@ jobs:
           homepage: https://github.com/${{ github.repository }}
           type: compose
           ports:
-            - 5000:5000
+            - 8658:8658
           volumes:
             - /vol1/1000/:/data
           services:
@@ -155,10 +149,11 @@ jobs:
           convert -size 64x64 xc:transparent -fill '#667eea' -draw "circle 32,32 30,30" -gravity center -pointsize 20 -annotate 0 "📂" ICON.PNG 2>/dev/null || echo "图标生成跳过"
           convert -size 256x256 xc:transparent -fill '#667eea' -draw "circle 128,128 120,120" -gravity center -pointsize 80 -annotate 0 "📂" ICON_256.PNG 2>/dev/null || echo "图标生成跳过"
 
-      - name: 打包 FPK
+      - name: 打包 FPK（直接用 zip）
         run: |
           cd fpk-build
-          fnpack build -o ../nas-file-tool-${{ matrix.arch }}.fpk
+          zip -r ../nas-file-tool-${{ matrix.arch }}.fpk .
+          cd ..
 
       - name: 上传 FPK 产物
         uses: actions/upload-artifact@v4
