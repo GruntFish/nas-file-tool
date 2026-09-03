@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-fpk:
-    name: 打包 FPK 应用
+    name: 打包 FPK
     runs-on: ubuntu-latest
 
     steps:
@@ -23,13 +23,11 @@ jobs:
           wget -q -O fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
           chmod +x fnpack
           sudo mv fnpack /usr/local/bin/
-          fnpack --help
 
-      - name: 创建 FPK 项目
-        run: |
-          fnpack create nas-file-tool --template docker
+      - name: 创建项目
+        run: fnpack create nas-file-tool --template docker
 
-      - name: 配置 docker-compose
+      - name: 写入 docker-compose.yaml
         run: |
           cat > nas-file-tool/app/docker/docker-compose.yaml << 'EOF'
           version: '3.8'
@@ -42,38 +40,17 @@ jobs:
               volumes:
                 - "{{.data_dir}}:/data"
               restart: unless-stopped
-              mem_limit: 512m
           EOF
 
-      - name: 配置桌面 UI
+      - name: 写入 manifest
         run: |
-          mkdir -p nas-file-tool/app/ui
-          cat > nas-file-tool/app/ui/config << 'EOF'
-          {
-            "name": "文件工具箱",
-            "icon": "icon.png",
-            "url": "http://localhost:8658",
-            "type": "web"
-          }
-          EOF
-
-      - name: 转换 favicon 为桌面图标
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq imagemagick
-          convert favicon.ico[0] -resize 64x64 nas-file-tool/ICON.PNG
-          convert favicon.ico[0] -resize 256x256 nas-file-tool/ICON_256.PNG
-          cp nas-file-tool/ICON.PNG nas-file-tool/app/ui/icon.png
-
-      - name: 配置 manifest
-        run: |
-          cat > nas-file-tool/manifest << 'EOF'
+          cat > nas-file-tool/manifest << EOF
           appname: nas-file-tool
           version: ${{ github.event.inputs.version }}
-          description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
-          arch: amd64,arm64
+          description: 文件工具箱
+          arch: amd64
           developer: ${{ github.repository_owner }}
-          homepage: https://github.com/${{ github.repository }}
+          source: app/docker/docker-compose.yaml
           type: docker
           desktop_uidir: ui
           ports: 8658:8658
@@ -82,61 +59,30 @@ jobs:
           configurable: true
           EOF
 
-      - name: 配置 privilege
+      - name: 写入 privilege
         run: |
           cat > nas-file-tool/config/privilege << 'EOF'
-          {
-            "docker": true,
-            "network": true,
-            "storage": true
-          }
+          {"docker":true,"network":true,"storage":true}
           EOF
 
-      - name: 配置资源声明
+      - name: 创建资源声明
         run: |
           cat > nas-file-tool/config/resource << 'EOF'
-          {
-            "config": {
-              "data_dir": {
-                "type": "string",
-                "title": "工作目录",
-                "description": "选择文件工具箱的工作目录",
-                "default": "/vol1/1000/",
-                "format": "directory"
-              }
-            }
-          }
+          {"config":{"data_dir":{"type":"string","title":"工作目录","default":"/vol1/1000/","format":"directory"}}}
           EOF
 
       - name: 创建安装向导
         run: |
           mkdir -p nas-file-tool/wizard
           cat > nas-file-tool/wizard/install << 'EOF'
-          {
-            "pages": [
-              {
-                "title": "选择工作目录",
-                "description": "请选择文件工具箱要管理的目录",
-                "fields": [
-                  {
-                    "name": "data_dir",
-                    "label": "工作目录",
-                    "type": "directory",
-                    "required": true,
-                    "default": "/vol1/1000/"
-                  }
-                ]
-              }
-            ]
-          }
+          {"pages":[{"title":"选择工作目录","fields":[{"name":"data_dir","label":"工作目录","type":"directory","required":true,"default":"/vol1/1000/"}]}]}
           EOF
 
-      - name: 配置生命周期脚本
+      - name: 写入启动脚本
         run: |
           cat > nas-file-tool/cmd/main << 'EOF'
           #!/bin/sh
           . "$TRIM_APPDEST/config/env"
-
           case "$1" in
             start)
               cd "$TRIM_APPDEST/app/docker"
@@ -148,11 +94,7 @@ jobs:
               docker compose down
               ;;
             status)
-              if docker ps --format '{{.Names}}' | grep -q "^file-tool$"; then
-                exit 0
-              else
-                exit 3
-              fi
+              if docker ps | grep -q file-tool; then exit 0; else exit 3; fi
               ;;
             config_init)
               echo "data_dir=$data_dir" > "$TRIM_APPDEST/config/env"
@@ -163,23 +105,23 @@ jobs:
               export data_dir="$data_dir"
               docker compose up -d
               ;;
-            *)
-              echo "Usage: $0 {start|stop|status|config_init|config_callback}"
-              exit 1
-              ;;
+            *) exit 1 ;;
           esac
-          exit 0
           EOF
           chmod +x nas-file-tool/cmd/main
 
-      - name: 打包 FPK
+      - name: 复制图标
+        run: |
+          cp favicon.ico nas-file-tool/ICON.PNG
+          cp favicon.ico nas-file-tool/ICON_256.PNG
+
+      - name: 打包
         run: |
           cd nas-file-tool
           fnpack build
           mv nas-file-tool.fpk ../
-          cd ..
 
-      - name: 上传 FPK
+      - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: nas-file-tool
@@ -189,10 +131,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
           files: nas-file-tool.fpk
-          generate_release_notes: true
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
