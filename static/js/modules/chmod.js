@@ -1,15 +1,11 @@
 // static/js/modules/chmod.js
-
 const ChmodModule = {
     name: 'chmod',
 
     init() {
         document.getElementById('chmodOpenBtn').addEventListener('click', () => this.openModal());
         this.updateCount();
-    },
-
-    onSelectChange(selected) {
-        this.updateCount();
+        document.addEventListener('selectionChanged', () => { this.updateCount(); });
     },
 
     updateCount() {
@@ -56,13 +52,11 @@ const ChmodModule = {
                     <button class="btn-confirm" id="chmodConfirmBtn" style="display:none;">确认执行</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-
-        document.getElementById('chmodPreviewBtn').addEventListener('click', () => this.preview());
-        document.getElementById('chmodConfirmBtn').addEventListener('click', () => this.execute());
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#chmodPreviewBtn').addEventListener('click', () => this.preview());
+        overlay.querySelector('#chmodConfirmBtn').addEventListener('click', () => this.execute());
     },
 
     async preview() {
@@ -142,5 +136,5 @@ const ChmodModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(chmodModule);
+    ModuleRegistry.register(ChmodModule);
 }
