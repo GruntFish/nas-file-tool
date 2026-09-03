@@ -1,6 +1,5 @@
 // static/js/app.js
 // 模块注册器
-// static/js/app.js 中的 ModuleRegistry 部分
 const ModuleRegistry = {
     modules: {},
     currentModule: null,
@@ -21,7 +20,10 @@ const ModuleRegistry = {
         window.renamePreview = {};
         renamePreview = {};
 
-        // 3. 如果有旧的模块，调用其 destroy 方法
+        // 3. 如果有弹窗，关闭弹窗
+        closeModal();
+
+        // 4. 如果有旧的模块，调用其 destroy 方法
         if (this.currentModule && this.modules[this.currentModule] && this.modules[this.currentModule].destroy) {
             this.modules[this.currentModule].destroy();
         }
@@ -43,6 +45,11 @@ const ModuleRegistry = {
             }
         } catch (e) {
             container.innerHTML = `<div style="padding:20px;color:#fc8181;">❌ 模块加载失败: ${e.message}</div>`;
+        }
+
+        // 刷新文件列表（清除高亮）
+        if (typeof renderFiles === 'function' && window.fileList) {
+            renderFiles(window.fileList);
         }
     }
 };
@@ -101,8 +108,7 @@ function formatSize(bytes) {
     if (!bytes) return '';
     const units = ['B', 'KB', 'MB', 'GB'];
     let i = 0;
-    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024;
-        i++; }
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
     return bytes.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
 }
 
@@ -228,7 +234,6 @@ function renderFiles(files) {
     const tbody = document.getElementById('fileTableBody');
     if (!tbody) return;
 
-    // 如果传入的是 undefined 或 null，使用当前 fileList
     if (!files) {
         files = fileList || [];
     }
@@ -239,7 +244,6 @@ function renderFiles(files) {
         return;
     }
 
-    // 排序
     files.sort((a, b) => {
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
@@ -340,7 +344,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 撤销按钮
     const undoBtn = document.getElementById('undoBtn');
     if (undoBtn) {
         undoBtn.addEventListener('click', async function() {
