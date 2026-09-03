@@ -20,6 +20,9 @@ def register(app):
     @app.route('/api/classify', methods=['POST'])
     def classify():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         files = data.get('files', [])
         method = data.get('method', 'type')
         target_base = data.get('target_base', '分类整理')
@@ -33,7 +36,33 @@ def register(app):
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
-        target_path = Path(work_dir) / target_base
+        # ===== 【修复】使用第一个文件的父目录作为基准 =====
+        # 而不是直接使用 WORK_DIR
+        first_file = Path(work_dir) / files[0].lstrip('/')
+        base_dir = first_file.parent if first_file.parent != Path(work_dir) else Path(work_dir)
+        # 如果所有文件都在同一目录下，使用该目录
+        # 如果文件分散在不同目录，使用它们共同的父目录
+        common_parent = None
+        for file_path_str in files:
+            p = Path(work_dir) / file_path_str.lstrip('/')
+            if common_parent is None:
+                common_parent = p.parent
+            else:
+                # 找共同父目录
+                p_parent = p.parent
+                while p_parent != common_parent and p_parent != p_parent.parent:
+                    if str(p_parent).startswith(str(common_parent)):
+                        break
+                    common_parent = common_parent.parent
+                if common_parent == Path(work_dir):
+                    break
+        
+        # 如果找不到共同父目录，使用第一个文件的父目录
+        if common_parent is None or common_parent == Path(work_dir):
+            common_parent = first_file.parent
+        
+        target_path = common_parent / target_base
+        
         results = []
         stats = {'processed': 0, 'moved': 0, 'copied': 0, 'skipped': 0, 'errors': 0}
 
@@ -43,7 +72,7 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(0.05)
 
-            src = Path(work_dir) / file_path_str
+            src = Path(work_dir) / file_path_str.lstrip('/')
             if not src.exists():
                 stats['skipped'] += 1
                 results.append({'file': src.name, 'status': 'skip', 'reason': '文件不存在'})
@@ -134,5 +163,6 @@ def register(app):
             'stats': stats,
             'dry_run': dry_run,
             'method': method,
-            'target_base': target_base
+            'target_base': target_base,
+            'base_dir': str(common_parent.relative_to(work_dir)) if common_parent != Path(work_dir) else '/'
         })
