@@ -1,5 +1,9 @@
 // static/js/modules/media.js
 
+if (typeof ModuleRegistry === 'undefined') {
+    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
+}
+
 const MediaModule = {
     name: 'media',
 
