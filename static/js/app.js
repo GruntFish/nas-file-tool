@@ -1,3 +1,4 @@
+// static/js/app.js
 // 模块注册器
 const ModuleRegistry = {
     modules: {},
@@ -32,13 +33,21 @@ const ModuleRegistry = {
 
 window.ModuleRegistry = ModuleRegistry;
 
-// ===== 全局状态 =====
-let currentPath = '/';
-let fileList = [];
-let selectedFiles = new Set();
-let renamePreview = {};
-let renameHistory = [];
-let fullTreeData = [];
+// ===== 全局状态（挂载到 window） =====
+window.currentPath = '/';
+window.fileList = [];
+window.selectedFiles = new Set();
+window.renamePreview = {};
+window.renameHistory = [];
+window.fullTreeData = [];
+
+// ===== 简写引用 =====
+let currentPath = window.currentPath;
+let fileList = window.fileList;
+let selectedFiles = window.selectedFiles;
+let renamePreview = window.renamePreview;
+let renameHistory = window.renameHistory;
+let fullTreeData = window.fullTreeData;
 
 // ===== API 调用 =====
 async function apiCall(endpoint, data) {
