@@ -1,9 +1,5 @@
 // static/js/modules/classify.js
 
-if (typeof ModuleRegistry === 'undefined') {
-    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
-}
-
 const ClassifyModule = {
     name: 'classify',
 
@@ -172,6 +168,6 @@ const ClassifyModule = {
     }
 };
 
-if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+if (typeof ModuleRegistry !== 'undefined') {
     ModuleRegistry.register(classifyModule);
 }
