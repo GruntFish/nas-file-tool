@@ -67,10 +67,10 @@ jobs:
 
       - name: 配置 manifest
         run: |
-          cat > nas-file-tool/manifest << EOF
-          app_name: nas-file-tool
+          cat > nas-file-tool/manifest << 'EOF'
+          appname: nas-file-tool
           version: ${{ github.event.inputs.version }}
-          description: 文件工具箱
+          description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
           arch: amd64,arm64
           developer: ${{ github.repository_owner }}
           homepage: https://github.com/${{ github.repository }}
