@@ -1,5 +1,4 @@
-// static/js/app.js
-// ===== 模块注册器 =====
+// 模块注册器
 const ModuleRegistry = {
     modules: {},
     currentModule: null,
@@ -31,9 +30,7 @@ const ModuleRegistry = {
     }
 };
 
-// 暴露到全局
 window.ModuleRegistry = ModuleRegistry;
-window.ModuleManager = ModuleRegistry;
 
 // ===== 全局状态 =====
 let currentPath = '/';
@@ -106,6 +103,21 @@ function clearLog() {
     logArea.classList.remove('show');
 }
 
+function openModal(html) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay show';
+    overlay.innerHTML = html;
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) this.remove();
+    });
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+function closeModal() {
+    document.querySelectorAll('.modal-overlay.show').forEach(el => el.remove());
+}
+
 // ===== 目录树 =====
 async function loadTree(path) {
     try {
@@ -135,7 +147,8 @@ function renderTree(nodes, container) {
         item.className = 'tree-item';
         if (node.path === currentPath) item.classList.add('active');
         const hasChildren = node.children && node.children.length > 0;
-        item.innerHTML = `<span class="icon">📁</span><span class="name">${escapeHtml(node.name)}</span>${hasChildren ? '<span class="arrow open">▼</span>' : ''}`;
+        item.innerHTML =
+            `<span class="icon">📁</span><span class="name">${escapeHtml(node.name)}</span>${hasChildren ? '<span class="arrow open">▼</span>' : ''}`;
         item.addEventListener('click', function(e) {
             if (e.target.classList.contains('arrow')) return;
             currentPath = node.path;
@@ -173,7 +186,6 @@ async function loadFiles(path) {
         renderFiles(fileList);
         document.getElementById('currentPathDisplay').textContent = path;
         document.getElementById('fileCountDisplay').textContent = fileList.length + ' 项';
-        // 通知模块文件已加载
         document.dispatchEvent(new CustomEvent('filesLoaded', { detail: { files: fileList } }));
     } catch (err) {
         showLog('❌ 加载失败: ' + err.message, 'error');
@@ -222,7 +234,6 @@ function renderFiles(files) {
                 tr.classList.remove('selected');
             }
             updateSelectedInfo();
-            // 通知选中变化
             document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: selectedFiles } }));
         });
         tbody.appendChild(tr);
@@ -235,24 +246,8 @@ function updateSelectedInfo() {
     document.getElementById('selectedInfo').textContent = count > 0 ? `✅ 已选 ${count} 项` : '';
 }
 
-// ===== 撤销 =====
-document.getElementById('undoBtn')?.addEventListener('click', async function() {
-    if (renameHistory.length === 0) return;
-    try {
-        const result = await apiCall('/api/undo', {});
-        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-        showLog('↩ ' + result.message, 'success');
-        renameHistory.pop();
-        if (renameHistory.length === 0) this.disabled = true;
-        renamePreview = {};
-        selectedFiles.clear();
-        await loadFiles(currentPath);
-    } catch (e) { showLog('❌ ' + e.message, 'error'); }
-});
-
-// ===== DOM 加载完成初始化 =====
+// ===== DOM 初始化 =====
 document.addEventListener('DOMContentLoaded', function() {
-    // 全选/取消
     document.getElementById('selectAllBtn').addEventListener('click', function() {
         document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
             cb.checked = true;
@@ -272,16 +267,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 加载目录树
     loadTree('/');
     loadFiles('/');
 
-    // 默认加载重命名模块
     setTimeout(() => {
         ModuleRegistry.load('rename');
     }, 300);
 
-    // 菜单切换
     document.querySelectorAll('.menu-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
@@ -289,4 +281,18 @@ document.addEventListener('DOMContentLoaded', function() {
             ModuleRegistry.load(this.dataset.module);
         });
     });
+});
+
+document.getElementById('undoBtn')?.addEventListener('click', async function() {
+    if (renameHistory.length === 0) return;
+    try {
+        const result = await apiCall('/api/undo', {});
+        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+        showLog('↩ ' + result.message, 'success');
+        renameHistory.pop();
+        if (renameHistory.length === 0) this.disabled = true;
+        renamePreview = {};
+        selectedFiles.clear();
+        await loadFiles(currentPath);
+    } catch (e) { showLog('❌ ' + e.message, 'error'); }
 });
