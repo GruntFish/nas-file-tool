@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import time
 import hashlib
+import shutil  # ← 新增导入
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE
 
@@ -12,9 +13,20 @@ def register(app):
 
     IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'}
 
+    # ===== 【新增】检查工具是否可用 =====
+    def check_tool(tool_name):
+        try:
+            subprocess.run([tool_name, '--version'], capture_output=True, timeout=5)
+            return True
+        except:
+            return False
+
     @app.route('/api/media/compress', methods=['POST'])
     def compress_images():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         files = data.get('files', [])
         quality = data.get('quality', 85)
         format_type = data.get('format', 'original')
@@ -26,6 +38,15 @@ def register(app):
 
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
+
+        # ===== 【新增】检查工具 =====
+        if not dry_run:
+            if format_type == 'original':
+                if not check_tool('jpegoptim') or not check_tool('optipng'):
+                    return jsonify({'error': '缺少压缩工具，请安装 jpegoptim 和 optipng'}), 503
+            elif format_type == 'webp':
+                if not check_tool('cwebp'):
+                    return jsonify({'error': '缺少 cwebp 工具，请安装 webp'}), 503
 
         results = []
         stats = {'processed': 0, 'compressed': 0, 'skipped': 0, 'errors': 0, 'saved_bytes': 0}
@@ -75,16 +96,14 @@ def register(app):
             try:
                 ext = src.suffix.lower()
                 if ext in ('.jpg', '.jpeg'):
-                    import shutil
                     shutil.copy2(str(src), str(output_path))
-                    subprocess.run(['jpegoptim', '--max=' + str(quality), str(output_path)], capture_output=True)
+                    subprocess.run(['jpegoptim', '--max=' + str(quality), str(output_path)], capture_output=True, check=False)
                 elif ext == '.png':
-                    import shutil
                     shutil.copy2(str(src), str(output_path))
-                    subprocess.run(['optipng', '-o2', str(output_path)], capture_output=True)
+                    subprocess.run(['optipng', '-o2', str(output_path)], capture_output=True, check=False)
                 else:
                     cmd = ['cwebp', '-q', str(quality), str(src), '-o', str(output_path)]
-                    subprocess.run(cmd, capture_output=True)
+                    subprocess.run(cmd, capture_output=True, check=False)
 
                 new_size = output_path.stat().st_size if output_path.exists() else src.stat().st_size
                 saved = original_size - new_size
@@ -120,9 +139,13 @@ def register(app):
             'format': format_type
         })
 
+    # ===== convert 和 resize 类似添加校验 =====
     @app.route('/api/media/convert', methods=['POST'])
     def convert_images():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         files = data.get('files', [])
         target_format = data.get('target_format', 'webp')
         quality = data.get('quality', 85)
@@ -134,6 +157,13 @@ def register(app):
 
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
+
+        # ===== 【新增】检查工具 =====
+        if not dry_run:
+            if target_format == 'webp' and not check_tool('cwebp'):
+                return jsonify({'error': '缺少 cwebp 工具，请安装 webp'}), 503
+            if target_format in ('jpg', 'jpeg', 'png') and not check_tool('convert'):
+                return jsonify({'error': '缺少 ImageMagick 工具，请安装 imagemagick'}), 503
 
         results = []
         stats = {'processed': 0, 'converted': 0, 'skipped': 0, 'errors': 0}
@@ -182,7 +212,7 @@ def register(app):
                 else:
                     return jsonify({'error': f'不支持的格式: {target_format}'}), 400
 
-                subprocess.run(cmd, capture_output=True)
+                subprocess.run(cmd, capture_output=True, check=False)
                 if output_path.exists():
                     stats['converted'] += 1
                     stats['processed'] += 1
@@ -215,6 +245,9 @@ def register(app):
     @app.route('/api/media/resize', methods=['POST'])
     def resize_images():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         files = data.get('files', [])
         width = data.get('width', 1920)
         height = data.get('height', 1080)
@@ -227,6 +260,10 @@ def register(app):
 
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
+
+        # ===== 【新增】检查工具 =====
+        if not dry_run and not check_tool('convert'):
+            return jsonify({'error': '缺少 ImageMagick 工具，请安装 imagemagick'}), 503
 
         results = []
         stats = {'processed': 0, 'resized': 0, 'skipped': 0, 'errors': 0}
@@ -273,7 +310,7 @@ def register(app):
                     resize_arg = f'{width}x{height}'
 
                 cmd = ['convert', str(src), '-resize', resize_arg, str(output_path)]
-                subprocess.run(cmd, capture_output=True)
+                subprocess.run(cmd, capture_output=True, check=False)
 
                 if output_path.exists():
                     stats['resized'] += 1
