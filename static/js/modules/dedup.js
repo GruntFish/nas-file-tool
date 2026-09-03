@@ -115,5 +115,5 @@ const DedupModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
-    ModuleRegistry.register(XXXModule);
+    ModuleRegistry.register(dedupModule);
 }
