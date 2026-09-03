@@ -1,0 +1,80 @@
+<div class="module-rename" style="padding:4px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:3px 5px;align-items:center;flex-shrink:0;min-height:30px;">
+    <span class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">操作</span>
+    <select id="renameAction" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;">
+        <option value="replace">替换</option>
+        <option value="regex">正则替换</option>
+        <option value="prefix">添加前缀</option>
+        <option value="suffix">添加后缀</option>
+        <option value="number">编号</option>
+        <option value="lowercase">转小写</option>
+        <option value="uppercase">转大写</option>
+        <option value="capitalize">首字母大写</option>
+        <option value="titlecase">标题大小写</option>
+        <option value="camelcase">驼峰式</option>
+        <option value="extension">扩展名</option>
+        <option value="remove">删除字符</option>
+        <option value="removepos">按位置删除</option>
+        <option value="date">添加日期</option>
+    </select>
+
+    <span id="findLabel" class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">查找</span>
+    <input type="text" id="findText" placeholder="查找" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;min-width:120px;flex:1;">
+    <span id="replaceLabel" class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">替换为</span>
+    <input type="text" id="replaceText" placeholder="替换为" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;min-width:120px;flex:1;">
+    <label class="checkbox-label" style="color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:3px;">
+        <input type="checkbox" id="caseSensitive" style="accent-color:#667eea;width:12px;height:12px;margin:0;"> 大小写敏感
+    </label>
+
+    <span id="numParams" style="display:none;">
+        <span class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">起始</span>
+        <input type="number" id="startNum" value="1" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;width:42px;">
+        <span class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">步长</span>
+        <input type="number" id="stepNum" value="1" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;width:42px;">
+        <span class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">位数</span>
+        <input type="number" id="digitsNum" value="2" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;width:42px;">
+        <span class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">位置</span>
+        <select id="numberPos" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;">
+            <option value="suffix">后缀</option>
+            <option value="prefix">前缀</option>
+        </select>
+    </span>
+
+    <span id="extParams" style="display:none;">
+        <select id="extAction" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;">
+            <option value="change">更改</option>
+            <option value="add">添加</option>
+            <option value="remove">删除</option>
+            <option value="replace">替换</option>
+        </select>
+        <input type="text" id="extValue" placeholder="新扩展名" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;min-width:60px;">
+    </span>
+
+    <span id="removePosParams" style="display:none;">
+        <span class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">起始</span>
+        <input type="number" id="removeStart" value="1" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;width:42px;">
+        <span class="label" style="color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap;">长度</span>
+        <input type="number" id="removeLen" value="1" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;width:42px;">
+        <label class="checkbox-label" style="color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:3px;">
+            <input type="checkbox" id="removeFromEnd" style="accent-color:#667eea;width:12px;height:12px;margin:0;"> 从末尾
+        </label>
+    </span>
+
+    <span id="dateParams" style="display:none;">
+        <select id="dateType" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;">
+            <option value="created">创建日期</option>
+            <option value="modified">修改日期</option>
+            <option value="custom">自定义</option>
+        </select>
+        <select id="dateFormat" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;">
+            <option value="YYYY-MM-DD">2024-01-15</option>
+            <option value="YYYYMMDD">20240115</option>
+            <option value="YYMMDD">240115</option>
+        </select>
+        <select id="datePos" style="background:#1a1d27;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;padding:2px 6px;font-size:12px;outline:0;font-family:inherit;height:24px;">
+            <option value="prefix">前缀</option>
+            <option value="suffix">后缀</option>
+        </select>
+    </span>
+
+    <button class="btn-execute" id="executeRenameBtn" style="background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 14px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:26px;">✅ 执行重命名</button>
+</div>
