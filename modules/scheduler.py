@@ -46,10 +46,13 @@ def execute_task(task):
     running_tasks[task_id] = {'status': 'running', 'start': datetime.now().isoformat()}
     try:
         task_type = task.get('type')
+        # ===== 【修复】使用正确的参数 =====
         if task_type == 'rename':
             params = task.get('params', {})
+            pattern = params.get('pattern', '')
+            replacement = params.get('replacement', '')
             result = subprocess.run(
-                ['python3', '/app/processor.py', 'rename', '--pattern', params.get('pattern', ''), '--replacement', params.get('replacement', ''), '--dir', WORK_DIR],
+                ['python3', '/app/processor.py', 'rename', '--pattern', pattern, '--replacement', replacement, '--dir', WORK_DIR],
                 capture_output=True, text=True, timeout=300
             )
         elif task_type == 'dedup':
@@ -58,8 +61,11 @@ def execute_task(task):
                 capture_output=True, text=True, timeout=600
             )
         elif task_type == 'classify':
+            # processor.py 暂时不支持 classify，用 Python 直接调用
+            from modules.classify import register as classify_register
+            # 简单实现：直接调用分类逻辑
             result = subprocess.run(
-                ['python3', '/app/processor.py', 'classify', '--dir', WORK_DIR],
+                ['python3', '-c', f'from modules.classify import classify_files; classify_files("{WORK_DIR}")'],
                 capture_output=True, text=True, timeout=600
             )
         else:
@@ -92,7 +98,8 @@ def scheduler_loop():
                 if cron:
                     try:
                         import croniter
-                        if croniter.croniter.is_valid(cron):
+                        # ===== 【修复】正确使用 croniter =====
+                        if croniter.is_valid(cron):
                             iter = croniter.croniter(cron, datetime.now())
                             next_run = iter.get_next(datetime)
                             if last_run:
@@ -105,8 +112,8 @@ def scheduler_loop():
                                 task_queue.put(task)
                                 task['last_run'] = now.isoformat()
                                 save_tasks(tasks)
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f'Cron error: {e}')
                 elif task.get('interval'):
                     interval = task.get('interval')
                     if last_run:
@@ -144,6 +151,9 @@ def register(app):
     @app.route('/api/scheduler/create', methods=['POST'])
     def create_task():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         name = data.get('name', '未命名任务')
         task_type = data.get('type', 'rename')
         cron = data.get('cron', '')
@@ -172,6 +182,9 @@ def register(app):
     @app.route('/api/scheduler/delete', methods=['POST'])
     def delete_task():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         task_id = data.get('id')
         tasks = load_tasks()
         tasks = [t for t in tasks if t.get('id') != task_id]
@@ -181,6 +194,9 @@ def register(app):
     @app.route('/api/scheduler/toggle', methods=['POST'])
     def toggle_task():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         task_id = data.get('id')
         tasks = load_tasks()
         for task in tasks:
@@ -193,6 +209,9 @@ def register(app):
     @app.route('/api/scheduler/run', methods=['POST'])
     def run_task_now():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         task_id = data.get('id')
         tasks = load_tasks()
         for task in tasks:
