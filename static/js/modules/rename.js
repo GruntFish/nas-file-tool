@@ -1,4 +1,7 @@
 // static/js/modules/rename.js
+if (typeof ModuleRegistry === 'undefined') {
+    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
+}
 
 const RenameModule = {
     name: 'rename',
@@ -6,11 +9,20 @@ const RenameModule = {
     init() {
         this.bindEvents();
         this.setupActionToggle();
-        this.autoPreview();
+        setTimeout(() => this.autoPreview(), 200);
+
+        // 监听文件加载和选中变化
+        document.addEventListener('filesLoaded', () => {
+            setTimeout(() => this.autoPreview(), 100);
+        });
+        document.addEventListener('selectionChanged', () => {
+            setTimeout(() => this.autoPreview(), 50);
+        });
     },
 
     bindEvents() {
         document.getElementById('executeRenameBtn').addEventListener('click', () => this.execute());
+
         document.getElementById('renameAction').addEventListener('change', () => {
             this.setupActionToggle();
             this.autoPreview();
@@ -21,23 +33,26 @@ const RenameModule = {
             'dateType', 'dateFormat', 'datePos'
         ].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.addEventListener('input', () => this.autoPreview());
-            if (el) el.addEventListener('change', () => this.autoPreview());
+            if (el) {
+                el.addEventListener('input', () => this.autoPreview());
+                el.addEventListener('change', () => this.autoPreview());
+            }
         });
     },
 
     setupActionToggle() {
         const action = document.getElementById('renameAction').value;
-        const findLabel = document.getElementById('findLabel');
-        const findText = document.getElementById('findText');
-        const replaceLabel = document.getElementById('replaceLabel');
-        const replaceText = document.getElementById('replaceText');
-        const caseSensitive = document.getElementById('caseSensitive');
 
         document.getElementById('numParams').style.display = 'none';
         document.getElementById('extParams').style.display = 'none';
         document.getElementById('removePosParams').style.display = 'none';
         document.getElementById('dateParams').style.display = 'none';
+
+        const findLabel = document.getElementById('findLabel');
+        const findText = document.getElementById('findText');
+        const replaceLabel = document.getElementById('replaceLabel');
+        const replaceText = document.getElementById('replaceText');
+        const caseSensitive = document.getElementById('caseSensitive');
 
         findLabel.style.display = 'inline';
         findText.style.display = 'inline';
@@ -158,46 +173,10 @@ const RenameModule = {
                 params.date_format = document.getElementById('dateFormat').value;
                 params.date_pos = document.getElementById('datePos').value;
                 break;
-            case 'lowercase':
-            case 'uppercase':
-            case 'capitalize':
-            case 'titlecase':
-            case 'camelcase':
+            default:
                 break;
         }
         return params;
-    },
-
-    autoPreview() {
-        const files = Array.from(selectedFiles);
-        const targetFiles = files.length > 0 ? files : window.fileList.filter(f => !f.is_dir).map(f => f.path);
-        const params = this.getParams();
-
-        if (targetFiles.length === 0 || !params.action) {
-            window.renamePreview = {};
-            renderFiles(window.fileList);
-            return;
-        }
-
-        if (params.action === 'number' || params.action === 'date') {
-            window.renamePreview = {};
-            renderFiles(window.fileList);
-            return;
-        }
-
-        const previewMap = {};
-        let hasChanges = false;
-        for (let filePath of targetFiles) {
-            const oldName = getFileName(filePath);
-            const newName = this.applyRenameAction(oldName, params);
-            if (newName !== oldName) {
-                previewMap[filePath] = newName;
-                hasChanges = true;
-            }
-        }
-
-        window.renamePreview = hasChanges ? previewMap : {};
-        renderFiles(window.fileList);
     },
 
     applyRenameAction(oldName, params) {
@@ -315,6 +294,38 @@ const RenameModule = {
         return newName;
     },
 
+    autoPreview() {
+        const files = Array.from(selectedFiles);
+        const targetFiles = files.length > 0 ? files : window.fileList.filter(f => !f.is_dir).map(f => f.path);
+        const params = this.getParams();
+
+        if (targetFiles.length === 0 || !params.action) {
+            window.renamePreview = {};
+            renderFiles(window.fileList);
+            return;
+        }
+
+        if (params.action === 'number' || params.action === 'date') {
+            window.renamePreview = {};
+            renderFiles(window.fileList);
+            return;
+        }
+
+        const previewMap = {};
+        let hasChanges = false;
+        for (let filePath of targetFiles) {
+            const oldName = getFileName(filePath);
+            const newName = this.applyRenameAction(oldName, params);
+            if (newName !== oldName) {
+                previewMap[filePath] = newName;
+                hasChanges = true;
+            }
+        }
+
+        window.renamePreview = hasChanges ? previewMap : {};
+        renderFiles(window.fileList);
+    },
+
     async execute() {
         let files = Array.from(selectedFiles);
         if (files.length === 0) {
@@ -379,15 +390,9 @@ const RenameModule = {
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
         }
-    },
-
-    onFileLoad(files) {
-        this.autoPreview();
-    },
-
-    onSelectChange(selected) {
-        this.autoPreview();
     }
 };
 
-ModuleRegistry.register('rename', RenameModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(RenameModule);
+}
