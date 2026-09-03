@@ -1,9 +1,5 @@
 // static/js/modules/dedup.js
 
-if (typeof ModuleRegistry === 'undefined') {
-    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
-}
-
 const DedupModule = {
     name: 'dedup',
 
@@ -114,6 +110,6 @@ const DedupModule = {
     }
 };
 
-if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+if (typeof ModuleRegistry !== 'undefined') {
     ModuleRegistry.register(dedupModule);
 }
