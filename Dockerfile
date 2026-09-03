@@ -1,33 +1,29 @@
-FROM alpine:latest
+# Dockerfile
+FROM python:3.11-slim
 
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
+# 安装系统依赖（包括媒体处理工具）
+RUN apt-get update && apt-get install -y \
     jpegoptim \
     optipng \
-    libwebp-tools \
+    webp \
     imagemagick \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apk add --no-cache gcc musl-dev python3-dev && \
-    python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --no-cache-dir flask croniter && \
-    apk del gcc musl-dev python3-dev
-
-ENV PATH="/opt/venv/bin:$PATH"
-
+# 设置工作目录
 WORKDIR /app
 
-COPY processor.py .
-COPY app.py .
-COPY core/ ./core/
-COPY modules/ ./modules/
-COPY templates/ ./templates/
-COPY static/ ./static/
-COPY favicon.ico .
+# 复制依赖文件
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
+# 复制源代码
+COPY . .
+
+# 创建数据目录
+RUN mkdir -p /data
+
+# 暴露端口
 EXPOSE 8658
 
-VOLUME /data
-
-CMD ["python3", "/app/app.py"]
+# 启动命令
+CMD ["python", "app.py"]
