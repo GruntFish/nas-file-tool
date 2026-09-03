@@ -11,7 +11,7 @@ def register(app):
     """注册去重路由"""
 
     def get_file_signature(file_path):
-        """动态采样签名"""
+        """动态采样签名（性能优化版）"""
         stat = file_path.stat()
         size = stat.st_size
         sample_size = 4096
@@ -33,12 +33,13 @@ def register(app):
         try:
             with open(file_path, 'rb') as f:
                 step = (size - sample_size) / (points - 1) if points > 1 else 0
-                combined = b''
+                # ===== 【修复】使用 bytearray 提高效率 =====
+                combined = bytearray()
                 for i in range(points):
                     pos = int(i * step)
                     f.seek(pos)
-                    combined += f.read(sample_size)
-                signature += hashlib.md5(combined).hexdigest()
+                    combined.extend(f.read(sample_size))
+                signature += hashlib.md5(bytes(combined)).hexdigest()
         except:
             signature += '0'
 
@@ -47,6 +48,9 @@ def register(app):
     @app.route('/api/dedup', methods=['POST'])
     def dedup():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         mode = data.get('mode', 'standard')
         action = data.get('action', 'find')
         recursive = data.get('recursive', True)
