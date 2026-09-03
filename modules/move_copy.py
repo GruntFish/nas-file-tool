@@ -3,14 +3,13 @@ from flask import jsonify, request
 from pathlib import Path
 import shutil
 import time
-import re  # ← 新增导入
+import re
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BETWEEN_BATCH
 
 def register(app):
     """注册移动/复制路由"""
 
-    # 【修复】将 apply_file_filters 移到 register 外部，避免重复定义
     def apply_file_filters(file_list, filters):
         filtered = []
         for file_path in file_list:
@@ -75,16 +74,22 @@ def register(app):
         if not target_dir:
             return jsonify({'error': '目标目录不能为空'}), 400
 
-        target_path = Path(work_dir) / target_dir.lstrip('/')
+        # ===== 正确处理目标路径 =====
+        if target_dir.startswith('/'):
+            target_path = Path(work_dir) / target_dir.lstrip('/')
+        else:
+            target_path = Path(work_dir) / target_dir
+        
+        target_path = target_path.resolve()
         
         results = []
         stats = {'processed': 0, 'moved': 0, 'copied': 0, 'skipped': 0, 'errors': 0}
 
         # 应用过滤
-        all_file_paths = [Path(work_dir) / f for f in files]
+        all_file_paths = [Path(work_dir) / f.lstrip('/') for f in files]
         if filters and any(filters.values()):
             filtered_paths = apply_file_filters(all_file_paths, filters)
-            items_to_process = [f for f in files if str(Path(work_dir) / f) in filtered_paths]
+            items_to_process = [f for f in files if str(Path(work_dir) / f.lstrip('/')) in filtered_paths]
             stats['filtered'] = len(items_to_process)
         else:
             items_to_process = files
@@ -102,10 +107,13 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(SLEEP_BETWEEN_BATCH)
 
-            src = Path(work_dir) / file_path_str
+            # ===== 正确处理源文件路径 =====
+            clean_path = file_path_str.lstrip('/')
+            src = Path(work_dir) / clean_path
+            
             if not src.exists():
                 stats['skipped'] += 1
-                results.append({'file': src.name, 'status': 'skip', 'reason': '文件不存在'})
+                results.append({'file': file_path_str, 'status': 'skip', 'reason': '文件不存在'})
                 continue
 
             dest = target_path / src.name
@@ -125,10 +133,18 @@ def register(app):
 
             if dry_run:
                 stats['processed'] += 1
+                try:
+                    from_path = str(src.relative_to(work_dir))
+                except ValueError:
+                    from_path = str(src)
+                try:
+                    to_path = str(dest.relative_to(work_dir))
+                except ValueError:
+                    to_path = str(dest)
                 results.append({
                     'file': src.name,
-                    'from': str(src.relative_to(work_dir)),
-                    'to': str(dest.relative_to(work_dir)),
+                    'from': from_path,
+                    'to': to_path,
                     'status': 'preview'
                 })
                 continue
@@ -138,11 +154,19 @@ def register(app):
                 if action == 'move':
                     shutil.move(str(src), str(dest))
                     stats['moved'] += 1
-                    results.append({'file': src.name, 'to': str(dest.relative_to(work_dir)), 'status': 'success'})
+                    try:
+                        to_path = str(dest.relative_to(work_dir))
+                    except ValueError:
+                        to_path = str(dest)
+                    results.append({'file': src.name, 'to': to_path, 'status': 'success'})
                 else:
                     shutil.copy2(str(src), str(dest))
                     stats['copied'] += 1
-                    results.append({'file': src.name, 'to': str(dest.relative_to(work_dir)), 'status': 'success'})
+                    try:
+                        to_path = str(dest.relative_to(work_dir))
+                    except ValueError:
+                        to_path = str(dest)
+                    results.append({'file': src.name, 'to': to_path, 'status': 'success'})
                 stats['processed'] += 1
             except Exception as e:
                 stats['errors'] += 1
@@ -156,7 +180,7 @@ def register(app):
             'stats': stats,
             'dry_run': dry_run,
             'action': action,
-            'target_dir': target_dir
+            'target_dir': str(target_path)
         })
 
     @app.route('/api/filter_preview', methods=['POST'])
@@ -172,7 +196,7 @@ def register(app):
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多预览 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
-        all_file_paths = [Path(work_dir) / f for f in files]
+        all_file_paths = [Path(work_dir) / f.lstrip('/') for f in files]
         filtered_paths = apply_file_filters(all_file_paths, filters)
 
         return jsonify({
