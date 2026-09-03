@@ -1,14 +1,9 @@
 // static/js/modules/dedup.js
-
 const DedupModule = {
     name: 'dedup',
 
     init() {
         document.getElementById('dedupOpenBtn').addEventListener('click', () => this.openModal());
-        this.updatePath();
-    },
-
-    onFileLoad() {
         this.updatePath();
     },
 
@@ -62,11 +57,10 @@ const DedupModule = {
                     <button class="btn-confirm" id="dedupConfirmBtn">确认执行</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-        document.getElementById('dedupConfirmBtn').addEventListener('click', () => this.execute());
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#dedupConfirmBtn').addEventListener('click', () => this.execute());
     },
 
     async execute() {
@@ -111,5 +105,5 @@ const DedupModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(dedupModule);
+    ModuleRegistry.register(DedupModule);
 }
