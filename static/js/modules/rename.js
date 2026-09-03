@@ -1,10 +1,10 @@
+// static/js/modules/rename.js
 const RenameModule = {
     name: 'rename',
 
     init() {
         this.bindEvents();
         this.setupActionToggle();
-        // 延迟执行，确保文件列表已加载
         setTimeout(() => this.autoPreview(), 500);
 
         document.addEventListener('filesLoaded', () => {
@@ -22,20 +22,50 @@ const RenameModule = {
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
+        this.cleanup();
+    },
+
+    cleanup() {
+        const executeBtn = document.getElementById('executeRenameBtn');
+        if (executeBtn) {
+            const newBtn = executeBtn.cloneNode(true);
+            executeBtn.parentNode.replaceChild(newBtn, executeBtn);
+        }
+
+        const actionSelect = document.getElementById('renameAction');
+        if (actionSelect) {
+            actionSelect.disabled = false;
+            actionSelect.style.color = '';
+            actionSelect.style.background = '';
+        }
+
+        document.querySelectorAll('.module-rename input').forEach(input => {
+            if (input.type !== 'checkbox' && input.type !== 'number') {
+                input.style.color = '';
+                input.style.background = '';
+            }
+        });
     },
 
     bindEvents() {
         const executeBtn = document.getElementById('executeRenameBtn');
         if (executeBtn) {
-            executeBtn.addEventListener('click', () => this.execute());
+            const newBtn = executeBtn.cloneNode(true);
+            executeBtn.parentNode.replaceChild(newBtn, executeBtn);
+            newBtn.addEventListener('click', () => this.execute());
         }
 
         const actionSelect = document.getElementById('renameAction');
         if (actionSelect) {
-            actionSelect.addEventListener('change', () => {
+            const newSelect = actionSelect.cloneNode(true);
+            actionSelect.parentNode.replaceChild(newSelect, actionSelect);
+            newSelect.addEventListener('change', () => {
                 this.setupActionToggle();
                 this.autoPreview();
             });
+            newSelect.disabled = false;
+            newSelect.style.color = '#e4e6eb';
+            newSelect.style.background = '#1a1d27';
         }
 
         ['findText', 'replaceText', 'caseSensitive', 'startNum', 'stepNum', 'digitsNum',
@@ -44,15 +74,50 @@ const RenameModule = {
         ].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                el.addEventListener('input', () => this.autoPreview());
-                el.addEventListener('change', () => this.autoPreview());
+                const newEl = el.cloneNode(true);
+                el.parentNode.replaceChild(newEl, el);
+                newEl.addEventListener('input', () => this.autoPreview());
+                newEl.addEventListener('change', () => this.autoPreview());
+                if (newEl.tagName === 'SELECT') {
+                    newEl.style.color = '#e4e6eb';
+                    newEl.style.background = '#1a1d27';
+                    newEl.disabled = false;
+                }
+                if (newEl.tagName === 'INPUT' && newEl.type !== 'checkbox') {
+                    newEl.style.color = '#e4e6eb';
+                    newEl.style.background = '#1a1d27';
+                }
             }
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.restoreSelectState();
+            }
+        });
+    },
+
+    restoreSelectState() {
+        const selects = document.querySelectorAll('.module-rename select');
+        selects.forEach(select => {
+            select.disabled = false;
+            select.style.color = '#e4e6eb';
+            select.style.background = '#1a1d27';
+            select.querySelectorAll('option').forEach(opt => {
+                opt.style.color = '#e4e6eb';
+                opt.style.background = '#1a1d27';
+            });
         });
     },
 
     setupActionToggle() {
         const actionEl = document.getElementById('renameAction');
         if (!actionEl) return;
+
+        actionEl.disabled = false;
+        actionEl.style.color = '#e4e6eb';
+        actionEl.style.background = '#1a1d27';
+
         const action = actionEl.value;
 
         const numParams = document.getElementById('numParams');
@@ -72,9 +137,17 @@ const RenameModule = {
         const caseSensitive = document.getElementById('caseSensitive');
 
         if (findLabel) findLabel.style.display = 'inline';
-        if (findText) findText.style.display = 'inline';
+        if (findText) {
+            findText.style.display = 'inline';
+            findText.style.color = '#e4e6eb';
+            findText.style.background = '#1a1d27';
+        }
         if (replaceLabel) replaceLabel.style.display = 'inline';
-        if (replaceText) replaceText.style.display = 'inline';
+        if (replaceText) {
+            replaceText.style.display = 'inline';
+            replaceText.style.color = '#e4e6eb';
+            replaceText.style.background = '#1a1d27';
+        }
         if (caseSensitive) caseSensitive.parentElement.style.display = 'inline-flex';
 
         switch (action) {
@@ -150,6 +223,13 @@ const RenameModule = {
                 if (caseSensitive) caseSensitive.parentElement.style.display = 'inline-flex';
                 break;
         }
+
+        document.querySelectorAll('.module-rename select, .module-rename input').forEach(el => {
+            if (el.style.display !== 'none') {
+                el.style.visibility = 'visible';
+                el.style.opacity = '1';
+            }
+        });
     },
 
     getParams() {
@@ -315,16 +395,66 @@ const RenameModule = {
         return newName;
     },
 
+    applyNumbering(oldName, index, data) {
+        const name = getFileNameWithoutExt(oldName);
+        const ext = getFileExtension(oldName);
+        const start = data.start || 1;
+        const step = data.step || 1;
+        const digits = data.digits || 2;
+        const position = data.position || 'suffix';
+
+        const num = start + (index - 1) * step;
+        const numStr = String(num).padStart(digits, '0');
+
+        if (position === 'prefix') {
+            return numStr + '_' + oldName;
+        } else {
+            return name + '_' + numStr + ext;
+        }
+    },
+
+    applyDate(oldName, filePath, data) {
+        const name = getFileNameWithoutExt(oldName);
+        const ext = getFileExtension(oldName);
+        const dateType = data.date_type || 'created';
+        const dateFormat = data.date_format || 'YYYY-MM-DD';
+        const position = data.date_pos || 'prefix';
+
+        let timestamp;
+        try {
+            if (dateType === 'created') {
+                timestamp = fs.statSync(filePath).birthtimeMs || fs.statSync(filePath).ctimeMs;
+            } else if (dateType === 'modified') {
+                timestamp = fs.statSync(filePath).mtimeMs;
+            } else {
+                timestamp = Date.now();
+            }
+        } catch (e) {
+            timestamp = Date.now();
+        }
+
+        const dt = new Date(timestamp);
+        const fmtMap = {
+            'YYYY-MM-DD': dt.toISOString().split('T')[0],
+            'YYYYMMDD': dt.toISOString().split('T')[0].replace(/-/g, ''),
+            'YYMMDD': dt.toISOString().split('T')[0].replace(/-/g, '').slice(2)
+        };
+        const dateStr = fmtMap[dateFormat] || fmtMap['YYYY-MM-DD'];
+
+        if (position === 'prefix') {
+            return dateStr + '_' + oldName;
+        } else {
+            return name + '_' + dateStr + ext;
+        }
+    },
+
     autoPreview() {
-        // 如果 renameAction 不存在，说明模块还没加载完成，跳过
-        if (!document.getElementById('renameAction')) {
+        const actionSelect = document.getElementById('renameAction');
+        if (!actionSelect) {
             return;
         }
 
-        // 获取当前文件列表
         const currentFiles = window.fileList || [];
-
-        // 如果没有文件，清空预览并刷新
         if (currentFiles.length === 0) {
             window.renamePreview = {};
             if (typeof renderFiles === 'function') {
@@ -333,9 +463,21 @@ const RenameModule = {
             return;
         }
 
-        // 获取目标文件（选中的或全部）
+        // ===== 【修复】只处理选中的文件 =====
         const files = Array.from(selectedFiles);
-        let targetFiles = files.length > 0 ? files : currentFiles.filter(f => !f.is_dir).map(f => f.path);
+        if (files.length === 0) {
+            window.renamePreview = {};
+            if (typeof renderFiles === 'function') {
+                renderFiles(currentFiles);
+            }
+            return;
+        }
+
+        // 只处理选中的文件（且是普通文件，非目录）
+        const targetFiles = files.filter(f => {
+            const fileObj = currentFiles.find(cf => cf.path === f);
+            return fileObj && !fileObj.is_dir;
+        });
 
         if (targetFiles.length === 0) {
             window.renamePreview = {};
@@ -346,16 +488,42 @@ const RenameModule = {
         }
 
         const params = this.getParams();
+        const action = params.action;
 
-        if (!params.action || params.action === 'number' || params.action === 'date') {
-            window.renamePreview = {};
+        // 特殊处理编号和日期
+        if (action === 'number') {
+            const previewMap = {};
+            targetFiles.forEach((filePath, idx) => {
+                const oldName = getFileName(filePath);
+                const newName = this.applyNumbering(oldName, idx + 1, params);
+                if (newName !== oldName) {
+                    previewMap[filePath] = newName;
+                }
+            });
+            window.renamePreview = previewMap;
             if (typeof renderFiles === 'function') {
                 renderFiles(currentFiles);
             }
             return;
         }
 
-        // 计算预览映射
+        if (action === 'date') {
+            const previewMap = {};
+            targetFiles.forEach((filePath) => {
+                const oldName = getFileName(filePath);
+                const newName = this.applyDate(oldName, filePath, params);
+                if (newName !== oldName) {
+                    previewMap[filePath] = newName;
+                }
+            });
+            window.renamePreview = previewMap;
+            if (typeof renderFiles === 'function') {
+                renderFiles(currentFiles);
+            }
+            return;
+        }
+
+        // 普通操作
         const previewMap = {};
         let hasChanges = false;
         for (let filePath of targetFiles) {
@@ -369,60 +537,102 @@ const RenameModule = {
 
         window.renamePreview = hasChanges ? previewMap : {};
 
-        // 刷新文件列表
         if (typeof renderFiles === 'function') {
             renderFiles(currentFiles);
         }
     },
 
     async execute() {
-        let files = Array.from(selectedFiles);
+        // ===== 【修复】以选中文件为准 =====
+        const files = Array.from(selectedFiles);
         if (files.length === 0) {
-            files = window.fileList ? window.fileList.filter(f => !f.is_dir).map(f => f.path) : [];
-        }
-        if (files.length === 0) {
-            showLog('⚠️ 当前目录没有文件', 'warning');
+            showLog('⚠️ 请先勾选要重命名的文件', 'warning');
             return;
         }
 
+        // 过滤出普通文件（排除目录）
+        const currentFiles = window.fileList || [];
+        const targetFiles = files.filter(f => {
+            const fileObj = currentFiles.find(cf => cf.path === f);
+            return fileObj && !fileObj.is_dir;
+        });
+
+        if (targetFiles.length === 0) {
+            showLog('⚠️ 选中的文件中没有可重命名的文件', 'warning');
+            return;
+        }
+
+        // 检查是否有文件需要修改
         let hasChange = false;
-        for (let f of files) {
+        for (let f of targetFiles) {
             if (window.renamePreview[f] && window.renamePreview[f] !== getFileName(f)) {
                 hasChange = true;
                 break;
             }
         }
         if (!hasChange) {
-            showLog('⚠️ 没有文件需要修改', 'warning');
+            showLog('⚠️ 选中的文件没有需要修改的名称', 'warning');
             return;
         }
 
         const params = this.getParams();
+        const action = params.action;
         const filesToRename = [];
-        for (let f of files) {
-            if (window.renamePreview[f] && window.renamePreview[f] !== getFileName(f)) {
-                filesToRename.push({
-                    old_path: f,
-                    new_path: f.substring(0, f.lastIndexOf('/') + 1) + window.renamePreview[f],
-                    old_name: getFileName(f),
-                    new_name: window.renamePreview[f]
-                });
+
+        if (action === 'number') {
+            let idx = 1;
+            for (let f of targetFiles) {
+                const oldName = getFileName(f);
+                const newName = this.applyNumbering(oldName, idx, params);
+                if (newName !== oldName) {
+                    filesToRename.push({
+                        old_path: f,
+                        new_path: f.substring(0, f.lastIndexOf('/') + 1) + newName,
+                        old_name: oldName,
+                        new_name: newName
+                    });
+                    idx++;
+                }
+            }
+        } else if (action === 'date') {
+            for (let f of targetFiles) {
+                const oldName = getFileName(f);
+                const newName = this.applyDate(oldName, f, params);
+                if (newName !== oldName) {
+                    filesToRename.push({
+                        old_path: f,
+                        new_path: f.substring(0, f.lastIndexOf('/') + 1) + newName,
+                        old_name: oldName,
+                        new_name: newName
+                    });
+                }
+            }
+        } else {
+            for (let f of targetFiles) {
+                if (window.renamePreview[f] && window.renamePreview[f] !== getFileName(f)) {
+                    filesToRename.push({
+                        old_path: f,
+                        new_path: f.substring(0, f.lastIndexOf('/') + 1) + window.renamePreview[f],
+                        old_name: getFileName(f),
+                        new_name: window.renamePreview[f]
+                    });
+                }
             }
         }
 
         if (filesToRename.length === 0) {
-            showLog('⚠️ 没有文件需要修改', 'warning');
+            showLog('⚠️ 选中的文件没有需要修改的名称', 'warning');
             return;
         }
 
-        if (!confirm('确定要重命名 ' + filesToRename.length + ' 个文件吗？')) return;
+        if (!confirm(`确定要重命名 ${filesToRename.length} 个选中的文件吗？`)) return;
 
         clearLog();
-        showLog('⏳ 开始重命名 ' + filesToRename.length + ' 个文件...', 'info');
+        showLog('⏳ 开始重命名 ' + filesToRename.length + ' 个选中的文件...', 'info');
 
         try {
             const result = await apiCall('/api/execute', {
-                action: params.action,
+                action: action,
                 files: filesToRename,
                 ...params
             });
@@ -437,6 +647,7 @@ const RenameModule = {
             window.renamePreview = {};
             selectedFiles.clear();
             await loadFiles(currentPath);
+            this.restoreSelectState();
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
         }
