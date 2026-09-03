@@ -1,207 +1,157 @@
-name: 构建 Docker 镜像和 FPK 包
+build-fpk:
+  name: 构建 FPK 包
+  runs-on: ubuntu-latest
+  needs: [create-tag, build-docker]
+  strategy:
+    matrix:
+      arch: [amd64, arm64]
 
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: '版本号 (如 v1.0.0)'
-        required: true
-        default: 'v1.0.0'
-        type: string
+  steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
 
-jobs:
-  # ===== 自动打 Tag =====
-  create-tag:
-    name: 创建 Tag
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+    - name: 设置镜像名称（转小写）
+      run: |
+        echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
-      - name: 创建 Tag
-        id: tag
-        run: |
-          TAG="${{ github.event.inputs.version }}"
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag $TAG
-          git push origin $TAG
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-
-  # ===== 构建 Docker 镜像 =====
-  build-docker:
-    name: 构建 Docker 镜像
-    runs-on: ubuntu-latest
-    needs: create-tag
-    permissions:
-      contents: read
-      packages: write
-
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 设置镜像名称（转小写）
-        run: |
-          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: 设置 Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 登录到 GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 构建并推送 Docker 镜像
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/${{ matrix.arch }}
-          push: true
-          tags: |
-            ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}-${{ matrix.arch }}
-            ghcr.io/${{ env.REPO_LOWER }}:latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ===== 构建 FPK 包 =====
-  build-fpk:
-    name: 构建 FPK 包
-    runs-on: ubuntu-latest
-    needs: [create-tag, build-docker]
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 设置镜像名称（转小写）
-        run: |
-          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: 安装 fnpack
-        run: |
-          # 从飞牛官方 GitHub 下载 fnpack
-          wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/latest/download/fnpack-linux-${{ matrix.arch }}
-          chmod +x fnpack
-          sudo mv fnpack /usr/local/bin/
-          fnpack --version || echo "fnpack 安装完成"
-
-      - name: 准备 FPK 打包目录
-        run: |
-          mkdir -p fpk-build/app/docker fpk-build/config fpk-build/cmd fpk-build/wizard
-
-      - name: 创建 docker-compose.yml
-        run: |
-          cat > fpk-build/app/docker/docker-compose.yml << 'EOF'
-          version: '3.8'
-          services:
-            file-tool:
-              image: ghcr.io/${{ env.REPO_LOWER }}:latest-${{ matrix.arch }}
-              container_name: file-tool
-              ports:
-                - "8658:8658"
-              volumes:
-                - /vol1/1000/:/data
-              restart: unless-stopped
-              mem_limit: 512m
-          EOF
-
-      - name: 创建 manifest
-        run: |
-          cat > fpk-build/manifest << EOF
-          app_name: nas-file-tool
-          version: ${{ needs.create-tag.outputs.tag }}
-          description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
-          arch:
-            - ${{ matrix.arch }}
-          developer: ${{ github.repository_owner }}
-          homepage: https://github.com/${{ github.repository }}
-          type: compose
-          ports:
-            - 8658:8658
-          volumes:
-            - /vol1/1000/:/data
-          services:
-            - docker
-          EOF
-
-      - name: 创建 privilege
-        run: |
-          cat > fpk-build/config/privilege << 'EOF'
-          docker
-          network
-          storage
-          EOF
-
-      - name: 创建 cmd/main
-        run: |
-          cat > fpk-build/cmd/main << 'EOF'
-          #!/bin/sh
-          case "\$1" in
-            start)
-              cd "\$TRIM_APPDEST/app/docker"
-              docker compose up -d
-              ;;
-            stop)
-              cd "\$TRIM_APPDEST/app/docker"
-              docker compose down
-              ;;
-            status)
-              if docker ps --format '{{.Names}}' | grep -q "^file-tool\$"; then
-                exit 0
-              else
-                exit 3
-              fi
-              ;;
-            *)
-              echo "Usage: \$0 {start|stop|status}"
-              exit 1
-              ;;
-          esac
+    - name: 安装 fnpack（多重方案）
+      run: |
+        # 方案1：飞牛官方源
+        if [ "${{ matrix.arch }}" = "amd64" ]; then
+          wget -q -O fnpack https://fnos.net/fnpack/linux/amd64/fnpack || true
+        else
+          wget -q -O fnpack https://fnos.net/fnpack/linux/arm64/fnpack || true
+        fi
+        
+        # 方案2：GitHub Release
+        if [ ! -f fnpack ] || [ ! -s fnpack ]; then
+          echo "尝试从 GitHub 下载..."
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/download/v1.0.0/fnpack-linux-amd64 || true
+          else
+            wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/download/v1.0.0/fnpack-linux-arm64 || true
+          fi
+        fi
+        
+        # 方案3：编译
+        if [ ! -f fnpack ] || [ ! -s fnpack ]; then
+          echo "下载失败，开始编译..."
+          apt-get update -qq
+          apt-get install -y -qq golang-go git
+          git clone https://github.com/fnos-os/fnpack.git
+          cd fnpack
+          go build -o fnpack .
+          cp fnpack /usr/local/bin/
+          cd ..
+          fnpack --version
           exit 0
-          EOF
-          chmod +x fpk-build/cmd/main
+        fi
+        
+        chmod +x fnpack
+        sudo mv fnpack /usr/local/bin/
+        fnpack --version
 
-      - name: 创建图标
-        run: |
-          cd fpk-build
-          # 生成简单的 PNG 图标
-          convert -size 64x64 xc:transparent -fill '#667eea' -draw "circle 32,32 30,30" -gravity center -pointsize 20 -annotate 0 "📂" ICON.PNG 2>/dev/null || echo "📂" > ICON.PNG
-          convert -size 256x256 xc:transparent -fill '#667eea' -draw "circle 128,128 120,120" -gravity center -pointsize 80 -annotate 0 "📂" ICON_256.PNG 2>/dev/null || echo "📂" > ICON_256.PNG
+    - name: 准备 FPK 打包目录
+      run: |
+        mkdir -p fpk-build/app/docker fpk-build/config fpk-build/cmd fpk-build/wizard
 
-      - name: 打包 FPK
-        run: |
-          cd fpk-build
-          fnpack build -o ../nas-file-tool-${{ matrix.arch }}.fpk
+    - name: 创建 docker-compose.yml
+      run: |
+        cat > fpk-build/app/docker/docker-compose.yml << 'EOF'
+        version: '3.8'
+        services:
+          file-tool:
+            image: ghcr.io/${{ env.REPO_LOWER }}:latest-${{ matrix.arch }}
+            container_name: file-tool
+            ports:
+              - "8658:8658"
+            volumes:
+              - /vol1/1000/:/data
+            restart: unless-stopped
+            mem_limit: 512m
+        EOF
 
-      - name: 上传 FPK 产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: nas-file-tool-${{ matrix.arch }}
-          path: nas-file-tool-*.fpk
+    - name: 创建 manifest
+      run: |
+        cat > fpk-build/manifest << EOF
+        app_name: nas-file-tool
+        version: ${{ needs.create-tag.outputs.tag }}
+        description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
+        arch:
+          - ${{ matrix.arch }}
+        developer: ${{ github.repository_owner }}
+        homepage: https://github.com/${{ github.repository }}
+        type: compose
+        ports:
+          - 8658:8658
+        volumes:
+          - /vol1/1000/:/data
+        services:
+          - docker
+        EOF
 
-      - name: 创建 Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ needs.create-tag.outputs.tag }}
-          name: Release ${{ needs.create-tag.outputs.tag }}
-          files: nas-file-tool-*.fpk
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: 创建 privilege
+      run: |
+        cat > fpk-build/config/privilege << 'EOF'
+        docker
+        network
+        storage
+        EOF
+
+    - name: 创建 cmd/main
+      run: |
+        cat > fpk-build/cmd/main << 'EOF'
+        #!/bin/sh
+        case "\$1" in
+          start)
+            cd "\$TRIM_APPDEST/app/docker"
+            docker compose up -d
+            ;;
+          stop)
+            cd "\$TRIM_APPDEST/app/docker"
+            docker compose down
+            ;;
+          status)
+            if docker ps --format '{{.Names}}' | grep -q "^file-tool\$"; then
+              exit 0
+            else
+              exit 3
+            fi
+            ;;
+          *)
+            echo "Usage: \$0 {start|stop|status}"
+            exit 1
+            ;;
+        esac
+        exit 0
+        EOF
+        chmod +x fpk-build/cmd/main
+
+    - name: 创建图标
+      run: |
+        cd fpk-build
+        echo "📂" > ICON.PNG
+        echo "📂" > ICON_256.PNG
+
+    - name: 打包 FPK
+      run: |
+        cd fpk-build
+        fnpack build -o ../nas-file-tool-${{ matrix.arch }}.fpk
+
+    - name: 上传 FPK 产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: nas-file-tool-${{ matrix.arch }}
+        path: nas-file-tool-*.fpk
+
+    - name: 创建 Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ needs.create-tag.outputs.tag }}
+        name: Release ${{ needs.create-tag.outputs.tag }}
+        files: nas-file-tool-*.fpk
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
