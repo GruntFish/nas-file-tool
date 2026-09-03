@@ -134,10 +134,20 @@ function clearLog() {
 function openModal(html) {
     const existing = document.querySelectorAll('.modal-overlay');
     existing.forEach(el => el.remove());
-
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay show';
-    overlay.innerHTML = html;
+    
+    let overlay;
+    if (html.includes('modal-overlay')) {
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        overlay = temp.firstElementChild;
+        if (overlay) {
+            overlay.classList.add('show');
+        }
+    } else {
+        overlay = document.createElement('div');
+        overlay.className = 'modal-overlay show';
+        overlay.innerHTML = html;
+    }
     overlay.addEventListener('click', function(e) {
         if (e.target === this) this.remove();
     });
