@@ -145,4 +145,6 @@ const ChmodModule = {
     }
 };
 
-ModuleManager.register('chmod', ChmodModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(chmodModule);
+}
