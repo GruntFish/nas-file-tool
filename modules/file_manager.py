@@ -9,6 +9,9 @@ def register(app):
     @app.route('/api/tree', methods=['POST'])
     def get_tree():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         base_path = data.get('path', '/')
         work_dir = WORK_DIR
 
@@ -21,19 +24,38 @@ def register(app):
         if not target.exists():
             return jsonify({'error': f'路径不存在: {target}'}), 404
 
-        def build_tree(path, depth=0):
+        def build_tree(path, depth=0, visited=None):
+            if visited is None:
+                visited = set()
+            
+            # ===== 【修复】防止软链接循环 =====
+            real_path = str(path.resolve())
+            if real_path in visited:
+                return []
+            visited.add(real_path)
+            
             if depth > TREE_MAX_DEPTH:
                 return []
+            
             nodes = []
             try:
                 for item in sorted(path.iterdir()):
+                    # 跳过软链接指向已访问目录的情况
+                    if item.is_symlink():
+                        try:
+                            resolved = item.resolve()
+                            if str(resolved) in visited:
+                                continue
+                        except:
+                            continue
+                    
                     if item.is_dir():
                         node = {
                             'name': item.name,
                             'path': str(item.relative_to(work_dir)),
                             'is_dir': True,
                             'size': 0,
-                            'children': build_tree(item, depth + 1)
+                            'children': build_tree(item, depth + 1, visited.copy())
                         }
                         nodes.append(node)
             except PermissionError:
@@ -46,6 +68,9 @@ def register(app):
     @app.route('/api/files', methods=['POST'])
     def get_files():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         base_path = data.get('path', '/')
         work_dir = WORK_DIR
 
@@ -61,6 +86,9 @@ def register(app):
         files = []
         try:
             for item in target.iterdir():
+                # ===== 【修复】跳过软链接指向目录的情况 =====
+                if item.is_symlink():
+                    continue
                 try:
                     stat = item.stat()
                     files.append({
