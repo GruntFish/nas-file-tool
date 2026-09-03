@@ -13,13 +13,13 @@ const ClassifyModule = {
     },
 
     updateCount() {
-        const count = getSelectedFiles().length;
+        const count = selectedFiles.size;
         const el = document.getElementById('classifySelectedCount');
         if (el) el.textContent = count;
     },
 
     openModal() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         if (files.length === 0) {
             showLog('⚠️ 请先选择要分类的文件', 'warning');
             return;
@@ -70,7 +70,7 @@ const ClassifyModule = {
     },
 
     async preview() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         const method = document.getElementById('classifyMethod').value;
         const targetBase = document.getElementById('classifyTarget').value.trim() || '分类整理';
         const copyMode = document.getElementById('classifyCopyModeModal').checked;
@@ -88,84 +88,4 @@ const ClassifyModule = {
                 dry_run: true
             });
 
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-            const previewList = document.getElementById('classifyPreviewList');
-            const stats = document.getElementById('classifyStats');
-            const previewArea = document.getElementById('classifyPreviewArea');
-
-            previewList.innerHTML = '';
-            if (result.results && result.results.length > 0) {
-                const grouped = {};
-                result.results.forEach(r => {
-                    if (r.category) {
-                        if (!grouped[r.category]) grouped[r.category] = [];
-                        grouped[r.category].push(r.file);
-                    }
-                });
-
-                for (let [category, items] of Object.entries(grouped)) {
-                    const div = document.createElement('div');
-                    div.style.cssText = 'color:#f0c94d;font-weight:600;margin-top:4px;';
-                    div.textContent = '📁 ' + category + ' (' + items.length + ' 个)';
-                    previewList.appendChild(div);
-                    items.forEach(file => {
-                        const f = document.createElement('div');
-                        f.style.cssText = 'color:#b5b9c9;padding-left:16px;font-size:11px;';
-                        f.textContent = '  📄 ' + file;
-                        previewList.appendChild(f);
-                    });
-                }
-
-                stats.textContent = '📊 共 ' + result.results.length + ' 个文件将分类到 ' +
-                    Object.keys(grouped).length + ' 个目录';
-                previewArea.style.display = 'block';
-                document.getElementById('classifyPreviewBtn').style.display = 'none';
-                document.getElementById('classifyConfirmBtn').style.display = 'block';
-            } else {
-                previewList.innerHTML = '<div style="color:#4a4e62;">没有文件需要分类</div>';
-                previewArea.style.display = 'block';
-            }
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    },
-
-    async execute() {
-        const files = getSelectedFiles();
-        const method = document.getElementById('classifyMethod').value;
-        const targetBase = document.getElementById('classifyTarget').value.trim() || '分类整理';
-        const copyMode = document.getElementById('classifyCopyModeModal').checked;
-
-        closeModal();
-        clearLog();
-        showLog('⏳ 开始分类整理...', 'info');
-
-        try {
-            const result = await apiCall('/api/classify', {
-                files: files,
-                method: method,
-                target_base: targetBase,
-                copy_mode: copyMode,
-                dry_run: false
-            });
-
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-            if (result.results) {
-                const success = result.results.filter(r => r.status === 'success');
-                const errors = result.results.filter(r => r.status === 'error');
-                success.forEach(r => showLog('✅ ' + r.file + ' → ' + r.to, 'success'));
-                errors.forEach(r => showLog('❌ ' + r.file + ' - ' + r.reason, 'error'));
-            }
-
-            showLog('✅ ' + result.stats.processed + ' 个文件处理完成', 'success');
-            selectedFiles.clear();
-            await loadFiles(currentPath);
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    }
-};
-
-ModuleManager.register('classify', ClassifyModule);
+            if (result
