@@ -1,3 +1,5 @@
+// static/js/modules/Rename.js
+
 const RenameModule = {
     name: 'rename',
 
