@@ -1,15 +1,11 @@
 // static/js/modules/delete.js
-
 const DeleteModule = {
     name: 'delete',
 
     init() {
         document.getElementById('deleteOpenBtn').addEventListener('click', () => this.openModal());
         this.updateCount();
-    },
-
-    onSelectChange(selected) {
-        this.updateCount();
+        document.addEventListener('selectionChanged', () => { this.updateCount(); });
     },
 
     updateCount() {
@@ -45,11 +41,10 @@ const DeleteModule = {
                     <button class="btn-confirm" id="deleteConfirmBtn" style="background:#e53e3e;color:#fff;">确认删除</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-        document.getElementById('deleteConfirmBtn').addEventListener('click', () => this.execute(files));
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#deleteConfirmBtn').addEventListener('click', () => this.execute(files));
     },
 
     async execute(files) {
@@ -85,5 +80,5 @@ const DeleteModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(deleteModule);
+    ModuleRegistry.register(DeleteModule);
 }
