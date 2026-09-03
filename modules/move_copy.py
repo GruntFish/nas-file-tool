@@ -3,12 +3,14 @@ from flask import jsonify, request
 from pathlib import Path
 import shutil
 import time
+import re  # ← 新增导入
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BETWEEN_BATCH
 
 def register(app):
     """注册移动/复制路由"""
 
+    # 【修复】将 apply_file_filters 移到 register 外部，避免重复定义
     def apply_file_filters(file_list, filters):
         filtered = []
         for file_path in file_list:
@@ -53,6 +55,9 @@ def register(app):
     @app.route('/api/move_copy', methods=['POST'])
     def move_copy():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         action = data.get('action', 'move')
         files = data.get('files', [])
         target_dir = data.get('target_dir', '')
@@ -157,6 +162,9 @@ def register(app):
     @app.route('/api/filter_preview', methods=['POST'])
     def filter_preview():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         files = data.get('files', [])
         filters = data.get('filters', {})
         work_dir = WORK_DIR
