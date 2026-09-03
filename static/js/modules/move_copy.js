@@ -13,19 +13,18 @@ const MoveCopyModule = {
     },
 
     updateCount() {
-        const count = getSelectedFiles().length;
+        const count = selectedFiles.size;
         const el = document.getElementById('moveCopySelectedCount');
         if (el) el.textContent = count;
     },
 
     openModal() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         if (files.length === 0) {
             showLog('⚠️ 请先选择要移动/复制的文件', 'warning');
             return;
         }
 
-        // 构建目录树选项
         let dirOptions = '';
         const collectDirs = (nodes, prefix) => {
             for (let node of nodes) {
@@ -113,8 +112,6 @@ const MoveCopyModule = {
         `;
 
         openModal(modalHtml);
-
-        // 绑定事件
         document.getElementById('mcConfirmBtn').addEventListener('click', () => this.execute());
         document.querySelectorAll('#moveCopyModal input, #moveCopyModal select').forEach(el => {
             el.addEventListener('input', () => this.previewFilter());
@@ -139,7 +136,7 @@ const MoveCopyModule = {
     },
 
     async previewFilter() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         if (files.length === 0) return;
         const filters = this.getFilters();
         if (Object.keys(filters).length === 0) {
@@ -163,7 +160,7 @@ const MoveCopyModule = {
         if (inputDir) targetDir = inputDir;
         if (!targetDir) { alert('请选择或输入目标目录'); return; }
 
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         if (files.length === 0) { showLog('⚠️ 请选择文件', 'warning'); return; }
 
         closeModal();
@@ -189,7 +186,7 @@ const MoveCopyModule = {
                     else if (r.status === 'error') showLog('❌ ' + r.file + ' - ' + r.reason, 'error');
                 });
             }
-            showLog('✅ ' + result.stats.message || '处理完成', 'success');
+            showLog('✅ ' + (result.stats?.message || '处理完成'), 'success');
             await loadFiles(currentPath);
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
