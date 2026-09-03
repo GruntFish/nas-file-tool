@@ -83,12 +83,12 @@
         .log-area::-webkit-scrollbar-track{background:#14171f}
         .log-area::-webkit-scrollbar-thumb{background:#2d313e;border-radius:4px}
         .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
-        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes spin{to{transform:rotate(360deg)}
 
         /* ===== 模块通用样式 ===== */
         .module-rename,.module-move-copy,.module-dedup,.module-delete,.module-classify,.module-chmod,.module-media,.module-scheduler{padding:6px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;min-height:34px}
 
-        /* ===== 【修复】重命名模块下拉框强制样式 ===== */
+        /* ===== 重命名模块下拉框强制样式 ===== */
         .module-rename select,
         .module-rename input,
         .module-rename button {
@@ -128,6 +128,37 @@
             color: #e4e6eb;
         }
 
+        /* ===== 【修复】执行重命名按钮样式 ===== */
+        .module-rename .btn-execute {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            border: none !important;
+            color: #fff !important;
+            padding: 4px 18px !important;
+            border-radius: 6px !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            font-family: inherit !important;
+            height: 30px !important;
+            min-width: 100px !important;
+            transition: all 0.15s ease !important;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+        }
+        .module-rename .btn-execute:hover {
+            opacity: 0.85 !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+        }
+        .module-rename .btn-execute:active {
+            transform: translateY(0px) !important;
+            box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2) !important;
+        }
+        .module-rename .btn-execute:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+        }
+
         .module-rename .label{color:#8b8fa3;font-size:11px;font-weight:600;white-space:nowrap}
         .module-rename .checkbox-label{color:#8b8fa3;font-size:11px;display:flex;align-items:center;gap:4px}
         .module-rename .checkbox-label input[type=checkbox]{accent-color:#667eea;margin:0;width:12px;height:12px}
@@ -139,8 +170,6 @@
         .module-rename #extParams input,
         .module-rename #removePosParams input{width:45px}
         .module-rename #extParams input{width:60px}
-        .module-rename .btn-execute{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 14px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:26px}
-        .module-rename .btn-execute:hover{opacity:.85}
 
         /* ===== 其他模块按钮 ===== */
         .module-dedup button,.module-delete button,.module-classify button,.module-chmod button,.module-media button,.module-scheduler button,.module-move-copy button{background:linear-gradient(135deg,#667eea,#764ba2);border:0;color:#fff;padding:3px 16px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;height:28px;font-family:inherit}
