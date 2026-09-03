@@ -172,4 +172,6 @@ const ClassifyModule = {
     }
 };
 
-ModuleManager.register('classify', ClassifyModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(XXXModule);
+}
