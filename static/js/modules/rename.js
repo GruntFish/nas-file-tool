@@ -53,6 +53,22 @@ const RenameModule = {
             const newBtn = executeBtn.cloneNode(true);
             executeBtn.parentNode.replaceChild(newBtn, executeBtn);
             newBtn.addEventListener('click', () => this.execute());
+            newBtn.className = 'btn-execute';
+            newBtn.style.cssText = `
+                background: linear-gradient(135deg, #667eea, #764ba2) !important;
+                border: none !important;
+                color: #fff !important;
+                padding: 4px 18px !important;
+                border-radius: 6px !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                cursor: pointer !important;
+                font-family: inherit !important;
+                height: 30px !important;
+                min-width: 100px !important;
+                transition: all 0.15s ease !important;
+                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+            `;
         }
 
         const actionSelect = document.getElementById('renameAction');
@@ -463,7 +479,6 @@ const RenameModule = {
             return;
         }
 
-        // ===== 【修复】只处理选中的文件 =====
         const files = Array.from(selectedFiles);
         if (files.length === 0) {
             window.renamePreview = {};
@@ -473,7 +488,6 @@ const RenameModule = {
             return;
         }
 
-        // 只处理选中的文件（且是普通文件，非目录）
         const targetFiles = files.filter(f => {
             const fileObj = currentFiles.find(cf => cf.path === f);
             return fileObj && !fileObj.is_dir;
@@ -490,7 +504,6 @@ const RenameModule = {
         const params = this.getParams();
         const action = params.action;
 
-        // 特殊处理编号和日期
         if (action === 'number') {
             const previewMap = {};
             targetFiles.forEach((filePath, idx) => {
@@ -523,7 +536,6 @@ const RenameModule = {
             return;
         }
 
-        // 普通操作
         const previewMap = {};
         let hasChanges = false;
         for (let filePath of targetFiles) {
@@ -542,15 +554,14 @@ const RenameModule = {
         }
     },
 
+    // ===== 【修复】执行重命名 =====
     async execute() {
-        // ===== 【修复】以选中文件为准 =====
         const files = Array.from(selectedFiles);
         if (files.length === 0) {
             showLog('⚠️ 请先勾选要重命名的文件', 'warning');
             return;
         }
 
-        // 过滤出普通文件（排除目录）
         const currentFiles = window.fileList || [];
         const targetFiles = files.filter(f => {
             const fileObj = currentFiles.find(cf => cf.path === f);
@@ -562,7 +573,6 @@ const RenameModule = {
             return;
         }
 
-        // 检查是否有文件需要修改
         let hasChange = false;
         for (let f of targetFiles) {
             if (window.renamePreview[f] && window.renamePreview[f] !== getFileName(f)) {
@@ -648,6 +658,18 @@ const RenameModule = {
             selectedFiles.clear();
             await loadFiles(currentPath);
             this.restoreSelectState();
+
+            // ===== 【新增】清空输入框 =====
+            const findText = document.getElementById('findText');
+            const replaceText = document.getElementById('replaceText');
+            if (findText) findText.value = '';
+            if (replaceText) replaceText.value = '';
+            // 重新渲染文件列表，清除预览状态
+            if (typeof renderFiles === 'function') {
+                renderFiles(window.fileList);
+            }
+            showLog('✅ 输入框已清空，可以继续操作', 'info');
+
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
         }
