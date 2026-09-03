@@ -1,9 +1,5 @@
 // static/js/modules/media.js
 
-if (typeof ModuleRegistry === 'undefined') {
-    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
-}
-
 const MediaModule = {
     name: 'media',
 
@@ -349,6 +345,6 @@ const MediaModule = {
     }
 };
 
-if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+if (typeof ModuleRegistry !== 'undefined') {
     ModuleRegistry.register(mediaModule);
 }
