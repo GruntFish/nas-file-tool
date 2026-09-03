@@ -3,7 +3,7 @@ from flask import Flask, send_from_directory
 import os
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
     
     app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
