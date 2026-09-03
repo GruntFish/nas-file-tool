@@ -1,5 +1,4 @@
 // static/js/modules/scheduler.js
-
 const SchedulerModule = {
     name: 'scheduler',
 
@@ -107,18 +106,15 @@ const SchedulerModule = {
                     <button class="btn-confirm" id="schedulerSaveBtn">保存</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-
-        document.getElementById('schedulerScheduleType').addEventListener('change', function() {
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#schedulerScheduleType').addEventListener('change', function() {
             document.getElementById('schedulerCronGroup').style.display = this.value === 'cron' ? 'block' : 'none';
             document.getElementById('schedulerIntervalGroup').style.display = this.value === 'interval' ? 'block' :
                 'none';
         });
-
-        document.getElementById('schedulerSaveBtn').addEventListener('click', () => this.saveTask());
+        overlay.querySelector('#schedulerSaveBtn').addEventListener('click', () => this.saveTask());
     },
 
     async saveTask() {
@@ -206,5 +202,5 @@ const SchedulerModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(schedulerModule);
+    ModuleRegistry.register(SchedulerModule);
 }
