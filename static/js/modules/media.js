@@ -1,3 +1,4 @@
+// static/js/modules/media.js
 const MediaModule = {
     name: 'media',
 
@@ -32,6 +33,7 @@ const MediaModule = {
         });
     },
 
+    // ===== 【修改】压缩 =====
     compress() {
         const files = this.getImageFiles();
         if (files.length === 0) {
@@ -60,8 +62,12 @@ const MediaModule = {
                         <option value="png">PNG</option>
                     </select>
                 </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:8px;">
+                <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
                     <input type="checkbox" id="mediaDryRun" checked> 预览模式（不实际压缩）
+                </div>
+                <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
+                    <input type="checkbox" id="mediaOverwrite"> ⚠️ 覆盖原图（压缩后直接替换原文件，不可恢复！）
+                    <div style="color:#8b8fa3;font-size:10px;margin-top:2px;padding-left:20px;">勾选后原图将被压缩后的图片覆盖，建议先备份</div>
                 </div>
                 <div id="mediaPreviewArea" style="display:none;margin-top:8px;">
                     <div class="preview-list" id="mediaPreviewList" style="max-height:200px;"></div>
@@ -79,19 +85,22 @@ const MediaModule = {
         overlay.querySelector('#mediaQuality').addEventListener('input', () => this.previewCompress(files));
         overlay.querySelector('#mediaFormat').addEventListener('change', () => this.previewCompress(files));
         overlay.querySelector('#mediaDryRun').addEventListener('change', () => this.previewCompress(files));
+        overlay.querySelector('#mediaOverwrite').addEventListener('change', () => this.previewCompress(files));
         setTimeout(() => this.previewCompress(files), 100);
     },
 
     async previewCompress(files) {
         const quality = parseInt(document.getElementById('mediaQuality').value) || 85;
         const format = document.getElementById('mediaFormat').value;
+        const overwrite = document.getElementById('mediaOverwrite')?.checked || false;
 
         try {
             const result = await apiCall('/api/media/compress', {
                 files: files,
                 quality: quality,
                 format: format,
-                dry_run: true
+                dry_run: true,
+                overwrite: overwrite
             });
 
             if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
@@ -107,15 +116,15 @@ const MediaModule = {
                     if (r.status === 'preview') {
                         const div = document.createElement('div');
                         const saved = r.estimated_ratio || 0;
+                        const overwriteTag = r.overwrite ? ' [覆盖原图]' : '';
                         div.style.cssText = 'color:#68d391;padding:2px 0;font-size:12px;';
-                        div.textContent = '📄 ' + r.file + ' → ' + r.output + ' (预计节省 ' + saved.toFixed(1) +
-                            '%)';
+                        div.textContent = '📄 ' + r.file + ' → ' + r.output + overwriteTag + ' (预计节省 ' + saved.toFixed(1) + '%)';
                         previewList.appendChild(div);
                         totalSaved += saved;
                     }
                 });
                 const avg = result.results.length > 0 ? (totalSaved / result.results.length).toFixed(1) : 0;
-                stats.textContent = '📊 共 ' + result.results.length + ' 张图片，平均预计节省 ' + avg + '%';
+                stats.textContent = '📊 共 ' + result.results.length + ' 张图片，平均预计节省 ' + avg + '%' + (overwrite ? ' ⚠️ 将覆盖原图' : '');
                 previewArea.style.display = 'block';
             } else {
                 previewList.innerHTML = '<div style="color:#4a4e62;">没有图片需要压缩</div>';
@@ -128,17 +137,26 @@ const MediaModule = {
         const quality = parseInt(document.getElementById('mediaQuality').value) || 85;
         const format = document.getElementById('mediaFormat').value;
         const dryRun = document.getElementById('mediaDryRun').checked;
+        const overwrite = document.getElementById('mediaOverwrite')?.checked || false;
+
+        // ===== 【新增】覆盖模式警告 =====
+        if (overwrite && !dryRun) {
+            if (!confirm('⚠️ 警告：你选择了「覆盖原图」模式，压缩后将直接替换原始文件，此操作不可恢复！\n\n确定要继续吗？')) {
+                return;
+            }
+        }
 
         closeModal();
         clearLog();
-        showLog('⏳ 开始压缩图片...', 'info');
+        showLog('⏳ 开始压缩图片...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
 
         try {
             const result = await apiCall('/api/media/compress', {
                 files: files,
                 quality: quality,
                 format: format,
-                dry_run: dryRun
+                dry_run: dryRun,
+                overwrite: overwrite
             });
 
             if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
@@ -147,8 +165,8 @@ const MediaModule = {
                 if (dryRun) {
                     result.results.forEach(r => {
                         if (r.status === 'preview') {
-                            showLog('📋 ' + r.file + ' → ' + r.output + ' (预计节省 ' + (r.estimated_ratio || 0)
-                                .toFixed(1) + '%)', 'info');
+                            const tag = r.overwrite ? ' [覆盖]' : '';
+                            showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + (r.estimated_ratio || 0).toFixed(1) + '%)', 'info');
                         }
                     });
                     showLog('📊 预览完成，共 ' + result.results.length + ' 张图片', 'info');
@@ -156,11 +174,11 @@ const MediaModule = {
                     const success = result.results.filter(r => r.status === 'success');
                     success.forEach(r => {
                         const saved = r.ratio || 0;
-                        showLog('✅ ' + r.file + ' → ' + r.output + ' (节省 ' + saved.toFixed(1) + '%)',
-                            'success');
+                        const tag = r.overwrite ? ' [覆盖原图]' : '';
+                        showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
                     });
-                    showLog('✅ ' + result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats
-                        .saved_bytes || 0), 'success');
+                    const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
+                    showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
                 }
             }
 
@@ -170,6 +188,7 @@ const MediaModule = {
         }
     },
 
+    // ===== 【修改】格式转换 =====
     convert() {
         const files = this.getImageFiles();
         if (files.length === 0) {
@@ -196,8 +215,11 @@ const MediaModule = {
                     <label>质量 (1-100)</label>
                     <input type="number" id="mediaConvertQuality" value="85" min="1" max="100">
                 </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:8px;">
+                <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
                     <input type="checkbox" id="mediaConvertDryRun" checked> 预览模式
+                </div>
+                <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
+                    <input type="checkbox" id="mediaConvertOverwrite"> ⚠️ 覆盖原图（转换后直接替换原文件，不可恢复！）
                 </div>
                 <div class="btn-row">
                     <button class="btn-cancel" onclick="closeModal()">取消</button>
@@ -214,17 +236,25 @@ const MediaModule = {
         const targetFormat = document.getElementById('mediaConvertFormat').value;
         const quality = parseInt(document.getElementById('mediaConvertQuality').value) || 85;
         const dryRun = document.getElementById('mediaConvertDryRun').checked;
+        const overwrite = document.getElementById('mediaConvertOverwrite')?.checked || false;
+
+        if (overwrite && !dryRun) {
+            if (!confirm('⚠️ 警告：你选择了「覆盖原图」模式，转换后将直接替换原始文件，此操作不可恢复！\n\n确定要继续吗？')) {
+                return;
+            }
+        }
 
         closeModal();
         clearLog();
-        showLog('⏳ 开始格式转换...', 'info');
+        showLog('⏳ 开始格式转换...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
 
         try {
             const result = await apiCall('/api/media/convert', {
                 files: files,
                 target_format: targetFormat,
                 quality: quality,
-                dry_run: dryRun
+                dry_run: dryRun,
+                overwrite: overwrite
             });
 
             if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
@@ -233,17 +263,19 @@ const MediaModule = {
                 if (dryRun) {
                     result.results.forEach(r => {
                         if (r.status === 'preview') {
-                            showLog('📋 ' + r.file + ' → ' + r.output, 'info');
+                            const tag = r.overwrite ? ' [覆盖]' : '';
+                            showLog('📋 ' + r.file + ' → ' + r.output + tag, 'info');
                         }
                     });
                     showLog('📊 预览完成，共 ' + result.results.length + ' 张图片将转换', 'info');
                 } else {
                     result.results.forEach(r => {
                         if (r.status === 'success') {
-                            showLog('✅ ' + r.file + ' → ' + r.output, 'success');
+                            const tag = r.overwrite ? ' [覆盖原图]' : '';
+                            showLog('✅ ' + r.file + ' → ' + r.output + tag, 'success');
                         }
                     });
-                    showLog('✅ ' + result.stats.converted + ' 张图片已转换', 'success');
+                    showLog('✅ ' + result.stats.converted + ' 张图片已转换' + (overwrite ? ' (已覆盖原图)' : ''), 'success');
                 }
             }
 
@@ -253,6 +285,7 @@ const MediaModule = {
         }
     },
 
+    // ===== 【修改】调整尺寸 =====
     resize() {
         const files = this.getImageFiles();
         if (files.length === 0) {
@@ -285,8 +318,11 @@ const MediaModule = {
                         <option value="stretch">拉伸</option>
                     </select>
                 </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:8px;">
+                <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
                     <input type="checkbox" id="mediaResizeDryRun" checked> 预览模式
+                </div>
+                <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
+                    <input type="checkbox" id="mediaResizeOverwrite"> ⚠️ 覆盖原图（调整后直接替换原文件，不可恢复！）
                 </div>
                 <div class="btn-row">
                     <button class="btn-cancel" onclick="closeModal()">取消</button>
@@ -304,10 +340,17 @@ const MediaModule = {
         const height = parseInt(document.getElementById('mediaResizeHeight').value) || 1080;
         const mode = document.getElementById('mediaResizeMode').value;
         const dryRun = document.getElementById('mediaResizeDryRun').checked;
+        const overwrite = document.getElementById('mediaResizeOverwrite')?.checked || false;
+
+        if (overwrite && !dryRun) {
+            if (!confirm('⚠️ 警告：你选择了「覆盖原图」模式，调整后将直接替换原始文件，此操作不可恢复！\n\n确定要继续吗？')) {
+                return;
+            }
+        }
 
         closeModal();
         clearLog();
-        showLog('⏳ 开始调整尺寸...', 'info');
+        showLog('⏳ 开始调整尺寸...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
 
         try {
             const result = await apiCall('/api/media/resize', {
@@ -315,7 +358,8 @@ const MediaModule = {
                 width: width,
                 height: height,
                 mode: mode,
-                dry_run: dryRun
+                dry_run: dryRun,
+                overwrite: overwrite
             });
 
             if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
@@ -324,18 +368,19 @@ const MediaModule = {
                 if (dryRun) {
                     result.results.forEach(r => {
                         if (r.status === 'preview') {
-                            showLog('📋 ' + r.file + ' → ' + r.output + ' (' + r.width + 'x' + r.height + ')',
-                                'info');
+                            const tag = r.overwrite ? ' [覆盖]' : '';
+                            showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (' + r.width + 'x' + r.height + ')', 'info');
                         }
                     });
                     showLog('📊 预览完成，共 ' + result.results.length + ' 张图片将调整', 'info');
                 } else {
                     result.results.forEach(r => {
                         if (r.status === 'success') {
-                            showLog('✅ ' + r.file + ' → ' + r.output, 'success');
+                            const tag = r.overwrite ? ' [覆盖原图]' : '';
+                            showLog('✅ ' + r.file + ' → ' + r.output + tag, 'success');
                         }
                     });
-                    showLog('✅ ' + result.stats.resized + ' 张图片已调整', 'success');
+                    showLog('✅ ' + result.stats.resized + ' 张图片已调整' + (overwrite ? ' (已覆盖原图)' : ''), 'success');
                 }
             }
 
