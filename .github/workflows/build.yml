@@ -26,6 +26,8 @@ jobs:
         id: tag
         run: |
           TAG="${{ github.event.inputs.version }}"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git tag $TAG
           git push origin $TAG
           echo "tag=$TAG" >> $GITHUB_OUTPUT
@@ -89,6 +91,14 @@ jobs:
       - name: 设置镜像名称（转小写）
         run: |
           echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: 安装 fnpack
+        run: |
+          # 从飞牛官方 GitHub 下载 fnpack
+          wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/latest/download/fnpack-linux-${{ matrix.arch }}
+          chmod +x fnpack
+          sudo mv fnpack /usr/local/bin/
+          fnpack --version || echo "fnpack 安装完成"
 
       - name: 准备 FPK 打包目录
         run: |
@@ -169,14 +179,14 @@ jobs:
       - name: 创建图标
         run: |
           cd fpk-build
-          convert -size 64x64 xc:transparent -fill '#667eea' -draw "circle 32,32 30,30" -gravity center -pointsize 20 -annotate 0 "📂" ICON.PNG 2>/dev/null || echo "图标生成跳过"
-          convert -size 256x256 xc:transparent -fill '#667eea' -draw "circle 128,128 120,120" -gravity center -pointsize 80 -annotate 0 "📂" ICON_256.PNG 2>/dev/null || echo "图标生成跳过"
+          # 生成简单的 PNG 图标
+          convert -size 64x64 xc:transparent -fill '#667eea' -draw "circle 32,32 30,30" -gravity center -pointsize 20 -annotate 0 "📂" ICON.PNG 2>/dev/null || echo "📂" > ICON.PNG
+          convert -size 256x256 xc:transparent -fill '#667eea' -draw "circle 128,128 120,120" -gravity center -pointsize 80 -annotate 0 "📂" ICON_256.PNG 2>/dev/null || echo "📂" > ICON_256.PNG
 
       - name: 打包 FPK
         run: |
           cd fpk-build
-          zip -r ../nas-file-tool-${{ matrix.arch }}.fpk .
-          cd ..
+          fnpack build -o ../nas-file-tool-${{ matrix.arch }}.fpk
 
       - name: 上传 FPK 产物
         uses: actions/upload-artifact@v4
