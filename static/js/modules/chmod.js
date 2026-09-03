@@ -13,13 +13,13 @@ const ChmodModule = {
     },
 
     updateCount() {
-        const count = getSelectedFiles().length;
+        const count = selectedFiles.size;
         const el = document.getElementById('chmodSelectedCount');
         if (el) el.textContent = count;
     },
 
     openModal() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         if (files.length === 0) {
             showLog('⚠️ 请先选择要修改权限的文件或目录', 'warning');
             return;
@@ -66,7 +66,7 @@ const ChmodModule = {
     },
 
     async preview() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         const mode = document.getElementById('chmodMode').value;
         const recursive = document.getElementById('chmodRecursive').checked;
 
@@ -109,7 +109,7 @@ const ChmodModule = {
     },
 
     async execute() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         const mode = document.getElementById('chmodMode').value;
         const recursive = document.getElementById('chmodRecursive').checked;
 
