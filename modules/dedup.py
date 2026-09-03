@@ -6,51 +6,72 @@ import gc
 import time
 
 from core.config import WORK_DIR, MAX_DEDUP_FILES, BATCH_SIZE
+from core.decorators import with_memory_cleanup, log_operation, handle_errors
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def register(app):
     """注册去重路由"""
 
-    def get_file_signature(file_path):
-        """动态采样签名（性能优化版）"""
-        stat = file_path.stat()
-        size = stat.st_size
-        sample_size = 4096
-
-        if size < 1024 * 1024:
-            try:
-                with open(file_path, 'rb') as f:
-                    return f'{file_path.name}_{size}_' + hashlib.md5(f.read()).hexdigest()
-            except:
-                return f'{file_path.name}_{size}_0'
-
-        if size < 100 * 1024 * 1024:
-            points = 200
-        else:
-            points = 500
-
-        signature = f'{file_path.name}_{size}_'
-
+    def get_file_hash_md5(file_path):
+        """分块读取计算 MD5（适合大文件）"""
+        md5 = hashlib.md5()
         try:
             with open(file_path, 'rb') as f:
-                step = (size - sample_size) / (points - 1) if points > 1 else 0
-                # ===== 【修复】使用 bytearray 提高效率 =====
-                combined = bytearray()
-                for i in range(points):
-                    pos = int(i * step)
-                    f.seek(pos)
-                    combined.extend(f.read(sample_size))
-                signature += hashlib.md5(bytes(combined)).hexdigest()
-        except:
-            signature += '0'
+                for chunk in iter(lambda: f.read(8192), b''):
+                    md5.update(chunk)
+            return md5.hexdigest()
+        except Exception as e:
+            logger.error(f'计算 MD5 失败: {file_path} - {e}')
+            return None
 
-        return signature
+    def get_file_signature_optimized(file_path):
+        """优化的动态采样签名"""
+        try:
+            stat = file_path.stat()
+            size = stat.st_size
+            sample_size = 4096
+
+            # 小文件：直接计算 MD5
+            if size < 1024 * 1024:
+                return get_file_hash_md5(file_path)
+
+            # 大文件：采样
+            if size < 100 * 1024 * 1024:
+                points = 200
+            else:
+                points = 500
+
+            signature = f'{file_path.name}_{size}_'
+
+            try:
+                with open(file_path, 'rb') as f:
+                    step = (size - sample_size) / (points - 1) if points > 1 else 0
+                    combined = bytearray()
+                    for i in range(points):
+                        pos = int(i * step)
+                        f.seek(pos)
+                        combined.extend(f.read(sample_size))
+                    signature += hashlib.md5(bytes(combined)).hexdigest()
+            except:
+                signature += '0'
+
+            return signature
+        except Exception as e:
+            logger.error(f'获取文件签名失败: {file_path} - {e}')
+            return None
 
     @app.route('/api/dedup', methods=['POST'])
+    @handle_errors('去重失败')
+    @log_operation('文件去重')
+    @with_memory_cleanup(app)
     def dedup():
         data = request.json
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
-            
+
         mode = data.get('mode', 'standard')
         action = data.get('action', 'find')
         recursive = data.get('recursive', True)
@@ -122,13 +143,12 @@ def register(app):
                         return jsonify({
                             'error': '精确模式最多支持500个文件，请改用 standard 模式'
                         }), 400
-                    hash_md5 = hashlib.md5()
-                    with open(file_path, 'rb') as f:
-                        for chunk in iter(lambda: f.read(8192), b''):
-                            hash_md5.update(chunk)
-                    key = hash_md5.hexdigest()
+                    key = get_file_hash_md5(file_path)
                 else:
-                    key = get_file_signature(file_path)
+                    key = get_file_signature_optimized(file_path)
+
+                if key is None:
+                    continue
 
                 if key not in groups:
                     groups[key] = []
@@ -139,7 +159,7 @@ def register(app):
                     gc.collect()
 
             except Exception as e:
-                print(f'处理失败: {file_path} - {e}')
+                logger.error(f'处理失败: {file_path} - {e}')
                 continue
 
         duplicates = [v for v in groups.values() if len(v) > 1]
@@ -162,16 +182,16 @@ def register(app):
                     try:
                         Path(f).unlink()
                         result['deleted'] += 1
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.error(f'删除失败: {f} - {e}')
         elif action == 'delete_last':
             for group in duplicates:
                 for f in group[:-1]:
                     try:
                         Path(f).unlink()
                         result['deleted'] += 1
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.error(f'删除失败: {f} - {e}')
         elif action == 'delete_smallest':
             for group in duplicates:
                 sizes = [(f, Path(f).stat().st_size) for f in group]
@@ -180,8 +200,8 @@ def register(app):
                     try:
                         Path(f).unlink()
                         result['deleted'] += 1
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.error(f'删除失败: {f} - {e}')
         elif action == 'delete_largest':
             for group in duplicates:
                 sizes = [(f, Path(f).stat().st_size) for f in group]
@@ -190,7 +210,8 @@ def register(app):
                     try:
                         Path(f).unlink()
                         result['deleted'] += 1
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.error(f'删除失败: {f} - {e}')
 
+        logger.info(f'去重完成: 发现 {len(duplicates)} 组重复，删除 {result["deleted"]} 个文件')
         return jsonify(result)
