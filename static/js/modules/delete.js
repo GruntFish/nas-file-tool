@@ -1,5 +1,9 @@
 // static/js/modules/delete.js
 
+if (typeof ModuleRegistry === 'undefined') {
+    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
+}
+
 const DeleteModule = {
     name: 'delete',
 
