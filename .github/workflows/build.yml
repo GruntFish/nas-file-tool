@@ -10,7 +10,6 @@ on:
         type: string
 
 jobs:
-  # ===== 自动打 Tag =====
   create-tag:
     name: 创建 Tag
     runs-on: ubuntu-latest
@@ -32,7 +31,6 @@ jobs:
           git push origin $TAG
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-  # ===== 构建 Docker 镜像 =====
   build-docker:
     name: 构建 Docker 镜像
     runs-on: ubuntu-latest
@@ -40,10 +38,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
 
     steps:
       - name: 检出代码
@@ -67,15 +61,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/${{ matrix.arch }}
+          platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}-${{ matrix.arch }}
-            ghcr.io/${{ env.REPO_LOWER }}:latest-${{ matrix.arch }}
+            ghcr.io/${{ env.REPO_LOWER }}:${{ needs.create-tag.outputs.tag }}
+            ghcr.io/${{ env.REPO_LOWER }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ===== 构建 FPK 包（只打一次，用 amd64） =====
   build-fpk:
     name: 构建 FPK 包
     runs-on: ubuntu-latest
@@ -124,7 +117,6 @@ jobs:
           description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
           arch:
             - amd64
-            - arm64
           developer: ${{ github.repository_owner }}
           homepage: https://github.com/${{ github.repository }}
           type: compose
