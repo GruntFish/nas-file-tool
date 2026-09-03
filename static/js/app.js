@@ -316,8 +316,8 @@ function renderFiles(files) {
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
-        
-        // ===== 【修复】确保路径格式一致，支持两种格式匹配 =====
+
+        // ===== 确保路径格式一致，支持三种格式匹配 =====
         const isChecked = window.selectedFiles.has(file.path) || 
                           window.selectedFiles.has(file.path.replace(/^\//, '')) ||
                           window.selectedFiles.has('/' + file.path);
@@ -335,7 +335,6 @@ function renderFiles(files) {
         if (!isDir) {
             if (isChecked) {
                 tr.classList.add('selected');
-                // 确保 selectedFiles 里有这个路径（统一存储为原始格式）
                 if (!window.selectedFiles.has(file.path)) {
                     window.selectedFiles.add(file.path);
                 }
@@ -383,13 +382,62 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearAllBtn = document.getElementById('clearAllBtn');
     const selectAll = document.getElementById('selectAll');
 
-    // 过滤输入框
+    // ===== 过滤输入框：正则匹配实时同步勾选状态 =====
     const filterInput = document.getElementById('filterInput');
     if (filterInput) {
         filterInput.addEventListener('input', function() {
             const val = this.value.trim();
             window.filterRegex = val || null;
+
+            // 1. 重绘文件列表
             renderFiles(window.fileList);
+
+            // 2. 获取当前所有可见的 checkbox
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+
+            if (val === '') {
+                // 无正则：取消所有勾选
+                checkboxes.forEach(cb => {
+                    cb.checked = false;
+                    window.selectedFiles.delete(cb.value);
+                    const tr = cb.closest('tr');
+                    if (tr) tr.classList.remove('selected');
+                });
+            } else {
+                // 有正则：仅勾选匹配项
+                try {
+                    const regex = new RegExp(val, 'i');
+                    checkboxes.forEach(cb => {
+                        const fileName = getFileName(cb.value);
+                        const isMatch = regex.test(fileName);
+                        cb.checked = isMatch;
+                        const tr = cb.closest('tr');
+                        if (tr) {
+                            isMatch ? tr.classList.add('selected') : tr.classList.remove('selected');
+                        }
+                        if (isMatch) {
+                            window.selectedFiles.add(cb.value);
+                        } else {
+                            window.selectedFiles.delete(cb.value);
+                        }
+                    });
+                } catch (e) {
+                    // 正则无效：取消全部勾选
+                    checkboxes.forEach(cb => {
+                        cb.checked = false;
+                        window.selectedFiles.delete(cb.value);
+                        const tr = cb.closest('tr');
+                        if (tr) tr.classList.remove('selected');
+                    });
+                }
+            }
+
+            // 3. 更新界面
+            updateSelectedInfo();
+            updateSelectAllState();
+            document.dispatchEvent(new CustomEvent('selectionChanged', {
+                detail: { selected: window.selectedFiles }
+            }));
         });
     }
 
