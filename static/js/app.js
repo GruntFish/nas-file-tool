@@ -1,3 +1,4 @@
+// static/js/app.js
 // ===== 模块注册器 =====
 const ModuleRegistry = {
     modules: {},
@@ -30,12 +31,17 @@ const ModuleRegistry = {
     }
 };
 
+// 暴露到全局
 window.ModuleRegistry = ModuleRegistry;
+window.ModuleManager = ModuleRegistry;
 
 // ===== 全局状态 =====
 let currentPath = '/';
 let fileList = [];
 let selectedFiles = new Set();
+let renamePreview = {};
+let renameHistory = [];
+let fullTreeData = [];
 
 // ===== API 调用 =====
 async function apiCall(endpoint, data) {
@@ -47,11 +53,27 @@ async function apiCall(endpoint, data) {
     return res.json();
 }
 
+async function fetchTree(path) { return apiCall('/api/tree', { path }); }
+async function fetchFiles(path) { return apiCall('/api/files', { path }); }
+async function dedupFiles(data) { return apiCall('/api/dedup', data); }
+
 // ===== 工具函数 =====
 function getFileName(filePath) {
     if (!filePath) return '';
     const parts = filePath.split('/');
     return parts[parts.length - 1];
+}
+
+function getFileExtension(fileName) {
+    const idx = fileName.lastIndexOf('.');
+    if (idx > 0) return fileName.substring(idx);
+    return '';
+}
+
+function getFileNameWithoutExt(fileName) {
+    const idx = fileName.lastIndexOf('.');
+    if (idx > 0) return fileName.substring(0, idx);
+    return fileName;
 }
 
 function formatSize(bytes) {
@@ -87,8 +109,10 @@ function clearLog() {
 // ===== 目录树 =====
 async function loadTree(path) {
     try {
-        const result = await apiCall('/api/tree', { path });
-        renderTree(result.tree || [], document.getElementById('treeContainer'));
+        const result = await fetchTree(path);
+        if (result.error) throw new Error(result.error);
+        fullTreeData = result.tree || [];
+        renderTree(fullTreeData, document.getElementById('treeContainer'));
     } catch (err) {
         console.error(err);
     }
@@ -143,11 +167,14 @@ function renderTree(nodes, container) {
 // ===== 文件列表 =====
 async function loadFiles(path) {
     try {
-        const result = await apiCall('/api/files', { path });
+        const result = await fetchFiles(path);
+        if (result.error) throw new Error(result.error);
         fileList = result.files || [];
         renderFiles(fileList);
         document.getElementById('currentPathDisplay').textContent = path;
         document.getElementById('fileCountDisplay').textContent = fileList.length + ' 项';
+        // 通知模块文件已加载
+        document.dispatchEvent(new CustomEvent('filesLoaded', { detail: { files: fileList } }));
     } catch (err) {
         showLog('❌ 加载失败: ' + err.message, 'error');
     }
@@ -160,25 +187,31 @@ function renderFiles(files) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>';
         return;
     }
+    fileList = files;
     files.sort((a, b) => {
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
         return a.name.localeCompare(b.name);
     });
+    document.getElementById('fileCountDisplay').textContent = files.length + ' 项';
     files.forEach(file => {
         const tr = document.createElement('tr');
         const isDir = file.is_dir;
         const icon = isDir ? '📁' : '📄';
         const size = isDir ? '' : formatSize(file.size);
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
+        const newName = renamePreview[file.path] || file.name;
+        const isChanged = newName !== file.name && !isDir;
+        const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
+        const statusClass = isChanged ? 'changed' : 'ok';
         const checked = selectedFiles.has(file.path) ? 'checked' : '';
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
             `<td class="name-col${isDir ? ' folder-row' : ''}">${icon} ${escapeHtml(file.name)}</td>` +
-            `<td class="new-name-col unchanged">-</td>` +
+            `<td class="new-name-col${isChanged && !isDir ? '' : ' unchanged'}">${isDir ? '-' : escapeHtml(newName)}</td>` +
             `<td class="size-col">${size}</td>` +
             `<td class="date-col">${date}</td>` +
-            `<td class="status-col ok">✓ 不变</td>`;
+            `<td class="status-col ${statusClass}">${statusText}</td>`;
         const cb = tr.querySelector('input[type="checkbox"]');
         cb.addEventListener('change', function() {
             if (this.checked) {
@@ -189,6 +222,8 @@ function renderFiles(files) {
                 tr.classList.remove('selected');
             }
             updateSelectedInfo();
+            // 通知选中变化
+            document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: selectedFiles } }));
         });
         tbody.appendChild(tr);
     });
@@ -200,8 +235,24 @@ function updateSelectedInfo() {
     document.getElementById('selectedInfo').textContent = count > 0 ? `✅ 已选 ${count} 项` : '';
 }
 
-// ===== 全选/取消 =====
+// ===== 撤销 =====
+document.getElementById('undoBtn')?.addEventListener('click', async function() {
+    if (renameHistory.length === 0) return;
+    try {
+        const result = await apiCall('/api/undo', {});
+        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+        showLog('↩ ' + result.message, 'success');
+        renameHistory.pop();
+        if (renameHistory.length === 0) this.disabled = true;
+        renamePreview = {};
+        selectedFiles.clear();
+        await loadFiles(currentPath);
+    } catch (e) { showLog('❌ ' + e.message, 'error'); }
+});
+
+// ===== DOM 加载完成初始化 =====
 document.addEventListener('DOMContentLoaded', function() {
+    // 全选/取消
     document.getElementById('selectAllBtn').addEventListener('click', function() {
         document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
             cb.checked = true;
@@ -221,8 +272,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // 加载目录树
+    loadTree('/');
+    loadFiles('/');
+
     // 默认加载重命名模块
-    ModuleRegistry.load('rename');
+    setTimeout(() => {
+        ModuleRegistry.load('rename');
+    }, 300);
 
     // 菜单切换
     document.querySelectorAll('.menu-btn').forEach(btn => {
@@ -232,8 +289,4 @@ document.addEventListener('DOMContentLoaded', function() {
             ModuleRegistry.load(this.dataset.module);
         });
     });
-
-    // 加载目录树
-    loadTree('/');
-    loadFiles('/');
 });
