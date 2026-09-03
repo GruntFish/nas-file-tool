@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import re
 import time
+from datetime import datetime  # ← 新增导入
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BETWEEN_BATCH
 
@@ -44,6 +45,8 @@ def register(app):
             remove_str = data.get('find', '')
             if remove_str:
                 new_name = old_name.replace(remove_str, '')
+            else:
+                new_name = old_name
         elif action == 'removepos':
             start = data.get('start', 1) - 1
             length = data.get('length', 1)
@@ -79,9 +82,16 @@ def register(app):
                 new_name = name
             elif ext_action == 'replace':
                 new_name = name + '.' + ext_value if ext_value else name
+            else:
+                new_name = old_name
+        # ===== 【修复】编号功能 =====
         elif action == 'number':
+            # 编号逻辑在外部处理，这里返回原名称
+            # 实际编号在 preview 和 execute 中特殊处理
             new_name = old_name
+        # ===== 【修复】日期功能 =====
         elif action == 'date':
+            # 日期逻辑在外部处理，这里返回原名称
             new_name = old_name
         elif action == 'move' or action == 'copy':
             new_name = old_name
@@ -89,9 +99,62 @@ def register(app):
             new_name = old_name
         return new_name
 
+    # ===== 【新增】编号预览 =====
+    def apply_numbering(old_name, index, data):
+        name, ext = os.path.splitext(old_name)
+        start = data.get('start', 1)
+        step = data.get('step', 1)
+        digits = data.get('digits', 2)
+        position = data.get('position', 'suffix')
+        
+        num = start + (index - 1) * step
+        num_str = str(num).zfill(digits)
+        
+        if position == 'prefix':
+            return num_str + '_' + old_name
+        else:  # suffix
+            return name + '_' + num_str + ext
+
+    # ===== 【新增】日期预览 =====
+    def apply_date(old_name, file_path, data):
+        name, ext = os.path.splitext(old_name)
+        date_type = data.get('date_type', 'created')
+        date_format = data.get('date_format', 'YYYY-MM-DD')
+        position = data.get('date_pos', 'prefix')
+        
+        # 获取文件时间
+        try:
+            if date_type == 'created':
+                timestamp = os.path.getctime(file_path)
+            elif date_type == 'modified':
+                timestamp = os.path.getmtime(file_path)
+            else:
+                timestamp = time.time()
+        except:
+            timestamp = time.time()
+        
+        dt = datetime.fromtimestamp(timestamp)
+        
+        # 格式化日期
+        fmt_map = {
+            'YYYY-MM-DD': '%Y-%m-%d',
+            'YYYYMMDD': '%Y%m%d',
+            'YYMMDD': '%y%m%d'
+        }
+        fmt = fmt_map.get(date_format, '%Y-%m-%d')
+        date_str = dt.strftime(fmt)
+        
+        if position == 'prefix':
+            return date_str + '_' + old_name
+        else:  # suffix
+            return name + '_' + date_str + ext
+
     @app.route('/api/preview', methods=['POST'])
     def preview():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         action = data.get('action')
         files = data.get('files', [])
 
@@ -99,6 +162,38 @@ def register(app):
             return jsonify({'error': f'一次最多预览 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
         results = []
+        
+        # ===== 【修复】编号和日期特殊处理 =====
+        if action == 'number':
+            # 只对选中的文件或全部文件进行编号
+            target_files = [f for f in files if Path(f).is_file()]
+            for idx, file_path in enumerate(target_files, 1):
+                old_name = Path(file_path).name
+                new_name = apply_numbering(old_name, idx, data)
+                if new_name != old_name:
+                    results.append({
+                        'old_path': file_path,
+                        'new_path': str(Path(file_path).parent / new_name),
+                        'old_name': old_name,
+                        'new_name': new_name,
+                    })
+            return jsonify({'files': results})
+        
+        if action == 'date':
+            target_files = [f for f in files if Path(f).is_file()]
+            for file_path in target_files:
+                old_name = Path(file_path).name
+                new_name = apply_date(old_name, file_path, data)
+                if new_name != old_name:
+                    results.append({
+                        'old_path': file_path,
+                        'new_path': str(Path(file_path).parent / new_name),
+                        'old_name': old_name,
+                        'new_name': new_name,
+                    })
+            return jsonify({'files': results})
+
+        # 普通操作
         for file_path in files:
             old_name = Path(file_path).name
             new_name = old_name
@@ -119,6 +214,9 @@ def register(app):
     @app.route('/api/execute', methods=['POST'])
     def execute():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+            
         action = data.get('action')
         files = data.get('files', [])
         work_dir = WORK_DIR
@@ -137,6 +235,37 @@ def register(app):
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
         try:
+            # ===== 【修复】编号和日期执行 =====
+            if action in ('number', 'date'):
+                for i, item in enumerate(files):
+                    if i % BATCH_SIZE == 0:
+                        if hasattr(app, 'memory'):
+                            app.memory['cleanup']()
+                        time.sleep(SLEEP_BETWEEN_BATCH)
+                    
+                    old_path = Path(work_dir) / item['old_path']
+                    new_path = Path(work_dir) / item['new_path']
+                    
+                    if old_path.exists() and not new_path.exists():
+                        old_path.rename(new_path)
+                        logs.append({
+                            'text': f'✏️ 重命名: {item["old_name"]} → {item["new_name"]}',
+                            'type': 'success'
+                        })
+                        history.append({
+                            'old_path': str(old_path),
+                            'new_path': str(new_path),
+                            'old_name': item['old_name']
+                        })
+                        stats['processed'] += 1
+                
+                if hasattr(app, 'memory'):
+                    app.memory['cleanup']()
+                
+                stats['message'] = f'成功处理 {stats["processed"]} 个文件'
+                return jsonify({'logs': logs, 'stats': stats, 'history': history})
+
+            # 普通操作
             for i, item in enumerate(files):
                 if i % BATCH_SIZE == 0:
                     if hasattr(app, 'memory'):
