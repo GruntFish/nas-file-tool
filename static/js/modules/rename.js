@@ -5,13 +5,13 @@ const RenameModule = {
         this.bindEvents();
         this.setupActionToggle();
         // 延迟执行预览，确保 DOM 渲染完成
-        setTimeout(() => this.autoPreview(), 300);
+        setTimeout(() => this.autoPreview(), 500);
 
         document.addEventListener('filesLoaded', () => {
-            setTimeout(() => this.autoPreview(), 200);
+            setTimeout(() => this.autoPreview(), 300);
         });
         document.addEventListener('selectionChanged', () => {
-            setTimeout(() => this.autoPreview(), 100);
+            setTimeout(() => this.autoPreview(), 200);
         });
     },
 
@@ -145,7 +145,6 @@ const RenameModule = {
 
     getParams() {
         const actionEl = document.getElementById('renameAction');
-        // 如果元素不存在，返回默认参数
         if (!actionEl) {
             return { action: 'replace', find: '', replace: '', case_sensitive: false };
         }
@@ -313,26 +312,32 @@ const RenameModule = {
             return;
         }
 
+        // 获取目标文件列表
         const files = Array.from(selectedFiles);
-        const targetFiles = files.length > 0 ? files : window.fileList ? window.fileList.filter(f => !f.is_dir).map(f => f.path) : [];
+        let targetFiles = files.length > 0 ? files : (window.fileList ? window.fileList.filter(f => !f.is_dir).map(f => f.path) : []);
+
         const params = this.getParams();
 
+        // 如果没有目标文件，清空预览并退出
         if (targetFiles.length === 0 || !params.action) {
             window.renamePreview = {};
-            if (typeof renderFiles === 'function') {
-                renderFiles(window.fileList || []);
+            // 刷新文件列表显示原始名称
+            if (typeof renderFiles === 'function' && window.fileList) {
+                renderFiles(window.fileList);
             }
             return;
         }
 
+        // 编号和日期操作不需要实时预览
         if (params.action === 'number' || params.action === 'date') {
             window.renamePreview = {};
-            if (typeof renderFiles === 'function') {
-                renderFiles(window.fileList || []);
+            if (typeof renderFiles === 'function' && window.fileList) {
+                renderFiles(window.fileList);
             }
             return;
         }
 
+        // 计算预览映射
         const previewMap = {};
         let hasChanges = false;
         for (let filePath of targetFiles) {
@@ -345,8 +350,10 @@ const RenameModule = {
         }
 
         window.renamePreview = hasChanges ? previewMap : {};
-        if (typeof renderFiles === 'function') {
-            renderFiles(window.fileList || []);
+
+        // 刷新文件列表显示预览结果
+        if (typeof renderFiles === 'function' && window.fileList) {
+            renderFiles(window.fileList);
         }
     },
 
