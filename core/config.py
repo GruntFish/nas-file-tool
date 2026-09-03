@@ -16,7 +16,7 @@ WORK_DIR = '/data'
 
 # ===== 内存阈值 =====
 MAX_MEMORY_PERCENT = 20
-AUTO_CLEANUP_INTERVAL = 1800  # 30分钟
+AUTO_CLEANUP_INTERVAL = 1800
 
 # ===== 文件类型映射 =====
 FILE_TYPES = {
@@ -29,11 +29,3 @@ FILE_TYPES = {
     '安装包': {'.exe', '.msi', '.dmg', '.pkg', '.deb', '.rpm', '.apk', '.appimage'},
     '数据库': {'.db', '.sqlite', '.sql', '.mdb', '.accdb'},
 }
-
-def get_file_type(ext):
-    """根据扩展名获取文件类型"""
-    ext = ext.lower()
-    for type_name, exts in FILE_TYPES.items():
-        if ext in exts:
-            return type_name
-    return '其他'
