@@ -114,4 +114,6 @@ const DedupModule = {
     }
 };
 
-ModuleManager.register('dedup', DedupModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(XXXModule);
+}
