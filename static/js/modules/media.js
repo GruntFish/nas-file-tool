@@ -4,8 +4,6 @@ const MediaModule = {
 
     init() {
         document.getElementById('mediaCompressBtn').addEventListener('click', () => this.compress());
-        document.getElementById('mediaConvertBtn').addEventListener('click', () => this.convert());
-        document.getElementById('mediaResizeBtn').addEventListener('click', () => this.resize());
         this.updateCount();
         document.addEventListener('selectionChanged', () => { this.updateCount(); });
     },
@@ -26,64 +24,51 @@ const MediaModule = {
     },
 
     getImageFiles() {
-        const exts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
+        const exts = ['.jpg', '.jpeg', '.png'];
         return Array.from(selectedFiles).filter(f => {
             const ext = f.substring(f.lastIndexOf('.')).toLowerCase();
             return exts.includes(ext);
         });
     },
 
-    // ===== 【修改】压缩 =====
     compress() {
         const files = this.getImageFiles();
         if (files.length === 0) {
-            showLog('⚠️ 请选择图片文件', 'warning');
+            showLog('⚠️ 请选择 JPG 或 PNG 图片文件', 'warning');
             return;
         }
 
         const modalHtml = `
-        <div class="modal-overlay show">
-            <div class="modal" style="max-width:450px;">
-                <h2>🖼️ 图片压缩</h2>
-                <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                    已选 <strong style="color:#e4e6eb;">${files.length}</strong> 张图片
-                </div>
-                <div class="form-group">
-                    <label>压缩质量 (1-100)</label>
-                    <input type="number" id="mediaQuality" value="85" min="1" max="100">
-                    <div style="color:#4a4e62;font-size:11px;margin-top:2px;">值越高画质越好，文件越大</div>
-                </div>
-                <div class="form-group">
-                    <label>输出格式</label>
-                    <select id="mediaFormat">
-                        <option value="original">保持原格式</option>
-                        <option value="webp">WebP（推荐）</option>
-                        <option value="jpg">JPEG</option>
-                        <option value="png">PNG</option>
-                    </select>
-                </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
-                    <input type="checkbox" id="mediaDryRun" checked> 预览模式（不实际压缩）
-                </div>
-                <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
-                    <input type="checkbox" id="mediaOverwrite"> ⚠️ 覆盖原图（压缩后直接替换原文件，不可恢复！）
-                    <div style="color:#8b8fa3;font-size:10px;margin-top:2px;padding-left:20px;">勾选后原图将被压缩后的图片覆盖，建议先备份</div>
-                </div>
-                <div id="mediaPreviewArea" style="display:none;margin-top:8px;">
-                    <div class="preview-list" id="mediaPreviewList" style="max-height:200px;"></div>
-                    <div style="color:#68d391;font-size:12px;margin-top:4px;" id="mediaStats"></div>
-                </div>
-                <div class="btn-row">
-                    <button class="btn-cancel" onclick="closeModal()">取消</button>
-                    <button class="btn-confirm" id="mediaCompressConfirm">执行压缩</button>
-                </div>
+        <div class="modal" style="max-width:450px;">
+            <h2>🖼️ 图片压缩</h2>
+            <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
+                已选 <strong style="color:#e4e6eb;">${files.length}</strong> 张图片
+            </div>
+            <div class="form-group">
+                <label>压缩质量 (1-100)</label>
+                <input type="number" id="mediaQuality" value="85" min="1" max="100">
+                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">值越高画质越好，文件越大</div>
+            </div>
+            <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
+                <input type="checkbox" id="mediaDryRun" checked> 预览模式（不实际压缩）
+            </div>
+            <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
+                <input type="checkbox" id="mediaOverwrite"> ⚠️ 覆盖原图（压缩后直接替换原文件，不可恢复！）
+                <div style="color:#8b8fa3;font-size:10px;margin-top:2px;padding-left:20px;">勾选后原图将被压缩后的图片覆盖，建议先备份</div>
+            </div>
+            <div id="mediaPreviewArea" style="display:none;margin-top:8px;">
+                <div class="preview-list" id="mediaPreviewList" style="max-height:200px;"></div>
+                <div style="color:#68d391;font-size:12px;margin-top:4px;" id="mediaStats"></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-confirm" id="mediaCompressConfirm">执行压缩</button>
             </div>
         </div>`;
 
         const overlay = openModal(modalHtml);
         overlay.querySelector('#mediaCompressConfirm').addEventListener('click', () => this.doCompress(files));
         overlay.querySelector('#mediaQuality').addEventListener('input', () => this.previewCompress(files));
-        overlay.querySelector('#mediaFormat').addEventListener('change', () => this.previewCompress(files));
         overlay.querySelector('#mediaDryRun').addEventListener('change', () => this.previewCompress(files));
         overlay.querySelector('#mediaOverwrite').addEventListener('change', () => this.previewCompress(files));
         setTimeout(() => this.previewCompress(files), 100);
@@ -91,14 +76,12 @@ const MediaModule = {
 
     async previewCompress(files) {
         const quality = parseInt(document.getElementById('mediaQuality').value) || 85;
-        const format = document.getElementById('mediaFormat').value;
         const overwrite = document.getElementById('mediaOverwrite')?.checked || false;
 
         try {
             const result = await apiCall('/api/media/compress', {
                 files: files,
                 quality: quality,
-                format: format,
                 dry_run: true,
                 overwrite: overwrite
             });
@@ -135,11 +118,9 @@ const MediaModule = {
 
     async doCompress(files) {
         const quality = parseInt(document.getElementById('mediaQuality').value) || 85;
-        const format = document.getElementById('mediaFormat').value;
         const dryRun = document.getElementById('mediaDryRun').checked;
         const overwrite = document.getElementById('mediaOverwrite')?.checked || false;
 
-        // ===== 【新增】覆盖模式警告 =====
         if (overwrite && !dryRun) {
             if (!confirm('⚠️ 警告：你选择了「覆盖原图」模式，压缩后将直接替换原始文件，此操作不可恢复！\n\n确定要继续吗？')) {
                 return;
@@ -154,7 +135,6 @@ const MediaModule = {
             const result = await apiCall('/api/media/compress', {
                 files: files,
                 quality: quality,
-                format: format,
                 dry_run: dryRun,
                 overwrite: overwrite
             });
@@ -179,208 +159,6 @@ const MediaModule = {
                     });
                     const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
                     showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
-                }
-            }
-
-            await loadFiles(currentPath);
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    },
-
-    // ===== 【修改】格式转换 =====
-    convert() {
-        const files = this.getImageFiles();
-        if (files.length === 0) {
-            showLog('⚠️ 请选择图片文件', 'warning');
-            return;
-        }
-
-        const modalHtml = `
-        <div class="modal-overlay show">
-            <div class="modal" style="max-width:450px;">
-                <h2>🔄 格式转换</h2>
-                <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                    已选 <strong style="color:#e4e6eb;">${files.length}</strong> 张图片
-                </div>
-                <div class="form-group">
-                    <label>目标格式</label>
-                    <select id="mediaConvertFormat">
-                        <option value="webp">WebP（推荐）</option>
-                        <option value="jpg">JPEG</option>
-                        <option value="png">PNG</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>质量 (1-100)</label>
-                    <input type="number" id="mediaConvertQuality" value="85" min="1" max="100">
-                </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
-                    <input type="checkbox" id="mediaConvertDryRun" checked> 预览模式
-                </div>
-                <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
-                    <input type="checkbox" id="mediaConvertOverwrite"> ⚠️ 覆盖原图（转换后直接替换原文件，不可恢复！）
-                </div>
-                <div class="btn-row">
-                    <button class="btn-cancel" onclick="closeModal()">取消</button>
-                    <button class="btn-confirm" id="mediaConvertConfirm">执行转换</button>
-                </div>
-            </div>
-        </div>`;
-
-        const overlay = openModal(modalHtml);
-        overlay.querySelector('#mediaConvertConfirm').addEventListener('click', () => this.doConvert(files));
-    },
-
-    async doConvert(files) {
-        const targetFormat = document.getElementById('mediaConvertFormat').value;
-        const quality = parseInt(document.getElementById('mediaConvertQuality').value) || 85;
-        const dryRun = document.getElementById('mediaConvertDryRun').checked;
-        const overwrite = document.getElementById('mediaConvertOverwrite')?.checked || false;
-
-        if (overwrite && !dryRun) {
-            if (!confirm('⚠️ 警告：你选择了「覆盖原图」模式，转换后将直接替换原始文件，此操作不可恢复！\n\n确定要继续吗？')) {
-                return;
-            }
-        }
-
-        closeModal();
-        clearLog();
-        showLog('⏳ 开始格式转换...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
-
-        try {
-            const result = await apiCall('/api/media/convert', {
-                files: files,
-                target_format: targetFormat,
-                quality: quality,
-                dry_run: dryRun,
-                overwrite: overwrite
-            });
-
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-            if (result.results) {
-                if (dryRun) {
-                    result.results.forEach(r => {
-                        if (r.status === 'preview') {
-                            const tag = r.overwrite ? ' [覆盖]' : '';
-                            showLog('📋 ' + r.file + ' → ' + r.output + tag, 'info');
-                        }
-                    });
-                    showLog('📊 预览完成，共 ' + result.results.length + ' 张图片将转换', 'info');
-                } else {
-                    result.results.forEach(r => {
-                        if (r.status === 'success') {
-                            const tag = r.overwrite ? ' [覆盖原图]' : '';
-                            showLog('✅ ' + r.file + ' → ' + r.output + tag, 'success');
-                        }
-                    });
-                    showLog('✅ ' + result.stats.converted + ' 张图片已转换' + (overwrite ? ' (已覆盖原图)' : ''), 'success');
-                }
-            }
-
-            await loadFiles(currentPath);
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    },
-
-    // ===== 【修改】调整尺寸 =====
-    resize() {
-        const files = this.getImageFiles();
-        if (files.length === 0) {
-            showLog('⚠️ 请选择图片文件', 'warning');
-            return;
-        }
-
-        const modalHtml = `
-        <div class="modal-overlay show">
-            <div class="modal" style="max-width:450px;">
-                <h2>📐 调整尺寸</h2>
-                <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                    已选 <strong style="color:#e4e6eb;">${files.length}</strong> 张图片
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <div class="form-group">
-                        <label>宽度 (px)</label>
-                        <input type="number" id="mediaResizeWidth" value="1920">
-                    </div>
-                    <div class="form-group">
-                        <label>高度 (px)</label>
-                        <input type="number" id="mediaResizeHeight" value="1080">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>缩放模式</label>
-                    <select id="mediaResizeMode">
-                        <option value="fit">适应 (保持比例)</option>
-                        <option value="fill">填充 (裁切)</option>
-                        <option value="stretch">拉伸</option>
-                    </select>
-                </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
-                    <input type="checkbox" id="mediaResizeDryRun" checked> 预览模式
-                </div>
-                <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
-                    <input type="checkbox" id="mediaResizeOverwrite"> ⚠️ 覆盖原图（调整后直接替换原文件，不可恢复！）
-                </div>
-                <div class="btn-row">
-                    <button class="btn-cancel" onclick="closeModal()">取消</button>
-                    <button class="btn-confirm" id="mediaResizeConfirm">执行调整</button>
-                </div>
-            </div>
-        </div>`;
-
-        const overlay = openModal(modalHtml);
-        overlay.querySelector('#mediaResizeConfirm').addEventListener('click', () => this.doResize(files));
-    },
-
-    async doResize(files) {
-        const width = parseInt(document.getElementById('mediaResizeWidth').value) || 1920;
-        const height = parseInt(document.getElementById('mediaResizeHeight').value) || 1080;
-        const mode = document.getElementById('mediaResizeMode').value;
-        const dryRun = document.getElementById('mediaResizeDryRun').checked;
-        const overwrite = document.getElementById('mediaResizeOverwrite')?.checked || false;
-
-        if (overwrite && !dryRun) {
-            if (!confirm('⚠️ 警告：你选择了「覆盖原图」模式，调整后将直接替换原始文件，此操作不可恢复！\n\n确定要继续吗？')) {
-                return;
-            }
-        }
-
-        closeModal();
-        clearLog();
-        showLog('⏳ 开始调整尺寸...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
-
-        try {
-            const result = await apiCall('/api/media/resize', {
-                files: files,
-                width: width,
-                height: height,
-                mode: mode,
-                dry_run: dryRun,
-                overwrite: overwrite
-            });
-
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-            if (result.results) {
-                if (dryRun) {
-                    result.results.forEach(r => {
-                        if (r.status === 'preview') {
-                            const tag = r.overwrite ? ' [覆盖]' : '';
-                            showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (' + r.width + 'x' + r.height + ')', 'info');
-                        }
-                    });
-                    showLog('📊 预览完成，共 ' + result.results.length + ' 张图片将调整', 'info');
-                } else {
-                    result.results.forEach(r => {
-                        if (r.status === 'success') {
-                            const tag = r.overwrite ? ' [覆盖原图]' : '';
-                            showLog('✅ ' + r.file + ' → ' + r.output + tag, 'success');
-                        }
-                    });
-                    showLog('✅ ' + result.stats.resized + ' 张图片已调整' + (overwrite ? ' (已覆盖原图)' : ''), 'success');
                 }
             }
 
