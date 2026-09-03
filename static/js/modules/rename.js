@@ -1,8 +1,3 @@
-// static/js/modules/rename.js
-if (typeof ModuleRegistry === 'undefined') {
-    var ModuleRegistry = window.ModuleRegistry || window.ModuleManager || {};
-}
-
 const RenameModule = {
     name: 'rename',
 
@@ -11,7 +6,6 @@ const RenameModule = {
         this.setupActionToggle();
         setTimeout(() => this.autoPreview(), 200);
 
-        // 监听文件加载和选中变化
         document.addEventListener('filesLoaded', () => {
             setTimeout(() => this.autoPreview(), 100);
         });
@@ -393,6 +387,6 @@ const RenameModule = {
     }
 };
 
-if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+if (typeof ModuleRegistry !== 'undefined') {
     ModuleRegistry.register(RenameModule);
 }
