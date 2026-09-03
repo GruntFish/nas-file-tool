@@ -27,7 +27,6 @@ class VirtualScroll {
         this.container.style.overflow = 'auto';
         this.container.style.height = '100%';
         
-        // 滚动占位
         this._placeholder = document.createElement('div');
         this._placeholder.style.position = 'absolute';
         this._placeholder.style.top = '0';
@@ -36,7 +35,6 @@ class VirtualScroll {
         this._placeholder.style.pointerEvents = 'none';
         this.container.appendChild(this._placeholder);
         
-        // 内容容器
         this._content = document.createElement('div');
         this._content.style.position = 'relative';
         this.container.appendChild(this._content);
@@ -46,7 +44,6 @@ class VirtualScroll {
         this._onScroll = this._onScroll.bind(this);
         this.container.addEventListener('scroll', this._onScroll);
         
-        // 窗口大小变化时重新计算
         this._onResize = this._onResize.bind(this);
         window.addEventListener('resize', this._onResize);
     }
@@ -95,7 +92,6 @@ class VirtualScroll {
         this._visibleStart = start;
         this._visibleEnd = end;
         
-        // 只渲染可见区域
         const fragment = document.createDocumentFragment();
         const offset = start * this.itemHeight;
         
@@ -123,7 +119,6 @@ class VirtualScroll {
     }
 }
 
-// 导出
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = VirtualScroll;
 }
