@@ -199,5 +199,5 @@ const MoveCopyModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
-    ModuleRegistry.register(XXXModule);
+    ModuleRegistry.register(MoveCopyModule);
 }
