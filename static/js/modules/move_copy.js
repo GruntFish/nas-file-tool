@@ -1,3 +1,4 @@
+// static/js/modules/move_copy.js
 const MoveCopyModule = {
     name: 'move_copy',
 
@@ -29,12 +30,18 @@ const MoveCopyModule = {
             return;
         }
 
+        // 获取当前目录
+        const currentDir = window.currentPath || '/';
+
         let dirOptions = '';
         const collectDirs = (nodes, prefix) => {
             for (let node of nodes) {
                 if (node.is_dir) {
                     const path = prefix ? prefix + '/' + node.name : node.name;
-                    dirOptions += `<option value="${path}">📁 ${path}</option>`;
+                    // 跳过当前目录自身
+                    if (path !== currentDir.replace(/^\//, '')) {
+                        dirOptions += `<option value="${path}">📁 ${path}</option>`;
+                    }
                     if (node.children) collectDirs(node.children, path);
                 }
             }
@@ -47,6 +54,9 @@ const MoveCopyModule = {
                 <h2>📦 移动/复制文件</h2>
                 <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
                     已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件
+                    <div style="color:#4a4e62;font-size:11px;margin-top:4px;">
+                        📁 当前目录: <strong style="color:#b5b9c9;">${escapeHtml(currentDir)}</strong>
+                    </div>
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -60,7 +70,8 @@ const MoveCopyModule = {
                     <div class="form-group">
                         <label>覆盖已存在文件</label>
                         <div style="display:flex;align-items:center;height:32px;padding-left:4px;">
-                            <input type="checkbox" id="mcOverwrite">
+                            <input type="checkbox" id="mcOverwrite" style="accent-color:#667eea;width:16px;height:16px;">
+                            <span style="color:#8b8fa3;font-size:11px;margin-left:6px;">勾选后覆盖同名文件</span>
                         </div>
                     </div>
                 </div>
@@ -75,7 +86,7 @@ const MoveCopyModule = {
                         <input type="text" id="mcTargetInput" placeholder="输入新目录名自动创建" style="flex:1;">
                     </div>
                     <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
-                        💡 下拉框选择已有目录，或输入新目录名称（自动创建）
+                        💡 下拉框选择已有目录，或输入新目录名称（在当前目录下自动创建）
                     </div>
                 </div>
 
@@ -127,10 +138,8 @@ const MoveCopyModule = {
         const filters = {};
         if (v('mcFilterNameContains')) filters.name_contains = v('mcFilterNameContains');
         if (v('mcFilterNameNotContains')) filters.name_not_contains = v('mcFilterNameNotContains');
-        if (v('mcFilterExtensions')) filters.extensions = v('mcFilterExtensions').split(',').map(s => s.trim())
-            .filter(s => s);
-        if (v('mcFilterExtNot')) filters.extensions_not = v('mcFilterExtNot').split(',').map(s => s.trim())
-            .filter(s => s);
+        if (v('mcFilterExtensions')) filters.extensions = v('mcFilterExtensions').split(',').map(s => s.trim()).filter(s => s);
+        if (v('mcFilterExtNot')) filters.extensions_not = v('mcFilterExtNot').split(',').map(s => s.trim()).filter(s => s);
         if (v('mcFilterMinSize')) filters.min_size = parseInt(v('mcFilterMinSize'));
         if (v('mcFilterMaxSize')) filters.max_size = parseInt(v('mcFilterMaxSize'));
         if (v('mcFilterDateAfter')) filters.date_after = v('mcFilterDateAfter');
@@ -162,39 +171,72 @@ const MoveCopyModule = {
         const action = document.getElementById('mcAction').value;
         let targetDir = document.getElementById('mcTargetSelect').value.trim();
         const inputDir = document.getElementById('mcTargetInput').value.trim();
-        if (inputDir) targetDir = inputDir;
-        if (!targetDir) { alert('请选择或输入目标目录'); return; }
+        
+        // ===== 【修复】如果输入了新目录名，在当前目录下创建 =====
+        if (inputDir) {
+            const currentDir = window.currentPath || '/';
+            // 如果当前目录是根目录，直接用新目录名
+            if (currentDir === '/') {
+                targetDir = inputDir;
+            } else {
+                // 在当前目录下创建
+                targetDir = currentDir.replace(/^\//, '') + '/' + inputDir;
+            }
+        }
+        
+        if (!targetDir) { 
+            showLog('⚠️ 请选择或输入目标目录', 'warning');
+            return; 
+        }
 
         const files = Array.from(selectedFiles);
-        if (files.length === 0) { showLog('⚠️ 请选择文件', 'warning'); return; }
+        if (files.length === 0) { 
+            showLog('⚠️ 请选择文件', 'warning'); 
+            return; 
+        }
+
+        // ===== 【修复】获取覆盖选项，使用安全的方式 =====
+        const overwriteEl = document.getElementById('mcOverwrite');
+        const overwrite = overwriteEl ? overwriteEl.checked : false;
 
         closeModal();
         clearLog();
 
         const filters = this.getFilters();
         if (Object.keys(filters).length > 0) showLog('📋 应用过滤条件...', 'info');
-        showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件到: ' + targetDir,
-            'info');
+        showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件到: ' + targetDir, 'info');
 
         try {
             const result = await apiCall('/api/move_copy', {
                 action: action,
                 files: files,
                 target_dir: targetDir,
-                overwrite: document.getElementById('mcOverwrite').checked,
+                overwrite: overwrite,
                 filters: filters,
                 dry_run: false
             });
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+            if (result.error) { 
+                showLog('❌ ' + result.error, 'error'); 
+                return; 
+            }
             if (result.results) {
-                result.results.forEach(r => {
-                    if (r.status === 'success') showLog('✅ ' + r.file + ' → ' + r.to, 'success');
-                    else if (r.status === 'error') showLog('❌ ' + r.file + ' - ' + r.reason,
-                    'error');
+                const success = result.results.filter(r => r.status === 'success');
+                const errors = result.results.filter(r => r.status === 'error');
+                const skipped = result.results.filter(r => r.status === 'skip');
+                
+                success.forEach(r => {
+                    showLog('✅ ' + r.file + ' → ' + r.to, 'success');
+                });
+                errors.forEach(r => {
+                    showLog('❌ ' + r.file + ' - ' + r.reason, 'error');
+                });
+                skipped.forEach(r => {
+                    showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning');
                 });
             }
-            showLog('✅ ' + (result.stats?.message || '处理完成'), 'success');
-            await loadFiles(currentPath);
+            const msg = result.stats?.message || '处理完成';
+            showLog('✅ ' + msg, 'success');
+            await loadFiles(window.currentPath);
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
         }
