@@ -4,7 +4,6 @@ const RenameModule = {
     init() {
         this.bindEvents();
         this.setupActionToggle();
-        // 延迟执行预览，确保 DOM 渲染完成
         setTimeout(() => this.autoPreview(), 500);
 
         document.addEventListener('filesLoaded', () => {
@@ -16,16 +15,14 @@ const RenameModule = {
     },
 
     destroy() {
-        // 清空预览
         window.renamePreview = {};
-        // 清空选中的文件
         selectedFiles.clear();
         updateSelectedInfo();
-        // 刷新文件列表
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
-    
+    },
+
     bindEvents() {
         const executeBtn = document.getElementById('executeRenameBtn');
         if (executeBtn) {
@@ -318,28 +315,23 @@ const RenameModule = {
     },
 
     autoPreview() {
-        // 如果 renameAction 不存在，说明模块还没加载完成，跳过
         if (!document.getElementById('renameAction')) {
             return;
         }
 
-        // 获取目标文件列表
         const files = Array.from(selectedFiles);
         let targetFiles = files.length > 0 ? files : (window.fileList ? window.fileList.filter(f => !f.is_dir).map(f => f.path) : []);
 
         const params = this.getParams();
 
-        // 如果没有目标文件，清空预览并退出
         if (targetFiles.length === 0 || !params.action) {
             window.renamePreview = {};
-            // 刷新文件列表显示原始名称
             if (typeof renderFiles === 'function' && window.fileList) {
                 renderFiles(window.fileList);
             }
             return;
         }
 
-        // 编号和日期操作不需要实时预览
         if (params.action === 'number' || params.action === 'date') {
             window.renamePreview = {};
             if (typeof renderFiles === 'function' && window.fileList) {
@@ -348,7 +340,6 @@ const RenameModule = {
             return;
         }
 
-        // 计算预览映射
         const previewMap = {};
         let hasChanges = false;
         for (let filePath of targetFiles) {
@@ -362,7 +353,6 @@ const RenameModule = {
 
         window.renamePreview = hasChanges ? previewMap : {};
 
-        // 刷新文件列表显示预览结果
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
