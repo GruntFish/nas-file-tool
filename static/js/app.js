@@ -316,7 +316,11 @@ function renderFiles(files) {
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
-        const isChecked = window.selectedFiles.has(file.path);
+        
+        // ===== 【修复】确保路径格式一致，支持两种格式匹配 =====
+        const isChecked = window.selectedFiles.has(file.path) || 
+                          window.selectedFiles.has(file.path.replace(/^\//, '')) ||
+                          window.selectedFiles.has('/' + file.path);
         const checked = isChecked ? 'checked' : '';
 
         tr.innerHTML =
@@ -331,6 +335,10 @@ function renderFiles(files) {
         if (!isDir) {
             if (isChecked) {
                 tr.classList.add('selected');
+                // 确保 selectedFiles 里有这个路径（统一存储为原始格式）
+                if (!window.selectedFiles.has(file.path)) {
+                    window.selectedFiles.add(file.path);
+                }
             }
             cb.addEventListener('change', function() {
                 if (this.checked) {
@@ -385,15 +393,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ===== 全选按钮 =====
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', function() {
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
             checkboxes.forEach(cb => {
                 cb.checked = true;
-                cb.dispatchEvent(new Event('change'));
-            });
-            // 手动更新 selectedFiles
-            checkboxes.forEach(cb => {
                 window.selectedFiles.add(cb.value);
                 const tr = cb.closest('tr');
                 if (tr) tr.classList.add('selected');
@@ -406,15 +411,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ===== 取消全选按钮 =====
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', function() {
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
             checkboxes.forEach(cb => {
                 cb.checked = false;
-                cb.dispatchEvent(new Event('change'));
-            });
-            // 手动更新 selectedFiles
-            checkboxes.forEach(cb => {
                 window.selectedFiles.delete(cb.value);
                 const tr = cb.closest('tr');
                 if (tr) tr.classList.remove('selected');
