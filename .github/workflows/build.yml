@@ -1,0 +1,171 @@
+name: 构建 Docker 镜像和 FPK 包
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  # ===== 构建 Docker 镜像 =====
+  build-docker:
+    name: 构建 Docker 镜像
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录到 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-${{ matrix.arch }}
+            ghcr.io/${{ github.repository }}:latest-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===== 构建 FPK 包 =====
+  build-fpk:
+    name: 构建 FPK 包
+    runs-on: ubuntu-latest
+    needs: build-docker
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 fnpack
+        run: |
+          wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/latest/download/fnpack-linux-${{ matrix.arch }}
+          chmod +x fnpack
+          sudo mv fnpack /usr/local/bin/
+
+      - name: 准备 FPK 打包目录
+        run: |
+          mkdir -p fpk-build/app/docker fpk-build/config fpk-build/cmd fpk-build/wizard
+
+      - name: 创建 docker-compose.yml
+        run: |
+          cat > fpk-build/app/docker/docker-compose.yml << 'EOF'
+          version: '3.8'
+          services:
+            file-tool:
+              image: ghcr.io/${{ github.repository }}:latest-${{ matrix.arch }}
+              container_name: file-tool
+              ports:
+                - "5000:5000"
+              volumes:
+                - /vol1/1000/:/data
+              restart: unless-stopped
+              mem_limit: 512m
+          EOF
+
+      - name: 创建 manifest
+        run: |
+          VERSION="${{ github.ref_name }}"
+          if [ "$VERSION" = "main" ] || [ -z "$VERSION" ]; then
+            VERSION="latest"
+          fi
+          cat > fpk-build/manifest << EOF
+          app_name: nas-file-tool
+          version: ${VERSION}
+          description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
+          arch:
+            - ${{ matrix.arch }}
+          developer: ${{ github.repository_owner }}
+          homepage: https://github.com/${{ github.repository }}
+          type: compose
+          ports:
+            - 5000:5000
+          volumes:
+            - /vol1/1000/:/data
+          services:
+            - docker
+          EOF
+
+      - name: 创建 privilege
+        run: |
+          cat > fpk-build/config/privilege << 'EOF'
+          docker
+          network
+          storage
+          EOF
+
+      - name: 创建 cmd/main
+        run: |
+          cat > fpk-build/cmd/main << 'EOF'
+          #!/bin/sh
+          case "\$1" in
+            start)
+              cd "\$TRIM_APPDEST/app/docker"
+              docker compose up -d
+              ;;
+            stop)
+              cd "\$TRIM_APPDEST/app/docker"
+              docker compose down
+              ;;
+            status)
+              if docker ps --format '{{.Names}}' | grep -q "^file-tool\$"; then
+                exit 0
+              else
+                exit 3
+              fi
+              ;;
+            *)
+              echo "Usage: \$0 {start|stop|status}"
+              exit 1
+              ;;
+          esac
+          exit 0
+          EOF
+          chmod +x fpk-build/cmd/main
+
+      - name: 创建图标
+        run: |
+          cd fpk-build
+          convert -size 64x64 xc:transparent -fill '#667eea' -draw "circle 32,32 30,30" -gravity center -pointsize 20 -annotate 0 "📂" ICON.PNG 2>/dev/null || echo "图标生成跳过"
+          convert -size 256x256 xc:transparent -fill '#667eea' -draw "circle 128,128 120,120" -gravity center -pointsize 80 -annotate 0 "📂" ICON_256.PNG 2>/dev/null || echo "图标生成跳过"
+
+      - name: 打包 FPK
+        run: |
+          cd fpk-build
+          fnpack build -o ../nas-file-tool-${{ matrix.arch }}.fpk
+
+      - name: 上传 FPK 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: nas-file-tool-${{ matrix.arch }}
+          path: nas-file-tool-*.fpk
+
+      - name: 创建 Release 并上传 FPK
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nas-file-tool-*.fpk
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
