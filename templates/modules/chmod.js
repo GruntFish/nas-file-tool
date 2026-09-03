@@ -129,4 +129,16 @@ const ChmodModule = {
 
             if (result.results) {
                 const success = result.results.filter(r => r.status === 'success');
-                success.forEach(r => showLog('✅ ' + r.path + ' → ' + r.current, 'success
+                success.forEach(r => showLog('✅ ' + r.path + ' → ' + r.current, 'success'));
+            }
+
+            showLog('✅ ' + result.stats.changed + ' 个文件/目录权限已修改', 'success');
+            selectedFiles.clear();
+            await loadFiles(currentPath);
+        } catch (e) {
+            showLog('❌ ' + e.message, 'error');
+        }
+    }
+};
+
+ModuleManager.register('chmod', ChmodModule);
