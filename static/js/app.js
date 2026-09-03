@@ -1,5 +1,6 @@
 // static/js/app.js
 // 模块注册器
+// static/js/app.js 中的 ModuleRegistry 部分
 const ModuleRegistry = {
     modules: {},
     currentModule: null,
@@ -10,6 +11,21 @@ const ModuleRegistry = {
 
     async load(name) {
         if (this.currentModule === name && this.modules[name]?.loaded) return;
+
+        // ===== 切换模块时重置状态 =====
+        // 1. 清空选中的文件
+        selectedFiles.clear();
+        updateSelectedInfo();
+
+        // 2. 清空重命名预览
+        window.renamePreview = {};
+        renamePreview = {};
+
+        // 3. 如果有旧的模块，调用其 destroy 方法
+        if (this.currentModule && this.modules[this.currentModule] && this.modules[this.currentModule].destroy) {
+            this.modules[this.currentModule].destroy();
+        }
+
         this.currentModule = name;
 
         const container = document.getElementById('moduleContent');
