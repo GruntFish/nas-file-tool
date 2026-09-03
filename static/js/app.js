@@ -33,7 +33,7 @@ const ModuleRegistry = {
 
 window.ModuleRegistry = ModuleRegistry;
 
-// ===== 全局状态（挂载到 window） =====
+// ===== 全局状态 =====
 window.currentPath = '/';
 window.fileList = [];
 window.selectedFiles = new Set();
@@ -41,7 +41,6 @@ window.renamePreview = {};
 window.renameHistory = [];
 window.fullTreeData = [];
 
-// ===== 简写引用 =====
 let currentPath = window.currentPath;
 let fileList = window.fileList;
 let selectedFiles = window.selectedFiles;
@@ -86,7 +85,8 @@ function formatSize(bytes) {
     if (!bytes) return '';
     const units = ['B', 'KB', 'MB', 'GB'];
     let i = 0;
-    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024;
+        i++; }
     return bytes.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
 }
 
@@ -113,6 +113,10 @@ function clearLog() {
 }
 
 function openModal(html) {
+    // 移除已有的弹窗
+    const existing = document.querySelectorAll('.modal-overlay');
+    existing.forEach(el => el.remove());
+
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay show';
     overlay.innerHTML = html;
@@ -191,6 +195,9 @@ async function loadFiles(path) {
     try {
         const result = await fetchFiles(path);
         if (result.error) throw new Error(result.error);
+        // 清空选中
+        selectedFiles.clear();
+        window.selectedFiles = selectedFiles;
         fileList = result.files || [];
         renderFiles(fileList);
         document.getElementById('currentPathDisplay').textContent = path;
@@ -203,18 +210,26 @@ async function loadFiles(path) {
 
 function renderFiles(files) {
     const tbody = document.getElementById('fileTableBody');
+    if (!tbody) return;
+
+    // 如果传入的是 undefined 或 null，使用当前 fileList
+    if (!files) {
+        files = fileList || [];
+    }
+
     tbody.innerHTML = '';
     if (!files || files.length === 0) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>';
         return;
     }
-    fileList = files;
+
+    // 排序
     files.sort((a, b) => {
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
         return a.name.localeCompare(b.name);
     });
-    document.getElementById('fileCountDisplay').textContent = files.length + ' 项';
+
     files.forEach(file => {
         const tr = document.createElement('tr');
         const isDir = file.is_dir;
@@ -226,6 +241,7 @@ function renderFiles(files) {
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
         const checked = selectedFiles.has(file.path) ? 'checked' : '';
+
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
             `<td class="name-col${isDir ? ' folder-row' : ''}">${icon} ${escapeHtml(file.name)}</td>` +
@@ -233,6 +249,7 @@ function renderFiles(files) {
             `<td class="size-col">${size}</td>` +
             `<td class="date-col">${date}</td>` +
             `<td class="status-col ${statusClass}">${statusText}</td>`;
+
         const cb = tr.querySelector('input[type="checkbox"]');
         cb.addEventListener('change', function() {
             if (this.checked) {
@@ -245,6 +262,7 @@ function renderFiles(files) {
             updateSelectedInfo();
             document.dispatchEvent(new CustomEvent('selectionChanged', { detail: { selected: selectedFiles } }));
         });
+
         tbody.appendChild(tr);
     });
     updateSelectedInfo();
@@ -252,29 +270,44 @@ function renderFiles(files) {
 
 function updateSelectedInfo() {
     const count = selectedFiles.size;
-    document.getElementById('selectedInfo').textContent = count > 0 ? `✅ 已选 ${count} 项` : '';
+    const el = document.getElementById('selectedInfo');
+    if (el) {
+        el.textContent = count > 0 ? `✅ 已选 ${count} 项` : '';
+    }
 }
 
 // ===== DOM 初始化 =====
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('selectAllBtn').addEventListener('click', function() {
-        document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
-            cb.checked = true;
-            cb.dispatchEvent(new Event('change'));
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const selectAll = document.getElementById('selectAll');
+
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+                cb.dispatchEvent(new Event('change'));
+            });
         });
-    });
-    document.getElementById('clearAllBtn').addEventListener('click', function() {
-        document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
-            cb.checked = false;
-            cb.dispatchEvent(new Event('change'));
+    }
+
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+                cb.dispatchEvent(new Event('change'));
+            });
         });
-    });
-    document.getElementById('selectAll').addEventListener('change', function() {
-        document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
-            cb.checked = this.checked;
-            cb.dispatchEvent(new Event('change'));
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
+                cb.checked = this.checked;
+                cb.dispatchEvent(new Event('change'));
+            });
         });
-    });
+    }
 
     loadTree('/');
     loadFiles('/');
@@ -290,18 +323,22 @@ document.addEventListener('DOMContentLoaded', function() {
             ModuleRegistry.load(this.dataset.module);
         });
     });
-});
 
-document.getElementById('undoBtn')?.addEventListener('click', async function() {
-    if (renameHistory.length === 0) return;
-    try {
-        const result = await apiCall('/api/undo', {});
-        if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-        showLog('↩ ' + result.message, 'success');
-        renameHistory.pop();
-        if (renameHistory.length === 0) this.disabled = true;
-        renamePreview = {};
-        selectedFiles.clear();
-        await loadFiles(currentPath);
-    } catch (e) { showLog('❌ ' + e.message, 'error'); }
+    // 撤销按钮
+    const undoBtn = document.getElementById('undoBtn');
+    if (undoBtn) {
+        undoBtn.addEventListener('click', async function() {
+            if (renameHistory.length === 0) return;
+            try {
+                const result = await apiCall('/api/undo', {});
+                if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+                showLog('↩ ' + result.message, 'success');
+                renameHistory.pop();
+                if (renameHistory.length === 0) this.disabled = true;
+                renamePreview = {};
+                selectedFiles.clear();
+                await loadFiles(currentPath);
+            } catch (e) { showLog('❌ ' + e.message, 'error'); }
+        });
+    }
 });
