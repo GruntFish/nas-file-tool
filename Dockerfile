@@ -25,7 +25,7 @@ COPY modules/ ./modules/
 COPY templates/ ./templates/
 COPY favicon.ico .
 
-EXPOSE 5000
+EXPOSE 8668
 
 VOLUME /data
 
