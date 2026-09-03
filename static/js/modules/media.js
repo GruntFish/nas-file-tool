@@ -15,14 +15,14 @@ const MediaModule = {
     },
 
     updateCount() {
-        const count = getSelectedFiles().length;
+        const count = selectedFiles.size;
         const el = document.getElementById('mediaSelectedCount');
         if (el) el.textContent = count;
     },
 
     getImageFiles() {
         const exts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'];
-        return getSelectedFiles().filter(f => {
+        return Array.from(selectedFiles).filter(f => {
             const ext = f.substring(f.lastIndexOf('.')).toLowerCase();
             return exts.includes(ext);
         });
@@ -73,11 +73,9 @@ const MediaModule = {
 
         openModal(modalHtml);
         document.getElementById('mediaCompressConfirm').addEventListener('click', () => this.doCompress(files));
-        // 预览模式切换时自动预览
         document.getElementById('mediaQuality').addEventListener('input', () => this.previewCompress(files));
         document.getElementById('mediaFormat').addEventListener('change', () => this.previewCompress(files));
         document.getElementById('mediaDryRun').addEventListener('change', () => this.previewCompress(files));
-        // 自动预览
         setTimeout(() => this.previewCompress(files), 100);
     },
 
@@ -120,9 +118,7 @@ const MediaModule = {
                 previewList.innerHTML = '<div style="color:#4a4e62;">没有图片需要压缩</div>';
                 previewArea.style.display = 'block';
             }
-        } catch (e) {
-            // 预览失败静默处理
-        }
+        } catch (e) {}
     },
 
     async doCompress(files) {
