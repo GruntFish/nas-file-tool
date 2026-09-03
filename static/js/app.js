@@ -11,20 +11,17 @@ const ModuleRegistry = {
     async load(name) {
         if (this.currentModule === name && this.modules[name]?.loaded) return;
 
-        // ===== 切换模块时重置状态 =====
         window.selectedFiles.clear();
         updateSelectedInfo();
         window.renamePreview = {};
         closeModal();
 
-        // ===== 重置全选复选框 =====
         const selectAllCheckbox = document.getElementById('selectAll');
         if (selectAllCheckbox) {
             selectAllCheckbox.checked = false;
             selectAllCheckbox.indeterminate = false;
         }
 
-        // ===== 清除所有行的选中样式和复选框 =====
         document.querySelectorAll('#fileTableBody tr.selected').forEach(tr => {
             tr.classList.remove('selected');
         });
@@ -63,7 +60,6 @@ const ModuleRegistry = {
 
 window.ModuleRegistry = ModuleRegistry;
 
-// ===== 全局状态（统一使用 window.xxx） =====
 window.currentPath = '/';
 window.fileList = [];
 window.selectedFiles = new Set();
@@ -72,7 +68,6 @@ window.renameHistory = [];
 window.fullTreeData = [];
 window.filterRegex = null;
 
-// ===== API 调用 =====
 async function apiCall(endpoint, data) {
     const res = await fetch(endpoint, {
         method: 'POST',
@@ -86,7 +81,6 @@ async function fetchTree(path) { return apiCall('/api/tree', { path }); }
 async function fetchFiles(path) { return apiCall('/api/files', { path }); }
 async function dedupFiles(data) { return apiCall('/api/dedup', data); }
 
-// ===== 工具函数 =====
 function getFileName(filePath) {
     if (!filePath) return '';
     const parts = filePath.split('/');
@@ -155,7 +149,6 @@ function closeModal() {
     document.querySelectorAll('.modal-overlay.show').forEach(el => el.remove());
 }
 
-// ===== 目录树 =====
 async function loadTree(path) {
     try {
         const result = await fetchTree(path);
@@ -215,7 +208,6 @@ function renderTree(nodes, container) {
     });
 }
 
-// ===== 全选状态更新函数 =====
 function updateSelectAllState() {
     const selectAll = document.getElementById('selectAll');
     if (!selectAll) return;
@@ -241,7 +233,6 @@ function updateSelectAllState() {
     }
 }
 
-// ===== 文件列表 =====
 async function loadFiles(path) {
     try {
         const result = await fetchFiles(path);
@@ -263,11 +254,9 @@ function renderFiles(files) {
 
     const fileData = files || window.fileList || [];
 
-    // ===== 应用过滤（大小写敏感） =====
     let filteredFiles = fileData;
     if (window.filterRegex) {
         try {
-            // ===== 【修复】去掉 'i' 标志，大小写敏感 =====
             const regex = new RegExp(window.filterRegex);
             filteredFiles = fileData.filter(f => {
                 if (f.is_dir) return true;
@@ -278,7 +267,6 @@ function renderFiles(files) {
         }
     }
 
-    // 更新过滤计数
     const filterCountEl = document.getElementById('filterCount');
     if (filterCountEl) {
         const total = fileData.length;
@@ -318,7 +306,6 @@ function renderFiles(files) {
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
 
-        // ===== 确保路径格式一致，支持三种格式匹配 =====
         const isChecked = window.selectedFiles.has(file.path) || 
                           window.selectedFiles.has(file.path.replace(/^\//, '')) ||
                           window.selectedFiles.has('/' + file.path);
@@ -371,33 +358,27 @@ function updateSelectedInfo() {
     if (el) {
         el.textContent = count > 0 ? `✅ 已选 ${count} 项` : '';
     }
-    // 同时更新所有模块的计数
     document.querySelectorAll('[id$="SelectedCount"]').forEach(el => {
         el.textContent = count;
     });
 }
 
-// ===== DOM 初始化 =====
 document.addEventListener('DOMContentLoaded', function() {
     const selectAllBtn = document.getElementById('selectAllBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
     const selectAll = document.getElementById('selectAll');
 
-    // ===== 过滤输入框：正则匹配实时同步勾选状态（大小写敏感） =====
     const filterInput = document.getElementById('filterInput');
     if (filterInput) {
         filterInput.addEventListener('input', function() {
             const val = this.value.trim();
             window.filterRegex = val || null;
 
-            // 1. 重绘文件列表
             renderFiles(window.fileList);
 
-            // 2. 获取当前所有可见的 checkbox
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
 
             if (val === '') {
-                // 无正则：取消所有勾选
                 checkboxes.forEach(cb => {
                     cb.checked = false;
                     window.selectedFiles.delete(cb.value);
@@ -405,9 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (tr) tr.classList.remove('selected');
                 });
             } else {
-                // 有正则：仅勾选匹配项（大小写敏感）
                 try {
-                    // ===== 【修复】去掉 'i' 标志，大小写敏感 =====
                     const regex = new RegExp(val);
                     checkboxes.forEach(cb => {
                         const fileName = getFileName(cb.value);
@@ -424,7 +403,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 } catch (e) {
-                    // 正则无效：取消全部勾选
                     checkboxes.forEach(cb => {
                         cb.checked = false;
                         window.selectedFiles.delete(cb.value);
@@ -434,7 +412,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // 3. 更新界面
             updateSelectedInfo();
             updateSelectAllState();
             document.dispatchEvent(new CustomEvent('selectionChanged', {
@@ -443,7 +420,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== 全选按钮 =====
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', function() {
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
@@ -461,7 +437,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== 取消全选按钮 =====
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', function() {
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
@@ -479,7 +454,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== 全选复选框事件 =====
     if (selectAll) {
         selectAll.addEventListener('change', function() {
             const isChecked = this.checked;
@@ -507,6 +481,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }));
         });
     }
+
+    // ===== 【新增】键盘快捷键 =====
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'a') {
+            e.preventDefault();
+            const btn = document.getElementById('selectAllBtn');
+            if (btn) btn.click();
+        }
+        if (e.key === 'Escape') {
+            const btn = document.getElementById('clearAllBtn');
+            if (btn) btn.click();
+        }
+        if (e.ctrlKey && e.key === 'z') {
+            e.preventDefault();
+            const undoBtn = document.getElementById('undoBtn');
+            if (undoBtn && !undoBtn.disabled) undoBtn.click();
+        }
+    });
 
     loadTree('/');
     loadFiles('/');
@@ -540,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 刷新树
     document.getElementById('refreshTreeBtn')?.addEventListener('click', function() {
         loadTree(window.currentPath);
     });
