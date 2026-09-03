@@ -28,7 +28,7 @@ def register(app):
             if visited is None:
                 visited = set()
             
-            # ===== 【修复】防止软链接循环 =====
+            # 防止软链接循环
             real_path = str(path.resolve())
             if real_path in visited:
                 return []
@@ -50,9 +50,13 @@ def register(app):
                             continue
                     
                     if item.is_dir():
+                        # ===== 【修复】统一路径格式：以 / 开头 =====
+                        rel_path = str(item.relative_to(work_dir))
+                        if not rel_path.startswith('/'):
+                            rel_path = '/' + rel_path
                         node = {
                             'name': item.name,
-                            'path': str(item.relative_to(work_dir)),
+                            'path': rel_path,
                             'is_dir': True,
                             'size': 0,
                             'children': build_tree(item, depth + 1, visited.copy())
@@ -86,14 +90,18 @@ def register(app):
         files = []
         try:
             for item in target.iterdir():
-                # ===== 【修复】跳过软链接指向目录的情况 =====
+                # 跳过软链接
                 if item.is_symlink():
                     continue
                 try:
                     stat = item.stat()
+                    # ===== 【修复】统一路径格式：以 / 开头 =====
+                    rel_path = str(item.relative_to(work_dir))
+                    if not rel_path.startswith('/'):
+                        rel_path = '/' + rel_path
                     files.append({
                         'name': item.name,
-                        'path': str(item.relative_to(work_dir)),
+                        'path': rel_path,
                         'is_dir': item.is_dir(),
                         'size': stat.st_size if item.is_file() else 0,
                         'modified': stat.st_mtime if item.is_file() else None,
