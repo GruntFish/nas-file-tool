@@ -94,15 +94,14 @@ jobs:
 
       - name: 安装 fnpack
         run: |
-          # 下载 fnpack
           if [ "${{ matrix.arch }}" = "amd64" ]; then
-            wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/latest/download/fnpack-linux-amd64
+            wget -q -O fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
           else
-            wget -q -O fnpack https://github.com/fnos-os/fnpack/releases/latest/download/fnpack-linux-arm64
+            wget -q -O fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-arm64
           fi
           chmod +x fnpack
           sudo mv fnpack /usr/local/bin/
-          fnpack --version || echo "fnpack 安装完成"
+          fnpack --help
 
       - name: 准备 FPK 打包目录
         run: |
