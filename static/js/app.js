@@ -263,11 +263,12 @@ function renderFiles(files) {
 
     const fileData = files || window.fileList || [];
 
-    // 应用过滤
+    // ===== 应用过滤（大小写敏感） =====
     let filteredFiles = fileData;
     if (window.filterRegex) {
         try {
-            const regex = new RegExp(window.filterRegex, 'i');
+            // ===== 【修复】去掉 'i' 标志，大小写敏感 =====
+            const regex = new RegExp(window.filterRegex);
             filteredFiles = fileData.filter(f => {
                 if (f.is_dir) return true;
                 return regex.test(f.name);
@@ -382,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearAllBtn = document.getElementById('clearAllBtn');
     const selectAll = document.getElementById('selectAll');
 
-    // ===== 过滤输入框：正则匹配实时同步勾选状态 =====
+    // ===== 过滤输入框：正则匹配实时同步勾选状态（大小写敏感） =====
     const filterInput = document.getElementById('filterInput');
     if (filterInput) {
         filterInput.addEventListener('input', function() {
@@ -404,9 +405,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (tr) tr.classList.remove('selected');
                 });
             } else {
-                // 有正则：仅勾选匹配项
+                // 有正则：仅勾选匹配项（大小写敏感）
                 try {
-                    const regex = new RegExp(val, 'i');
+                    // ===== 【修复】去掉 'i' 标志，大小写敏感 =====
+                    const regex = new RegExp(val);
                     checkboxes.forEach(cb => {
                         const fileName = getFileName(cb.value);
                         const isMatch = regex.test(fileName);
