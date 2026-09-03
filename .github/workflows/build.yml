@@ -75,14 +75,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ===== 构建 FPK 包 =====
+  # ===== 构建 FPK 包（只打一次，用 amd64） =====
   build-fpk:
     name: 构建 FPK 包
     runs-on: ubuntu-latest
     needs: [create-tag, build-docker]
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
 
     steps:
       - name: 检出代码
@@ -94,11 +91,7 @@ jobs:
 
       - name: 安装 fnpack
         run: |
-          if [ "${{ matrix.arch }}" = "amd64" ]; then
-            wget -q -O fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
-          else
-            wget -q -O fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-arm64
-          fi
+          wget -q -O fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
           chmod +x fnpack
           sudo mv fnpack /usr/local/bin/
           fnpack --help
@@ -113,7 +106,7 @@ jobs:
           version: '3.8'
           services:
             file-tool:
-              image: ghcr.io/${{ env.REPO_LOWER }}:latest-${{ matrix.arch }}
+              image: ghcr.io/${{ env.REPO_LOWER }}:latest
               container_name: file-tool
               ports:
                 - "8658:8658"
@@ -130,7 +123,8 @@ jobs:
           version: ${{ needs.create-tag.outputs.tag }}
           description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
           arch:
-            - ${{ matrix.arch }}
+            - amd64
+            - arm64
           developer: ${{ github.repository_owner }}
           homepage: https://github.com/${{ github.repository }}
           type: compose
@@ -188,20 +182,20 @@ jobs:
       - name: 打包 FPK
         run: |
           cd fpk-build
-          fnpack build -o ../nas-file-tool-${{ matrix.arch }}.fpk
+          fnpack build -o ../nas-file-tool.fpk
 
       - name: 上传 FPK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: nas-file-tool-${{ matrix.arch }}
-          path: nas-file-tool-*.fpk
+          name: nas-file-tool
+          path: nas-file-tool.fpk
 
       - name: 创建 Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.create-tag.outputs.tag }}
           name: Release ${{ needs.create-tag.outputs.tag }}
-          files: nas-file-tool-*.fpk
+          files: nas-file-tool.fpk
           generate_release_notes: true
           draft: false
           prerelease: false
