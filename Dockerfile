@@ -3,9 +3,6 @@ FROM python:3.11-alpine
 RUN apk add --no-cache \
     jpegoptim \
     optipng \
-    libwebp-tools \
-    vips \
-    vips-dev \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /app
