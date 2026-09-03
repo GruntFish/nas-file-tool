@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号 (如 v1.0.0)'
+        description: '版本号 (如 v1.1.0)'
         required: true
-        default: 'v1.0.0'
+        default: 'v1.1.0'
         type: string
 
 jobs:
@@ -46,6 +46,7 @@ jobs:
         run: |
           cat > nas-file-tool/manifest << EOF
           appname: nas-file-tool
+          display_name: 文件工具箱
           version: ${{ github.event.inputs.version }}
           description: 文件工具箱
           arch: amd64
