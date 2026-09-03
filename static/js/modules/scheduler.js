@@ -47,7 +47,6 @@ const SchedulerModule = {
             html += '</div>';
             container.innerHTML = html;
 
-            // 绑定事件
             container.querySelectorAll('.scheduler-toggle').forEach(btn => {
                 btn.addEventListener('click', () => this.toggleTask(btn.dataset.id));
             });
@@ -113,7 +112,6 @@ const SchedulerModule = {
 
         openModal(modalHtml);
 
-        // 切换调度方式显示
         document.getElementById('schedulerScheduleType').addEventListener('change', function() {
             document.getElementById('schedulerCronGroup').style.display = this.value === 'cron' ? 'block' : 'none';
             document.getElementById('schedulerIntervalGroup').style.display = this.value === 'interval' ? 'block' :
