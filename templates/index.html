@@ -7,21 +7,14 @@
     <link rel="icon" href="/favicon.ico">
     <link rel="shortcut icon" href="/favicon.ico">
     <style>
-        /* ===== 全局样式 ===== */
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1117;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
         .container{width:100%;max-width:1600px;height:95vh;background:#1a1d27;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
-        
-        /* ===== 顶部标题栏 ===== */
         .header{padding:10px 20px;background:#222632;border-bottom:1px solid #2d313e;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
         .header h1{font-size:15px;color:#e4e6eb;display:flex;align-items:center;gap:10px}
         .header h1 span{background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
         .header-actions .badge{color:#8b8fa3;font-size:11px;background:#2d313e;padding:4px 14px;border-radius:20px}
-
-        /* ===== 主体 ===== */
         .main{display:flex;flex:1;overflow:hidden}
-
-        /* ===== 左侧目录树 ===== */
         .sidebar{width:280px;min-width:200px;background:#14171f;border-right:1px solid #2d313e;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
         .sidebar-header{padding:8px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;font-size:11px;color:#8b8fa3;text-transform:uppercase;letter-spacing:1px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
         .sidebar-header .refresh-btn{background:0;border:0;color:#667eea;cursor:pointer;font-size:14px;padding:2px 8px;border-radius:4px}
@@ -39,25 +32,15 @@
         .tree-item .arrow.open{transform:rotate(90deg)}
         .tree-children{padding-left:16px;overflow:hidden}
         .tree-children.collapsed{display:none}
-
-        /* ===== 右侧内容 ===== */
         .content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-
-        /* ===== 功能模块菜单 ===== */
         .module-menu{display:flex;gap:2px;padding:4px 14px;background:#14171f;border-bottom:1px solid #2d313e;flex-shrink:0;flex-wrap:wrap}
         .module-menu .menu-btn{background:0;border:0;color:#8b8fa3;padding:5px 14px;font-size:12px;cursor:pointer;border-radius:4px;transition:all .15s;font-family:inherit}
         .module-menu .menu-btn:hover{background:#2d313e;color:#e4e6eb}
         .module-menu .menu-btn.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
-
-        /* ===== 模块内容区 ===== */
-        .module-content{flex:1;display:flex;flex-direction:column;overflow:hidden}
-
-        /* ===== 路径栏 ===== */
         .path-bar{padding:4px 14px;background:#1a1d27;border-bottom:1px solid #2d313e;display:flex;align-items:center;flex-shrink:0;min-height:32px}
         .path-bar .path-display{color:#8b8fa3;font-size:12px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .path-bar .path-display strong{color:#e4e6eb}
-
-        /* ===== 文件列表 ===== */
+        .module-content{flex:1;display:flex;flex-direction:column;overflow:hidden}
         .file-list-container{flex:1;overflow:auto;padding:0}
         .file-list-container::-webkit-scrollbar{width:6px;height:6px}
         .file-list-container::-webkit-scrollbar-track{background:#14171f}
@@ -80,8 +63,7 @@
         .file-table .status-col.ok{color:#68d391}
         .file-table .folder-row .name-col{color:#f0c94d}
         .file-table .empty-row td{padding:40px;text-align:center;color:#4a4e62;font-size:14px}
-
-        /* ===== 日志 ===== */
+        .status-bar{padding:3px 16px;background:#14171f;border-top:1px solid #2d313e;display:flex;justify-content:space-between;font-size:11px;color:#4a4e62;flex-shrink:0}
         .log-area{max-height:60px;overflow-y:auto;background:#14171f;border-top:1px solid #2d313e;padding:3px 16px;font-family:'Courier New',monospace;font-size:11px;line-height:1.4;display:none;flex-shrink:0}
         .log-area.show{display:block}
         .log-area .log-line{color:#8b8fa3;padding:1px 0}
@@ -91,58 +73,21 @@
         .log-area::-webkit-scrollbar{width:4px}
         .log-area::-webkit-scrollbar-track{background:#14171f}
         .log-area::-webkit-scrollbar-thumb{background:#2d313e;border-radius:4px}
-
-        /* ===== 状态栏 ===== */
-        .status-bar{padding:3px 16px;background:#14171f;border-top:1px solid #2d313e;display:flex;justify-content:space-between;font-size:11px;color:#4a4e62;flex-shrink:0}
-
-        /* ===== 模态框 ===== */
-        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
-        .modal-overlay.show{display:flex}
-        .modal{background:#1a1d27;border-radius:12px;padding:20px 24px;max-width:650px;width:92%;max-height:85vh;overflow-y:auto;border:1px solid #2d313e;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
-        .modal h2{color:#e4e6eb;font-size:17px;margin-bottom:12px}
-        .modal h3{color:#8b8fa3;font-size:13px;margin:10px 0 6px}
-        .modal hr{border:0;border-top:1px solid #2d313e;margin:10px 0}
-        .modal .form-group{margin-bottom:8px}
-        .modal .form-group label{display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:2px}
-        .modal .form-group select,.modal .form-group input{width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit}
-        .modal .form-group select:focus,.modal .form-group input:focus{border-color:#667eea}
-        .modal .form-group input[type=checkbox]{width:auto;accent-color:#667eea}
-        .modal .filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-        .modal .filter-grid .form-group{margin-bottom:0}
-        .modal .filter-grid .form-group label{font-size:11px}
-        .modal .filter-grid .form-group select,.modal .filter-grid .form-group input{padding:4px 6px;font-size:12px}
-        .modal .filter-grid .full-width{grid-column:1 / -1}
-        .modal .filter-grid .full-width input{width:100%}
-        .modal .btn-row{display:flex;gap:10px;margin-top:14px}
-        .modal .btn-row button{flex:1;padding:8px;border:0;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
-        .modal .btn-row .btn-confirm{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
-        .modal .btn-row .btn-confirm:hover{opacity:.85}
-        .modal .btn-row .btn-cancel{background:#2d313e;color:#b5b9c9}
-        .modal .btn-row .btn-cancel:hover{background:#3d4150}
-        .modal .preview-info{background:#14171f;border-radius:6px;padding:6px 10px;margin:4px 0;font-size:12px;color:#b5b9c9}
-        .modal .preview-info .matched{color:#68d391}
-        .modal .preview-info .total{color:#8b8fa3}
-        .modal .preview-list{max-height:120px;overflow-y:auto;background:#14171f;border-radius:6px;padding:4px 8px;margin:4px 0;font-size:12px;font-family:monospace;color:#b5b9c9}
-        .modal .preview-list .changed{color:#68d391}
-
         .loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid #2d313e;border-top:2px solid #667eea;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
         @keyframes spin{to{transform:rotate(360deg)}}
-
-        @media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}.modal{max-width:95%;padding:16px}.modal .filter-grid{grid-template-columns:1fr 1fr}}
-        @media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}.modal .filter-grid{grid-template-columns:1fr}}
+        @media(max-width:768px){.sidebar{width:180px;min-width:120px}.container{height:98vh;border-radius:0}.file-table{font-size:11px}.file-table th,.file-table td{padding:4px 6px}}
+        @media(max-width:500px){.sidebar{display:none}.file-table .date-col{display:none}.file-table .size-col{display:none}}
     </style>
 </head>
 <body>
 
     <div class="container">
-        <!-- 顶部标题 -->
         <div class="header">
             <h1>📂 <span>文件工具箱</span></h1>
             <div class="header-actions"><span class="badge">🔄 本地处理 · 隐私安全</span></div>
         </div>
 
         <div class="main">
-            <!-- ===== 左侧：目录树 ===== -->
             <div class="sidebar">
                 <div class="sidebar-header">
                     📁 目录树
@@ -155,9 +100,18 @@
                 </div>
             </div>
 
-            <!-- ===== 右侧：内容区 ===== -->
             <div class="content">
-                <!-- 路径栏 -->
+                <div class="module-menu" id="moduleMenu">
+                    <button class="menu-btn active" data-module="rename">✏️ 重命名</button>
+                    <button class="menu-btn" data-module="move_copy">📦 移动/复制</button>
+                    <button class="menu-btn" data-module="dedup">🧹 去重</button>
+                    <button class="menu-btn" data-module="delete">🗑️ 删除</button>
+                    <button class="menu-btn" data-module="classify">📂 分类整理</button>
+                    <button class="menu-btn" data-module="chmod">🔒 权限</button>
+                    <button class="menu-btn" data-module="media">🎬 媒体处理</button>
+                    <button class="menu-btn" data-module="scheduler">⏰ 定时任务</button>
+                </div>
+
                 <div class="path-bar">
                     <div class="path-display">
                         📂 <strong id="currentPathDisplay">/</strong>
@@ -170,24 +124,8 @@
                     </div>
                 </div>
 
-                <!-- 模块菜单 -->
-                <div class="module-menu" id="moduleMenu">
-                    <button class="menu-btn active" data-module="rename">✏️ 重命名</button>
-                    <button class="menu-btn" data-module="move_copy">📦 移动/复制</button>
-                    <button class="menu-btn" data-module="dedup">🧹 去重</button>
-                    <button class="menu-btn" data-module="delete">🗑️ 删除</button>
-                    <button class="menu-btn" data-module="classify">📂 分类整理</button>
-                    <button class="menu-btn" data-module="chmod">🔒 权限</button>
-                    <button class="menu-btn" data-module="media">🎬 媒体处理</button>
-                    <button class="menu-btn" data-module="scheduler">⏰ 定时任务</button>
-                </div>
+                <div class="module-content" id="moduleContent"></div>
 
-                <!-- 模块内容挂载点 -->
-                <div class="module-content" id="moduleContent">
-                    <!-- 由 JS 动态加载 -->
-                </div>
-
-                <!-- 文件列表 -->
                 <div class="file-list-container" id="fileListContainer">
                     <table class="file-table">
                         <thead>
@@ -216,441 +154,14 @@
         </div>
     </div>
 
-    <!-- 全局模态框容器 -->
-    <div id="modalContainer"></div>
-
-    <script>
-        // ===== ===== ===== ===== =====
-        // 全局工具函数
-        // ===== ===== ===== ===== =====
-
-        function getFileName(filePath) {
-            if (!filePath) return '';
-            const parts = filePath.split('/');
-            return parts[parts.length - 1];
-        }
-
-        function getFileExtension(fileName) {
-            const idx = fileName.lastIndexOf('.');
-            if (idx > 0) return fileName.substring(idx);
-            return '';
-        }
-
-        function getFileNameWithoutExt(fileName) {
-            const idx = fileName.lastIndexOf('.');
-            if (idx > 0) return fileName.substring(0, idx);
-            return fileName;
-        }
-
-        function formatSize(bytes) {
-            if (!bytes) return '';
-            const units = ['B', 'KB', 'MB', 'GB'];
-            let i = 0;
-            while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024;
-                i++; }
-            return bytes.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function showLog(msg, type) {
-            const logArea = document.getElementById('logArea');
-            logArea.classList.add('show');
-            const div = document.createElement('div');
-            div.className = 'log-line ' + (type || 'info');
-            div.textContent = msg;
-            logArea.appendChild(div);
-            logArea.scrollTop = logArea.scrollHeight;
-        }
-
-        function clearLog() {
-            const logArea = document.getElementById('logArea');
-            logArea.innerHTML = '';
-            logArea.classList.remove('show');
-        }
-
-        function openModal(html) {
-            const container = document.getElementById('modalContainer');
-            container.innerHTML = html;
-            container.querySelector('.modal-overlay').classList.add('show');
-        }
-
-        function closeModal() {
-            const container = document.getElementById('modalContainer');
-            container.innerHTML = '';
-        }
-
-        // ===== ===== ===== ===== =====
-        // API 调用
-        // ===== ===== ===== ===== =====
-
-        async function apiCall(endpoint, data) {
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            return res.json();
-        }
-
-        async function fetchTree(path) { return apiCall('/api/tree', { path }); }
-        async function fetchFiles(path) { return apiCall('/api/files', { path }); }
-        async function undoRename() { return apiCall('/api/undo', {}); }
-        async function dedupFiles(data) { return apiCall('/api/dedup', data); }
-
-        // ===== ===== ===== ===== =====
-        // 全局状态
-        // ===== ===== ===== ===== =====
-
-        let currentPath = '/';
-        let fileList = [];
-        let renamePreview = {};
-        let renameHistory = [];
-        let fullTreeData = [];
-        let selectedFiles = new Set();
-        let currentModule = 'rename';
-
-        // ===== ===== ===== ===== =====
-        // DOM 引用
-        // ===== ===== ===== ===== =====
-
-        const treeContainer = document.getElementById('treeContainer');
-        const fileTableBody = document.getElementById('fileTableBody');
-        const currentPathDisplay = document.getElementById('currentPathDisplay');
-        const fileCountDisplay = document.getElementById('fileCountDisplay');
-        const selectedInfo = document.getElementById('selectedInfo');
-        const statusLeft = document.getElementById('statusLeft');
-        const logArea = document.getElementById('logArea');
-
-        // ===== ===== ===== ===== =====
-        // 目录树
-        // ===== ===== ===== ===== =====
-
-        function renderTree(nodes, container) {
-            container.innerHTML = '';
-            if (!nodes || nodes.length === 0) {
-                container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>';
-                return;
-            }
-            const folders = nodes.filter(n => n.is_dir);
-            if (folders.length === 0) {
-                container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>';
-                return;
-            }
-            folders.sort((a, b) => a.name.localeCompare(b.name));
-            folders.forEach(node => {
-                const item = document.createElement('div');
-                item.className = 'tree-item';
-                if (node.path === currentPath) item.classList.add('active');
-                const hasChildren = node.children && node.children.length > 0;
-                item.innerHTML = '<span class="icon">📁</span><span class="name">' + escapeHtml(node.name) +
-                    '</span>' + (hasChildren ? '<span class="arrow open">▼</span>' : '');
-                item.addEventListener('click', function(e) {
-                    if (e.target.classList.contains('arrow')) return;
-                    navigateTo(node.path);
-                });
-                container.appendChild(item);
-                if (hasChildren) {
-                    const childContainer = document.createElement('div');
-                    childContainer.className = 'tree-children';
-                    if (currentPath.startsWith(node.path)) {
-                        childContainer.classList.remove('collapsed');
-                    } else {
-                        childContainer.classList.add('collapsed');
-                    }
-                    renderTree(node.children, childContainer);
-                    container.appendChild(childContainer);
-                    const arrow = item.querySelector('.arrow');
-                    if (arrow) {
-                        arrow.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            childContainer.classList.toggle('collapsed');
-                            arrow.classList.toggle('open');
-                        });
-                    }
-                }
-            });
-        }
-
-        function updateTreeHighlight(path) {
-            document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
-            const parts = path.split('/').filter(p => p);
-            let currentContainer = treeContainer;
-            for (let i = 0; i < parts.length; i++) {
-                const items = currentContainer.querySelectorAll(':scope > .tree-item');
-                for (let item of items) {
-                    const nameEl = item.querySelector('.name');
-                    if (nameEl && nameEl.textContent === parts[i]) {
-                        item.classList.add('active');
-                        const childContainer = item.parentElement.querySelector(':scope > .tree-children');
-                        if (childContainer) {
-                            childContainer.classList.remove('collapsed');
-                            const arrow = item.querySelector('.arrow');
-                            if (arrow) arrow.classList.add('open');
-                            currentContainer = childContainer;
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        async function initTree() {
-            try {
-                const result = await fetchTree('/');
-                if (result.error) throw new Error(result.error);
-                fullTreeData = result.tree || [];
-                renderTree(fullTreeData, treeContainer);
-                await loadFiles('/');
-            } catch (err) {
-                treeContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#e53e3e;">❌ 加载失败</div>';
-            }
-        }
-
-        // ===== ===== ===== ===== =====
-        // 文件列表
-        // ===== ===== ===== ===== =====
-
-        async function loadFiles(path) {
-            currentPath = path;
-            currentPathDisplay.textContent = path;
-            statusLeft.textContent = '📂 加载中...';
-            try {
-                const result = await fetchFiles(path);
-                if (result.error) throw new Error(result.error);
-                fileList = result.files || [];
-                selectedFiles.clear();
-                renderFiles(fileList);
-                updateTreeHighlight(path);
-                statusLeft.textContent = '📂 ' + path;
-                // 通知当前模块刷新
-                if (window.ModuleManager && window.ModuleManager.current) {
-                    window.ModuleManager.current.onFileLoad && window.ModuleManager.current.onFileLoad(fileList);
-                }
-            } catch (err) {
-                statusLeft.textContent = '❌ 加载失败: ' + err.message;
-            }
-        }
-
-        async function navigateTo(path) {
-            renamePreview = {};
-            await loadFiles(path);
-        }
-
-        function renderFiles(files) {
-            const tbody = fileTableBody;
-            tbody.innerHTML = '';
-            if (!files || files.length === 0) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>';
-                fileCountDisplay.textContent = '0 项';
-                updateSelectedInfo();
-                return;
-            }
-            fileList = files;
-            files.sort((a, b) => {
-                if (a.is_dir && !b.is_dir) return -1;
-                if (!a.is_dir && b.is_dir) return 1;
-                return a.name.localeCompare(b.name);
-            });
-            fileCountDisplay.textContent = files.length + ' 项';
-            files.forEach(file => {
-                const tr = document.createElement('tr');
-                const isDir = file.is_dir;
-                const icon = isDir ? '📁' : '📄';
-                const size = isDir ? '' : formatSize(file.size);
-                const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
-                const newName = renamePreview[file.path] || file.name;
-                const isChanged = newName !== file.name && !isDir;
-                const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
-                const statusClass = isChanged ? 'changed' : 'ok';
-                const checked = selectedFiles.has(file.path) ? 'checked' : '';
-                tr.innerHTML =
-                    '<td class="checkbox-col"><input type="checkbox" value="' + escapeHtml(file.path) + '" ' +
-                    checked + '></td>' +
-                    '<td class="name-col' + (isDir ? ' folder-row' : '') + '">' + icon + ' ' + escapeHtml(file
-                    .name) + '</td>' +
-                    '<td class="new-name-col' + (isChanged && !isDir ? '' : ' unchanged') + '">' + (isDir ? '-' :
-                        escapeHtml(newName)) + '</td>' +
-                    '<td class="size-col">' + size + '</td>' +
-                    '<td class="date-col">' + date + '</td>' +
-                    '<td class="status-col ' + statusClass + '">' + statusText + '</td>';
-
-                const checkbox = tr.querySelector('input[type="checkbox"]');
-                checkbox.addEventListener('change', function() {
-                    if (this.checked) {
-                        selectedFiles.add(file.path);
-                        tr.classList.add('selected');
-                    } else {
-                        selectedFiles.delete(file.path);
-                        tr.classList.remove('selected');
-                    }
-                    updateSelectedInfo();
-                    // 通知当前模块
-                    if (window.ModuleManager && window.ModuleManager.current) {
-                        window.ModuleManager.current.onSelectChange && window.ModuleManager.current
-                        .onSelectChange(selectedFiles);
-                    }
-                });
-
-                tbody.appendChild(tr);
-            });
-            updateSelectedInfo();
-        }
-
-        function updateSelectedInfo() {
-            const count = selectedFiles.size;
-            if (count > 0) {
-                selectedInfo.textContent = '✅ 已选 ' + count + ' 项';
-            } else {
-                selectedInfo.textContent = '';
-            }
-            const allCheckboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]');
-            const checkedCheckboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:checked');
-            const selectAll = document.getElementById('selectAll');
-            if (allCheckboxes.length > 0) {
-                selectAll.checked = allCheckboxes.length === checkedCheckboxes.length;
-            }
-        }
-
-        // ===== ===== ===== ===== =====
-        // 模块管理器
-        // ===== ===== ===== ===== =====
-
-        const ModuleManager = {
-            modules: {},
-            current: null,
-            currentName: null,
-
-            register(name, module) {
-                this.modules[name] = module;
-            },
-
-            async load(name) {
-                if (this.currentName === name) return;
-                this.currentName = name;
-
-                // 更新菜单高亮
-                document.querySelectorAll('.menu-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.module === name);
-                });
-
-                const container = document.getElementById('moduleContent');
-
-                // 加载模块HTML
-                try {
-                    const res = await fetch('/modules/' + name + '.html');
-                    if (!res.ok) throw new Error('模块不存在');
-                    const html = await res.text();
-                    container.innerHTML = html;
-
-                    // 卸载旧模块
-                    if (this.current && this.current.destroy) {
-                        this.current.destroy();
-                    }
-
-                    // 加载模块JS
-                    const module = this.modules[name];
-                    if (module) {
-                        this.current = module;
-                        if (module.init) {
-                            module.init();
-                        }
-                        if (module.onFileLoad) {
-                            module.onFileLoad(fileList);
-                        }
-                        if (module.onSelectChange) {
-                            module.onSelectChange(selectedFiles);
-                        }
-                    } else {
-                        this.current = null;
-                    }
-                } catch (err) {
-                    container.innerHTML = '<div style="padding:40px;text-align:center;color:#e53e3e;">❌ 模块加载失败: ' +
-                        err.message + '</div>';
-                }
-            }
-        };
-
-        // ===== ===== ===== ===== =====
-        // 菜单切换
-        // ===== ===== ===== ===== =====
-
-        document.querySelectorAll('.menu-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                ModuleManager.load(this.dataset.module);
-            });
-        });
-
-        // ===== ===== ===== ===== =====
-        // 全选/取消
-        // ===== ===== ===== ===== =====
-
-        document.getElementById('selectAllBtn').addEventListener('click', function() {
-            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
-                cb.checked = true;
-                cb.dispatchEvent(new Event('change'));
-            });
-        });
-
-        document.getElementById('clearAllBtn').addEventListener('click', function() {
-            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
-                cb.dispatchEvent(new Event('change'));
-            });
-        });
-
-        document.getElementById('selectAll').addEventListener('change', function() {
-            document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
-                cb.checked = this.checked;
-                cb.dispatchEvent(new Event('change'));
-            });
-        });
-
-        // ===== ===== ===== ===== =====
-        // 撤销
-        // ===== ===== ===== ===== =====
-
-        document.getElementById('undoBtn').addEventListener('click', async function() {
-            if (renameHistory.length === 0) return;
-            try {
-                const result = await undoRename();
-                if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-                showLog('↩ ' + result.message, 'success');
-                renameHistory.pop();
-                if (renameHistory.length === 0) this.disabled = true;
-                renamePreview = {};
-                selectedFiles.clear();
-                await loadFiles(currentPath);
-            } catch (e) { showLog('❌ ' + e.message, 'error'); }
-        });
-
-        // ===== ===== ===== ===== =====
-        // 初始化
-        // ===== ===== ===== ===== =====
-
-        // 注册内置模块
-        // 每个模块单独注册
-
-        // 初始化目录树
-        initTree();
-
-        // 默认加载重命名模块
-        setTimeout(() => {
-            ModuleManager.load('rename');
-        }, 300);
-
-        window.ModuleManager = ModuleManager;
-        window.getSelectedFiles = () => Array.from(selectedFiles);
-        window.getAllFiles = () => fileList;
-        window.currentPath = () => currentPath;
-        window.showLog = showLog;
-        window.clearLog = clearLog;
-        window.apiCall = apiCall;
-    </script>
-
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/modules/rename.js"></script>
+    <script src="/static/js/modules/move_copy.js"></script>
+    <script src="/static/js/modules/dedup.js"></script>
+    <script src="/static/js/modules/delete.js"></script>
+    <script src="/static/js/modules/classify.js"></script>
+    <script src="/static/js/modules/chmod.js"></script>
+    <script src="/static/js/modules/media.js"></script>
+    <script src="/static/js/modules/scheduler.js"></script>
 </body>
 </html>
