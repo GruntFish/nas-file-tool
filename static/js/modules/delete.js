@@ -88,4 +88,6 @@ const DeleteModule = {
     }
 };
 
-ModuleManager.register('delete', DeleteModule);
+if (typeof ModuleRegistry !== 'undefined' && ModuleRegistry.register) {
+    ModuleRegistry.register(XXXModule);
+}
