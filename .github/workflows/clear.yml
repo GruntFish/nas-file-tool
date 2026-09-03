@@ -3,7 +3,7 @@ name: Auto-Clean
 on:
   workflow_run:
     workflows: 
-      - "构建 Docker 镜像"
+      - ["构建 Docker 镜像","打包 FPK"]
       - "打包 FPK"
     types:
       - completed
