@@ -1,7 +1,5 @@
 FROM python:3.11-alpine
 
-# ===== 安装最小化依赖 =====
-# 【修复】vips-tools 改为 vips-dev，或者直接安装 vips
 RUN apk add --no-cache \
     jpegoptim \
     optipng \
@@ -13,9 +11,7 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
-    && find /usr/local/lib/python3.11/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
