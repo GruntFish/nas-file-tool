@@ -1,11 +1,13 @@
 FROM python:3.11-alpine
 
+# ===== 安装最小化依赖 =====
+# 【修复】vips-tools 改为 vips-dev，或者直接安装 vips
 RUN apk add --no-cache \
     jpegoptim \
     optipng \
     webp-tools \
     vips \
-    vips-tools \
+    vips-dev \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /app
