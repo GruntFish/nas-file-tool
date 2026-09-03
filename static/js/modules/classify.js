@@ -1,15 +1,11 @@
 // static/js/modules/classify.js
-
 const ClassifyModule = {
     name: 'classify',
 
     init() {
         document.getElementById('classifyOpenBtn').addEventListener('click', () => this.openModal());
         this.updateCount();
-    },
-
-    onSelectChange(selected) {
-        this.updateCount();
+        document.addEventListener('selectionChanged', () => { this.updateCount(); });
     },
 
     updateCount() {
@@ -60,13 +56,11 @@ const ClassifyModule = {
                     <button class="btn-confirm" id="classifyConfirmBtn" style="display:none;">确认执行</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-
-        document.getElementById('classifyPreviewBtn').addEventListener('click', () => this.preview());
-        document.getElementById('classifyConfirmBtn').addEventListener('click', () => this.execute());
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#classifyPreviewBtn').addEventListener('click', () => this.preview());
+        overlay.querySelector('#classifyConfirmBtn').addEventListener('click', () => this.execute());
     },
 
     async preview() {
@@ -169,5 +163,5 @@ const ClassifyModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(classifyModule);
+    ModuleRegistry.register(ClassifyModule);
 }
