@@ -1,4 +1,3 @@
-// static/js/modules/move_copy.js
 const MoveCopyModule = {
     name: 'move_copy',
 
@@ -6,6 +5,15 @@ const MoveCopyModule = {
         document.getElementById('moveCopyOpenBtn').addEventListener('click', () => this.openModal());
         this.updateCount();
         document.addEventListener('selectionChanged', () => { this.updateCount(); });
+    },
+
+    destroy() {
+        closeModal();
+        selectedFiles.clear();
+        updateSelectedInfo();
+        if (typeof renderFiles === 'function' && window.fileList) {
+            renderFiles(window.fileList);
+        }
     },
 
     updateCount() {
