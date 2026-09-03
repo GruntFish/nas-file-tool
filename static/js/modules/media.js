@@ -1,5 +1,4 @@
 // static/js/modules/media.js
-
 const MediaModule = {
     name: 'media',
 
@@ -8,10 +7,7 @@ const MediaModule = {
         document.getElementById('mediaConvertBtn').addEventListener('click', () => this.convert());
         document.getElementById('mediaResizeBtn').addEventListener('click', () => this.resize());
         this.updateCount();
-    },
-
-    onSelectChange(selected) {
-        this.updateCount();
+        document.addEventListener('selectionChanged', () => { this.updateCount(); });
     },
 
     updateCount() {
@@ -68,14 +64,13 @@ const MediaModule = {
                     <button class="btn-confirm" id="mediaCompressConfirm">执行压缩</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-        document.getElementById('mediaCompressConfirm').addEventListener('click', () => this.doCompress(files));
-        document.getElementById('mediaQuality').addEventListener('input', () => this.previewCompress(files));
-        document.getElementById('mediaFormat').addEventListener('change', () => this.previewCompress(files));
-        document.getElementById('mediaDryRun').addEventListener('change', () => this.previewCompress(files));
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#mediaCompressConfirm').addEventListener('click', () => this.doCompress(files));
+        overlay.querySelector('#mediaQuality').addEventListener('input', () => this.previewCompress(files));
+        overlay.querySelector('#mediaFormat').addEventListener('change', () => this.previewCompress(files));
+        overlay.querySelector('#mediaDryRun').addEventListener('change', () => this.previewCompress(files));
         setTimeout(() => this.previewCompress(files), 100);
     },
 
@@ -154,7 +149,7 @@ const MediaModule = {
                     success.forEach(r => {
                         const saved = r.ratio || 0;
                         showLog('✅ ' + r.file + ' → ' + r.output + ' (节省 ' + saved.toFixed(1) + '%)',
-                        'success');
+                            'success');
                     });
                     showLog('✅ ' + result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats
                         .saved_bytes || 0), 'success');
@@ -201,11 +196,10 @@ const MediaModule = {
                     <button class="btn-confirm" id="mediaConvertConfirm">执行转换</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-        document.getElementById('mediaConvertConfirm').addEventListener('click', () => this.doConvert(files));
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#mediaConvertConfirm').addEventListener('click', () => this.doConvert(files));
     },
 
     async doConvert(files) {
@@ -291,11 +285,10 @@ const MediaModule = {
                     <button class="btn-confirm" id="mediaResizeConfirm">执行调整</button>
                 </div>
             </div>
-        </div>
-        `;
+        </div>`;
 
-        openModal(modalHtml);
-        document.getElementById('mediaResizeConfirm').addEventListener('click', () => this.doResize(files));
+        const overlay = openModal(modalHtml);
+        overlay.querySelector('#mediaResizeConfirm').addEventListener('click', () => this.doResize(files));
     },
 
     async doResize(files) {
@@ -346,5 +339,5 @@ const MediaModule = {
 };
 
 if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(mediaModule);
+    ModuleRegistry.register(MediaModule);
 }
