@@ -1,0 +1,132 @@
+name: 打包 FPK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (如 v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+        type: string
+
+jobs:
+  build-fpk:
+    name: 打包 FPK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 fnpack
+        run: |
+          wget -q -O fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
+          chmod +x fnpack
+          sudo mv fnpack /usr/local/bin/
+          fnpack --help
+
+      - name: 准备 FPK 打包目录
+        run: |
+          mkdir -p fpk-build/app/docker fpk-build/config fpk-build/cmd fpk-build/wizard
+
+      - name: 创建 docker-compose.yml
+        run: |
+          cat > fpk-build/app/docker/docker-compose.yml << 'EOF'
+          version: '3.8'
+          services:
+            file-tool:
+              image: ghcr.io/${{ github.repository_owner }}/nas-file-tool:latest
+              container_name: file-tool
+              ports:
+                - "8658:8658"
+              volumes:
+                - /vol1/1000/:/data
+              restart: unless-stopped
+              mem_limit: 512m
+          EOF
+
+      - name: 创建 manifest
+        run: |
+          cat > fpk-build/manifest << EOF
+          app_name: nas-file-tool
+          version: ${{ github.event.inputs.version }}
+          description: 文件工具箱 - 批量重命名/去重/压缩/分类整理
+          arch:
+            - amd64
+            - arm64
+          developer: ${{ github.repository_owner }}
+          homepage: https://github.com/${{ github.repository }}
+          type: compose
+          ports:
+            - 8658:8658
+          volumes:
+            - /vol1/1000/:/data
+          services:
+            - docker
+          EOF
+
+      - name: 创建 privilege
+        run: |
+          cat > fpk-build/config/privilege << 'EOF'
+          docker
+          network
+          storage
+          EOF
+
+      - name: 创建 cmd/main
+        run: |
+          cat > fpk-build/cmd/main << 'EOF'
+          #!/bin/sh
+          case "\$1" in
+            start)
+              cd "\$TRIM_APPDEST/app/docker"
+              docker compose up -d
+              ;;
+            stop)
+              cd "\$TRIM_APPDEST/app/docker"
+              docker compose down
+              ;;
+            status)
+              if docker ps --format '{{.Names}}' | grep -q "^file-tool\$"; then
+                exit 0
+              else
+                exit 3
+              fi
+              ;;
+            *)
+              echo "Usage: \$0 {start|stop|status}"
+              exit 1
+              ;;
+          esac
+          exit 0
+          EOF
+          chmod +x fpk-build/cmd/main
+
+      - name: 创建图标
+        run: |
+          cd fpk-build
+          echo "📂" > ICON.PNG
+          echo "📂" > ICON_256.PNG
+
+      - name: 打包 FPK
+        run: |
+          cd fpk-build
+          fnpack build -o ../nas-file-tool.fpk
+
+      - name: 上传 FPK 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: nas-file-tool
+          path: nas-file-tool.fpk
+
+      - name: 创建 Release（只上传 FPK）
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          files: nas-file-tool.fpk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
