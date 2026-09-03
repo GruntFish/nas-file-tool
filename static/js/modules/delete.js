@@ -13,13 +13,13 @@ const DeleteModule = {
     },
 
     updateCount() {
-        const count = getSelectedFiles().length;
+        const count = selectedFiles.size;
         const el = document.getElementById('deleteSelectedCount');
         if (el) el.textContent = count;
     },
 
     openModal() {
-        const files = getSelectedFiles();
+        const files = Array.from(selectedFiles);
         if (files.length === 0) {
             showLog('⚠️ 请先选择要删除的文件或目录', 'warning');
             return;
