@@ -132,37 +132,46 @@ const MediaModule = {
         showLog('⏳ 开始压缩图片...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
 
         try {
-            const result = await apiCall('/api/media/compress', {
-                files: files,
-                quality: quality,
-                dry_run: dryRun,
-                overwrite: overwrite
-            });
+            await OperationManager.execute({
+                title: `🖼️ 正在压缩 ${files.length} 张图片...`,
+                completeMessage: `✅ 图片压缩完成`,
+                execute: async (progress) => {
+                    progress.setTotal(files.length);
+                    const result = await apiCall('/api/media/compress', {
+                        files: files,
+                        quality: quality,
+                        dry_run: dryRun,
+                        overwrite: overwrite
+                    });
 
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
 
-            if (result.results) {
-                if (dryRun) {
-                    result.results.forEach(r => {
-                        if (r.status === 'preview') {
-                            const tag = r.overwrite ? ' [覆盖]' : '';
-                            showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + (r.estimated_ratio || 0).toFixed(1) + '%)', 'info');
+                    if (result.results) {
+                        if (dryRun) {
+                            result.results.forEach(r => {
+                                if (r.status === 'preview') {
+                                    const tag = r.overwrite ? ' [覆盖]' : '';
+                                    showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + (r.estimated_ratio || 0).toFixed(1) + '%)', 'info');
+                                }
+                            });
+                            showLog('📊 预览完成，共 ' + result.results.length + ' 张图片', 'info');
+                        } else {
+                            const success = result.results.filter(r => r.status === 'success');
+                            success.forEach(r => {
+                                const saved = r.ratio || 0;
+                                const tag = r.overwrite ? ' [覆盖原图]' : '';
+                                showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
+                            });
+                            const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
+                            showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
                         }
-                    });
-                    showLog('📊 预览完成，共 ' + result.results.length + ' 张图片', 'info');
-                } else {
-                    const success = result.results.filter(r => r.status === 'success');
-                    success.forEach(r => {
-                        const saved = r.ratio || 0;
-                        const tag = r.overwrite ? ' [覆盖原图]' : '';
-                        showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
-                    });
-                    const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
-                    showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
-                }
-            }
+                    }
 
-            await loadFiles(currentPath);
+                    await loadFiles(currentPath);
+                }
+            });
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
         }
