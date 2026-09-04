@@ -30,46 +30,43 @@ const ClassifyModule = {
             return;
         }
 
-        // 获取当前目录显示
         const currentDir = window.currentPath || '/';
 
         const modalHtml = `
-        <div class="modal-overlay show">
-            <div class="modal" style="max-width:500px;">
-                <h2>📂 分类整理</h2>
-                <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                    已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件
-                    <div style="color:#4a4e62;font-size:11px;margin-top:4px;">
-                        📁 将在当前目录 <strong style="color:#b5b9c9;">${escapeHtml(currentDir)}</strong> 下创建分类文件夹
-                    </div>
+        <div class="modal" style="max-width:500px;">
+            <h2>📂 分类整理</h2>
+            <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
+                已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件
+                <div style="color:#4a4e62;font-size:11px;margin-top:4px;">
+                    📁 将在当前目录 <strong style="color:#b5b9c9;">${escapeHtml(currentDir)}</strong> 下创建分类文件夹
                 </div>
-                <div class="form-group">
-                    <label>分类方式</label>
-                    <select id="classifyMethod">
-                        <option value="type">按文件类型（图片/视频/文档等）</option>
-                        <option value="date">按修改日期（年-月）</option>
-                        <option value="size">按文件大小</option>
-                    </select>
+            </div>
+            <div class="form-group">
+                <label>分类方式</label>
+                <select id="classifyMethod">
+                    <option value="type">按文件类型（图片/视频/文档等）</option>
+                    <option value="date">按修改日期（年-月）</option>
+                    <option value="size">按文件大小</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>目标文件夹名称</label>
+                <input type="text" id="classifyTarget" value="分类整理" placeholder="分类整理">
+                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
+                    💡 将在当前目录 <strong style="color:#b5b9c9;">${escapeHtml(currentDir)}</strong> 下创建此文件夹
                 </div>
-                <div class="form-group">
-                    <label>目标文件夹名称</label>
-                    <input type="text" id="classifyTarget" value="分类整理" placeholder="分类整理">
-                    <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
-                        💡 将在当前目录 <strong style="color:#b5b9c9;">${escapeHtml(currentDir)}</strong> 下创建此文件夹，所有分类子目录都在里面
-                    </div>
-                </div>
-                <div style="color:#8b8fa3;font-size:12px;margin-bottom:8px;">
-                    <input type="checkbox" id="classifyCopyModeModal"> 复制模式（不移动原文件，保留原位置）
-                </div>
-                <div id="classifyPreviewArea" style="display:none;margin-top:8px;">
-                    <div class="preview-list" id="classifyPreviewList" style="max-height:200px;"></div>
-                    <div style="color:#68d391;font-size:12px;margin-top:4px;" id="classifyStats"></div>
-                </div>
-                <div class="btn-row">
-                    <button class="btn-cancel" onclick="closeModal()">取消</button>
-                    <button class="btn-confirm" id="classifyPreviewBtn">👁️ 预览</button>
-                    <button class="btn-confirm" id="classifyConfirmBtn" style="display:none;">确认执行</button>
-                </div>
+            </div>
+            <div style="color:#8b8fa3;font-size:12px;margin-bottom:8px;">
+                <input type="checkbox" id="classifyCopyModeModal"> 复制模式（不移动原文件，保留原位置）
+            </div>
+            <div id="classifyPreviewArea" style="display:none;margin-top:8px;">
+                <div class="preview-list" id="classifyPreviewList" style="max-height:200px;"></div>
+                <div style="color:#68d391;font-size:12px;margin-top:4px;" id="classifyStats"></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-confirm" id="classifyPreviewBtn">👁️ 预览</button>
+                <button class="btn-confirm" id="classifyConfirmBtn" style="display:none;">确认执行</button>
             </div>
         </div>`;
 
@@ -113,7 +110,6 @@ const ClassifyModule = {
                     }
                 });
 
-                // 显示基准目录
                 const baseInfo = document.createElement('div');
                 baseInfo.style.cssText = 'color:#8b8fa3;font-size:11px;padding:4px 0;border-bottom:1px solid #2d313e;margin-bottom:4px;';
                 baseInfo.textContent = '📁 目标目录: ' + (result.base_dir || '/') + '/' + targetBase;
@@ -162,36 +158,45 @@ const ClassifyModule = {
         showLog('⏳ 开始分类整理 (${actionText}模式)...', 'info');
 
         try {
-            const result = await apiCall('/api/classify', {
-                files: files,
-                method: method,
-                target_base: targetBase,
-                copy_mode: copyMode,
-                dry_run: false
+            await OperationManager.execute({
+                title: `📂 正在分类 ${files.length} 个文件...`,
+                completeMessage: `✅ 分类完成`,
+                execute: async (progress) => {
+                    progress.setTotal(files.length);
+                    const result = await apiCall('/api/classify', {
+                        files: files,
+                        method: method,
+                        target_base: targetBase,
+                        copy_mode: copyMode,
+                        dry_run: false
+                    });
+
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
+
+                    if (result.results) {
+                        const success = result.results.filter(r => r.status === 'success');
+                        const errors = result.results.filter(r => r.status === 'error');
+                        const skipped = result.results.filter(r => r.status === 'skip');
+
+                        success.forEach(r => {
+                            const action = copyMode ? '复制' : '移动';
+                            showLog('✅ ' + action + ': ' + r.file + ' → ' + r.to, 'success');
+                        });
+                        errors.forEach(r => showLog('❌ ' + r.file + ' - ' + r.reason, 'error'));
+                        skipped.forEach(r => showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning'));
+                    }
+
+                    const msg = result.stats.processed + ' 个文件处理完成' +
+                        (result.stats.moved ? ' (移动 ' + result.stats.moved + ' 个)' : '') +
+                        (result.stats.copied ? ' (复制 ' + result.stats.copied + ' 个)' : '');
+                    showLog('✅ ' + msg, 'success');
+
+                    selectedFiles.clear();
+                    await loadFiles(currentPath);
+                }
             });
-
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-            if (result.results) {
-                const success = result.results.filter(r => r.status === 'success');
-                const errors = result.results.filter(r => r.status === 'error');
-                const skipped = result.results.filter(r => r.status === 'skip');
-                
-                success.forEach(r => {
-                    const action = copyMode ? '复制' : '移动';
-                    showLog('✅ ' + action + ': ' + r.file + ' → ' + r.to, 'success');
-                });
-                errors.forEach(r => showLog('❌ ' + r.file + ' - ' + r.reason, 'error'));
-                skipped.forEach(r => showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning'));
-            }
-
-            const msg = result.stats.processed + ' 个文件处理完成' +
-                       (result.stats.moved ? ' (移动 ' + result.stats.moved + ' 个)' : '') +
-                       (result.stats.copied ? ' (复制 ' + result.stats.copied + ' 个)' : '');
-            showLog('✅ ' + msg, 'success');
-            
-            selectedFiles.clear();
-            await loadFiles(currentPath);
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
         }
