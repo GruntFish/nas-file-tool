@@ -581,30 +581,27 @@ function renderFiles(files) {
             `<td class="status-col ${statusClass}">${statusText}</td>`;
 
         const cb = tr.querySelector('input[type="checkbox"]');
-        if (!isDir) {
-            if (isChecked) {
-                tr.classList.add('selected');
-                if (!window.selectedFiles.has(file.path)) {
-                    window.selectedFiles.add(file.path);
-                }
+        // ===== 【修改】目录也可以勾选 =====
+        if (isChecked) {
+            tr.classList.add('selected');
+            if (!window.selectedFiles.has(file.path)) {
+                window.selectedFiles.add(file.path);
             }
-            cb.addEventListener('change', function() {
-                if (this.checked) {
-                    window.selectedFiles.add(file.path);
-                    tr.classList.add('selected');
-                } else {
-                    window.selectedFiles.delete(file.path);
-                    tr.classList.remove('selected');
-                }
-                updateSelectedInfo();
-                updateSelectAllState();
-                document.dispatchEvent(new CustomEvent('selectionChanged', {
-                    detail: { selected: window.selectedFiles }
-                }));
-            });
-        } else {
-            cb.disabled = true;
         }
+        cb.addEventListener('change', function() {
+            if (this.checked) {
+                window.selectedFiles.add(file.path);
+                tr.classList.add('selected');
+            } else {
+                window.selectedFiles.delete(file.path);
+                tr.classList.remove('selected');
+            }
+            updateSelectedInfo();
+            updateSelectAllState();
+            document.dispatchEvent(new CustomEvent('selectionChanged', {
+                detail: { selected: window.selectedFiles }
+            }));
+        });
 
         tbody.appendChild(tr);
     });
