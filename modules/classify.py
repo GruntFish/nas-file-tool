@@ -6,6 +6,12 @@ import time
 from datetime import datetime
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, FILE_TYPES
+from core.decorators import with_memory_cleanup, log_operation, handle_errors
+from core.security import is_safe_path
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def register(app):
     """注册分类整理路由"""
@@ -18,11 +24,14 @@ def register(app):
         return '其他'
 
     @app.route('/api/classify', methods=['POST'])
+    @handle_errors('分类整理失败')
+    @log_operation('分类整理')
+    @with_memory_cleanup(app)
     def classify():
         data = request.json
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
-            
+
         files = data.get('files', [])
         method = data.get('method', 'type')
         target_base = data.get('target_base', '分类整理')
@@ -36,33 +45,46 @@ def register(app):
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
-        # ===== 【修复】使用第一个文件的父目录作为基准 =====
-        # 而不是直接使用 WORK_DIR
         first_file = Path(work_dir) / files[0].lstrip('/')
-        base_dir = first_file.parent if first_file.parent != Path(work_dir) else Path(work_dir)
-        # 如果所有文件都在同一目录下，使用该目录
-        # 如果文件分散在不同目录，使用它们共同的父目录
         common_parent = None
         for file_path_str in files:
             p = Path(work_dir) / file_path_str.lstrip('/')
             if common_parent is None:
                 common_parent = p.parent
             else:
-                # 找共同父目录
                 p_parent = p.parent
-                while p_parent != common_parent and p_parent != p_parent.parent:
-                    if str(p_parent).startswith(str(common_parent)):
+                while p_parent != common_parent and common_parent != Path(work_dir):
+                    try:
+                        p_parent.relative_to(common_parent)
                         break
-                    common_parent = common_parent.parent
+                    except ValueError:
+                        common_parent = common_parent.parent
+                        if common_parent == Path(work_dir):
+                            break
                 if common_parent == Path(work_dir):
-                    break
-        
-        # 如果找不到共同父目录，使用第一个文件的父目录
-        if common_parent is None or common_parent == Path(work_dir):
+                    pass
+
+        if common_parent is None:
             common_parent = first_file.parent
-        
+        elif common_parent == Path(work_dir):
+            all_in_root = True
+            for file_path_str in files:
+                p = Path(work_dir) / file_path_str.lstrip('/')
+                if p.parent != Path(work_dir):
+                    all_in_root = False
+                    break
+            if not all_in_root:
+                common_parent = first_file.parent
+
+        if common_parent == Path(work_dir):
+            if first_file.parent != Path(work_dir):
+                common_parent = first_file.parent
+
         target_path = common_parent / target_base
-        
+
+        if not is_safe_path(target_path, work_dir):
+            return jsonify({'error': '目标路径不安全'}), 403
+
         results = []
         stats = {'processed': 0, 'moved': 0, 'copied': 0, 'skipped': 0, 'errors': 0}
 
@@ -83,7 +105,6 @@ def register(app):
                 results.append({'file': src.name, 'status': 'skip', 'reason': '是目录'})
                 continue
 
-            # 确定分类目标
             if method == 'type':
                 ext = src.suffix
                 category = get_file_type(ext)
@@ -108,7 +129,6 @@ def register(app):
 
             dest = dest_dir / src.name
 
-            # 处理重名
             if dest.exists():
                 stem = src.stem
                 ext = src.suffix
@@ -149,6 +169,7 @@ def register(app):
                     })
                 except Exception as e:
                     stats['errors'] += 1
+                    logger.error(f'分类失败: {src} -> {dest} - {e}')
                     results.append({
                         'file': src.name,
                         'status': 'error',
@@ -158,11 +179,17 @@ def register(app):
         if hasattr(app, 'memory'):
             app.memory['cleanup']()
 
+        base_dir_str = str(common_parent.relative_to(work_dir))
+        if base_dir_str == '.' or not base_dir_str:
+            base_dir_str = '/'
+        elif not base_dir_str.startswith('/'):
+            base_dir_str = '/' + base_dir_str
+
         return jsonify({
             'results': results,
             'stats': stats,
             'dry_run': dry_run,
             'method': method,
             'target_base': target_base,
-            'base_dir': str(common_parent.relative_to(work_dir)) if common_parent != Path(work_dir) else '/'
+            'base_dir': base_dir_str
         })
