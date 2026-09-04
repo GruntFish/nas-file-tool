@@ -26,7 +26,7 @@ const MoveCopyModule = {
     openModal() {
         const files = Array.from(selectedFiles);
         if (files.length === 0) {
-            showLog('⚠️ 请先选择要移动/复制的文件', 'warning');
+            showLog('⚠️ 请先选择要移动/复制的文件或目录', 'warning');
             return;
         }
 
@@ -47,9 +47,9 @@ const MoveCopyModule = {
 
         const modalHtml = `
         <div class="modal" style="max-width:650px;overflow:visible;">
-            <h2 style="color:#e4e6eb;font-size:17px;margin-bottom:12px;">📦 移动/复制文件</h2>
+            <h2 style="color:#e4e6eb;font-size:17px;margin-bottom:12px;">📦 移动/复制</h2>
             <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件
+                已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件/目录
                 <div style="color:#4a4e62;font-size:11px;margin-top:4px;">
                     📁 当前目录: <strong style="color:#b5b9c9;">${escapeHtml(currentDir)}</strong>
                 </div>
@@ -66,7 +66,7 @@ const MoveCopyModule = {
                 <div class="form-group" style="margin-bottom:0;display:flex;align-items:center;">
                     <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;font-weight:600;cursor:pointer;margin:0;">
                         <input type="checkbox" id="mcOverwrite" style="accent-color:#667eea;width:16px;height:16px;">
-                        覆盖已存在文件
+                        覆盖已存在
                     </label>
                 </div>
             </div>
@@ -210,7 +210,7 @@ const MoveCopyModule = {
 
         const files = Array.from(selectedFiles);
         if (files.length === 0) {
-            showLog('⚠️ 请选择文件', 'warning');
+            showLog('⚠️ 请选择文件或目录', 'warning');
             return;
         }
 
@@ -222,12 +222,12 @@ const MoveCopyModule = {
 
         const filters = this.getFilters();
         if (Object.keys(filters).length > 0) showLog('📋 应用过滤条件...', 'info');
-        showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件到: ' + targetDir, 'info');
+        showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件/目录到: ' + targetDir, 'info');
 
         try {
             await OperationManager.execute({
-                title: `📦 正在${action === 'move' ? '移动' : '复制'} ${files.length} 个文件...`,
-                completeMessage: `✅ 成功${action === 'move' ? '移动' : '复制'} ${files.length} 个文件`,
+                title: `📦 正在${action === 'move' ? '移动' : '复制'} ${files.length} 个文件/目录...`,
+                completeMessage: `✅ 成功${action === 'move' ? '移动' : '复制'} ${files.length} 个文件/目录`,
                 execute: async (progress) => {
                     progress.setTotal(files.length);
                     const result = await apiCall('/api/move_copy', {
@@ -236,7 +236,8 @@ const MoveCopyModule = {
                         target_dir: targetDir,
                         overwrite: overwrite,
                         filters: filters,
-                        dry_run: false
+                        dry_run: false,
+                        include_dirs: true
                     });
                     if (result.error) {
                         throw new Error(result.error);
@@ -247,10 +248,12 @@ const MoveCopyModule = {
                         const skipped = result.results.filter(r => r.status === 'skip');
                         success.forEach((r, idx) => {
                             progress.update(idx + 1, `已处理: ${r.file}`);
-                            showLog('✅ ' + r.file + ' → ' + r.to, 'success');
+                            const typeTag = r.is_dir ? '📁 ' : '📄 ';
+                            showLog('✅ ' + typeTag + r.file + ' → ' + r.to, 'success');
                         });
                         errors.forEach(r => {
-                            showLog('❌ ' + r.file + ' - ' + r.reason, 'error');
+                            const typeTag = r.is_dir ? '📁 ' : '📄 ';
+                            showLog('❌ ' + typeTag + r.file + ' - ' + r.reason, 'error');
                         });
                         skipped.forEach(r => {
                             showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning');
