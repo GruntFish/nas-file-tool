@@ -46,8 +46,8 @@ const MoveCopyModule = {
         collectDirs(window.fullTreeData || [], '');
 
         const modalHtml = `
-        <div class="modal" style="max-width:550px;">
-            <h2>📦 移动/复制文件</h2>
+        <div class="modal" style="max-width:650px;overflow:visible;">
+            <h2 style="color:#e4e6eb;font-size:17px;margin-bottom:12px;">📦 移动/复制文件</h2>
             <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
                 已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件
                 <div style="color:#4a4e62;font-size:11px;margin-top:4px;">
@@ -55,50 +55,74 @@ const MoveCopyModule = {
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <div class="form-group">
-                    <label>操作</label>
-                    <select id="mcAction">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">操作</label>
+                    <select id="mcAction" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                         <option value="move">移动</option>
                         <option value="copy">复制</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>覆盖已存在文件</label>
-                    <div style="display:flex;align-items:center;height:32px;padding-left:4px;">
+                <div class="form-group" style="margin-bottom:0;display:flex;align-items:center;">
+                    <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;font-weight:600;cursor:pointer;margin:0;">
                         <input type="checkbox" id="mcOverwrite" style="accent-color:#667eea;width:16px;height:16px;">
-                        <span style="color:#8b8fa3;font-size:11px;margin-left:6px;">勾选后覆盖同名文件</span>
-                    </div>
+                        覆盖已存在文件
+                    </label>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label>目标目录</label>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">目标目录</label>
                 <div style="display:flex;gap:6px;">
-                    <select id="mcTargetSelect" style="flex:2;">
+                    <select id="mcTargetSelect" style="flex:2;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                         <option value="">📁 选择已有目录...</option>
                         ${dirOptions}
                     </select>
-                    <input type="text" id="mcTargetInput" placeholder="输入新目录名自动创建" style="flex:1;">
+                    <input type="text" id="mcTargetInput" placeholder="输入新目录名" style="flex:1;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                 </div>
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
                     💡 下拉框选择已有目录，或输入新目录名称（在当前目录下自动创建）
                 </div>
             </div>
 
-            <hr>
-            <h3>📋 过滤条件（可选）</h3>
-            <div class="filter-grid">
-                <div class="form-group"><label>文件名包含</label><input type="text" id="mcFilterNameContains" placeholder="IMG_"></div>
-                <div class="form-group"><label>文件名不包含</label><input type="text" id="mcFilterNameNotContains" placeholder="temp"></div>
-                <div class="form-group"><label>扩展名</label><input type="text" id="mcFilterExtensions" placeholder=".jpg,.png"></div>
-                <div class="form-group"><label>排除扩展名</label><input type="text" id="mcFilterExtNot" placeholder=".tmp"></div>
-                <div class="form-group"><label>最小大小(KB)</label><input type="number" id="mcFilterMinSize" placeholder="1024"></div>
-                <div class="form-group"><label>最大大小(KB)</label><input type="number" id="mcFilterMaxSize" placeholder="10240"></div>
-                <div class="form-group"><label>日期(晚于)</label><input type="date" id="mcFilterDateAfter"></div>
-                <div class="form-group"><label>日期(早于)</label><input type="date" id="mcFilterDateBefore"></div>
-                <div class="form-group"><label>文件类型</label>
-                    <select id="mcFilterFileTypes">
+            <div style="color:#8b8fa3;font-size:13px;font-weight:600;margin:10px 0 8px 0;padding-bottom:6px;border-bottom:1px solid #2d313e;">📋 过滤条件（可选）</div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">文件名包含</label>
+                    <input type="text" id="mcFilterNameContains" placeholder="IMG_" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">文件名不包含</label>
+                    <input type="text" id="mcFilterNameNotContains" placeholder="temp" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">扩展名</label>
+                    <input type="text" id="mcFilterExtensions" placeholder=".jpg,.png" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">排除扩展名</label>
+                    <input type="text" id="mcFilterExtNot" placeholder=".tmp" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">最小大小(KB)</label>
+                    <input type="number" id="mcFilterMinSize" placeholder="1024" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">最大大小(KB)</label>
+                    <input type="number" id="mcFilterMaxSize" placeholder="10240" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">日期(晚于)</label>
+                    <input type="date" id="mcFilterDateAfter" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">日期(早于)</label>
+                    <input type="date" id="mcFilterDateBefore" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">文件类型</label>
+                    <select id="mcFilterFileTypes" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
                         <option value="">全部</option>
                         <option value="image">图片</option>
                         <option value="video">视频</option>
@@ -107,16 +131,19 @@ const MoveCopyModule = {
                         <option value="archive">压缩包</option>
                     </select>
                 </div>
-                <div class="form-group full-width"><label>正则匹配</label><input type="text" id="mcFilterRegex" placeholder="^IMG_.*\.jpg$"></div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;color:#8b8fa3;font-size:11px;font-weight:600;margin-bottom:2px;">正则匹配</label>
+                    <input type="text" id="mcFilterRegex" placeholder="^IMG_.*\.jpg$" style="width:100%;padding:4px 6px;background:#14171f;border:1px solid #2d313e;border-radius:4px;color:#e4e6eb;font-size:12px;outline:0;font-family:inherit;">
+                </div>
             </div>
 
-            <div id="mcFilterPreview" style="display:none;margin-top:6px;">
-                <div class="preview-info" id="mcFilterPreviewInfo"></div>
+            <div id="mcFilterPreview" style="display:none;margin-top:8px;">
+                <div class="preview-info" id="mcFilterPreviewInfo" style="background:#14171f;border-radius:6px;padding:6px 10px;font-size:12px;color:#b5b9c9;"></div>
             </div>
 
-            <div class="btn-row">
-                <button class="btn-cancel" onclick="closeModal()">取消</button>
-                <button class="btn-confirm" id="mcConfirmBtn">确认执行</button>
+            <div class="btn-row" style="display:flex;gap:10px;margin-top:14px;">
+                <button class="btn-cancel" onclick="closeModal()" style="flex:1;padding:8px;border:0;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:#2d313e;color:#b5b9c9;">取消</button>
+                <button class="btn-confirm" id="mcConfirmBtn" style="flex:1;padding:8px;border:0;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;">确认执行</button>
             </div>
         </div>`;
 
