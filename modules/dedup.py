@@ -16,7 +16,6 @@ def register(app):
     """注册去重路由"""
 
     def get_file_hash_md5(file_path):
-        """分块读取计算 MD5（适合大文件）"""
         md5 = hashlib.md5()
         try:
             with open(file_path, 'rb') as f:
@@ -28,17 +27,14 @@ def register(app):
             return None
 
     def get_file_signature_optimized(file_path):
-        """优化的动态采样签名"""
         try:
             stat = file_path.stat()
             size = stat.st_size
             sample_size = 4096
 
-            # 小文件：直接计算 MD5
             if size < 1024 * 1024:
                 return get_file_hash_md5(file_path)
 
-            # 大文件：采样
             if size < 100 * 1024 * 1024:
                 points = 200
             else:
@@ -92,7 +88,6 @@ def register(app):
         if not target.exists():
             return jsonify({'error': f'路径不存在: {target}'}), 404
 
-        # 检查目录是否为空
         try:
             has_files = False
             for item in target.iterdir():
@@ -104,7 +99,6 @@ def register(app):
         except PermissionError:
             return jsonify({'error': '无法读取目录'}), 403
 
-        # 收集文件
         all_files = []
         try:
             if recursive:
