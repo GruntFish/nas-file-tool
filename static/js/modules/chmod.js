@@ -1,3 +1,4 @@
+// static/js/modules/chmod.js
 const ChmodModule = {
     name: 'chmod',
 
@@ -30,35 +31,33 @@ const ChmodModule = {
         }
 
         const modalHtml = `
-        <div class="modal-overlay show">
-            <div class="modal" style="max-width:500px;">
-                <h2>🔒 修改权限</h2>
-                <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                    已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件/目录
-                </div>
-                <div class="form-group">
-                    <label>权限模式</label>
-                    <select id="chmodMode">
-                        <option value="755">755 (rwxr-xr-x) - 目录/可执行文件</option>
-                        <option value="644">644 (rw-r--r--) - 普通文件</option>
-                        <option value="777">777 (rwxrwxrwx) - 完全开放</option>
-                        <option value="600">600 (rw-------) - 仅所有者读写</option>
-                        <option value="700">700 (rwx------) - 仅所有者</option>
-                        <option value="775">775 (rwxrwxr-x) - 组内可写</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label><input type="checkbox" id="chmodRecursive"> 递归修改子目录</label>
-                </div>
-                <div id="chmodPreviewArea" style="display:none;margin-top:8px;">
-                    <div class="preview-list" id="chmodPreviewList" style="max-height:200px;"></div>
-                    <div style="color:#68d391;font-size:12px;margin-top:4px;" id="chmodStats"></div>
-                </div>
-                <div class="btn-row">
-                    <button class="btn-cancel" onclick="closeModal()">取消</button>
-                    <button class="btn-confirm" id="chmodPreviewBtn">👁️ 预览</button>
-                    <button class="btn-confirm" id="chmodConfirmBtn" style="display:none;">确认执行</button>
-                </div>
+        <div class="modal" style="max-width:500px;">
+            <h2>🔒 修改权限</h2>
+            <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
+                已选 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件/目录
+            </div>
+            <div class="form-group">
+                <label>权限模式</label>
+                <select id="chmodMode">
+                    <option value="755">755 (rwxr-xr-x) - 目录/可执行文件</option>
+                    <option value="644">644 (rw-r--r--) - 普通文件</option>
+                    <option value="777">777 (rwxrwxrwx) - 完全开放</option>
+                    <option value="600">600 (rw-------) - 仅所有者读写</option>
+                    <option value="700">700 (rwx------) - 仅所有者</option>
+                    <option value="775">775 (rwxrwxr-x) - 组内可写</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="chmodRecursive"> 递归修改子目录</label>
+            </div>
+            <div id="chmodPreviewArea" style="display:none;margin-top:8px;">
+                <div class="preview-list" id="chmodPreviewList" style="max-height:200px;"></div>
+                <div style="color:#68d391;font-size:12px;margin-top:4px;" id="chmodStats"></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-confirm" id="chmodPreviewBtn">👁️ 预览</button>
+                <button class="btn-confirm" id="chmodConfirmBtn" style="display:none;">确认执行</button>
             </div>
         </div>`;
 
@@ -120,23 +119,32 @@ const ChmodModule = {
         showLog('⏳ 开始修改权限...', 'info');
 
         try {
-            const result = await apiCall('/api/chmod', {
-                files: files,
-                mode: mode,
-                recursive: recursive,
-                dry_run: false
+            await OperationManager.execute({
+                title: `🔒 正在修改 ${files.length} 个文件的权限...`,
+                completeMessage: `✅ 权限修改完成`,
+                execute: async (progress) => {
+                    progress.setTotal(files.length);
+                    const result = await apiCall('/api/chmod', {
+                        files: files,
+                        mode: mode,
+                        recursive: recursive,
+                        dry_run: false
+                    });
+
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
+
+                    if (result.results) {
+                        const success = result.results.filter(r => r.status === 'success');
+                        success.forEach(r => showLog('✅ ' + r.path + ' → ' + r.current, 'success'));
+                    }
+
+                    showLog('✅ ' + result.stats.changed + ' 个文件/目录权限已修改', 'success');
+                    selectedFiles.clear();
+                    await loadFiles(currentPath);
+                }
             });
-
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-
-            if (result.results) {
-                const success = result.results.filter(r => r.status === 'success');
-                success.forEach(r => showLog('✅ ' + r.path + ' → ' + r.current, 'success'));
-            }
-
-            showLog('✅ ' + result.stats.changed + ' 个文件/目录权限已修改', 'success');
-            selectedFiles.clear();
-            await loadFiles(currentPath);
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
         }
