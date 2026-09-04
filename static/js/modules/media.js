@@ -24,17 +24,33 @@ const MediaModule = {
     },
 
     getImageFiles() {
-        const exts = ['.jpg', '.jpeg', '.png'];
-        return Array.from(selectedFiles).filter(f => {
-            const ext = f.substring(f.lastIndexOf('.')).toLowerCase();
-            return exts.includes(ext);
+        const exts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.ico', '.svg'];
+        const selected = Array.from(selectedFiles);
+        
+        if (selected.length === 0) {
+            return [];
+        }
+        
+        const fileList = window.fileList || [];
+        const imageFiles = [];
+        
+        selected.forEach(path => {
+            const fileObj = fileList.find(f => f.path === path);
+            if (fileObj && !fileObj.is_dir) {
+                const ext = fileObj.name.substring(fileObj.name.lastIndexOf('.')).toLowerCase();
+                if (exts.includes(ext)) {
+                    imageFiles.push(path);
+                }
+            }
         });
+        
+        return imageFiles;
     },
 
     compress() {
         const files = this.getImageFiles();
         if (files.length === 0) {
-            showLog('⚠️ 请选择 JPG 或 PNG 图片文件', 'warning');
+            showLog('⚠️ 请先勾选图片文件（支持 JPG、PNG、GIF、BMP、WebP、TIFF 等格式）', 'warning');
             return;
         }
 
@@ -75,6 +91,11 @@ const MediaModule = {
     },
 
     async previewCompress(files) {
+        if (!files || files.length === 0) {
+            document.getElementById('mediaPreviewArea').style.display = 'none';
+            return;
+        }
+
         const quality = parseInt(document.getElementById('mediaQuality').value) || 85;
         const overwrite = document.getElementById('mediaOverwrite')?.checked || false;
 
@@ -100,23 +121,42 @@ const MediaModule = {
                         const div = document.createElement('div');
                         const saved = r.estimated_ratio || 0;
                         const overwriteTag = r.overwrite ? ' [覆盖原图]' : '';
-                        div.style.cssText = 'color:#68d391;padding:2px 0;font-size:12px;';
-                        div.textContent = '📄 ' + r.file + ' → ' + r.output + overwriteTag + ' (预计节省 ' + saved.toFixed(1) + '%)';
+                        
+                        const originalSize = formatSize(r.original_size);
+                        const estimatedSize = formatSize(r.estimated_size);
+                        
+                        div.style.cssText = 'color:#68d391;padding:2px 0;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f222c;';
+                        div.innerHTML = `
+                            <span>📄 ${r.file}</span>
+                            <span style="color:#b5b9c9;font-size:11px;">
+                                ${originalSize} → <span style="color:#68d391;">${estimatedSize}</span>
+                                <span style="color:#f0c94d;font-size:10px;margin-left:4px;">(-${saved.toFixed(1)}%)</span>
+                                ${overwriteTag}
+                            </span>
+                        `;
                         previewList.appendChild(div);
                         totalSaved += saved;
                     }
                 });
                 const avg = result.results.length > 0 ? (totalSaved / result.results.length).toFixed(1) : 0;
-                stats.textContent = '📊 共 ' + result.results.length + ' 张图片，平均预计节省 ' + avg + '%' + (overwrite ? ' ⚠️ 将覆盖原图' : '');
+                stats.textContent = '📊 共 ' + result.results.length + ' 张图片，平均节省 ' + avg + '%' + (overwrite ? ' ⚠️ 将覆盖原图' : '');
                 previewArea.style.display = 'block';
             } else {
-                previewList.innerHTML = '<div style="color:#4a4e62;">没有图片需要压缩</div>';
+                previewList.innerHTML = '<div style="color:#4a4e62;text-align:center;padding:8px;">没有图片需要压缩</div>';
                 previewArea.style.display = 'block';
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('预览失败:', e);
+        }
     },
 
     async doCompress(files) {
+        // ===== 【修复】检查文件列表 =====
+        if (!files || files.length === 0) {
+            showLog('⚠️ 没有可压缩的图片文件', 'warning');
+            return;
+        }
+
         const quality = parseInt(document.getElementById('mediaQuality').value) || 85;
         const dryRun = document.getElementById('mediaDryRun').checked;
         const overwrite = document.getElementById('mediaOverwrite')?.checked || false;
@@ -129,7 +169,7 @@ const MediaModule = {
 
         closeModal();
         clearLog();
-        showLog('⏳ 开始压缩图片...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
+        showLog('⏳ 开始压缩 ' + files.length + ' 张图片...' + (overwrite ? ' (覆盖原图模式)' : ''), 'info');
 
         try {
             await OperationManager.execute({
@@ -153,7 +193,8 @@ const MediaModule = {
                             result.results.forEach(r => {
                                 if (r.status === 'preview') {
                                     const tag = r.overwrite ? ' [覆盖]' : '';
-                                    showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + (r.estimated_ratio || 0).toFixed(1) + '%)', 'info');
+                                    const saved = r.estimated_ratio || 0;
+                                    showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + saved.toFixed(1) + '%)', 'info');
                                 }
                             });
                             showLog('📊 预览完成，共 ' + result.results.length + ' 张图片', 'info');
