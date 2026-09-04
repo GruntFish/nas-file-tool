@@ -9,6 +9,7 @@ from datetime import datetime
 import queue
 import os
 import re
+import shutil
 
 from core.config import WORK_DIR
 from core.logger import get_logger
@@ -63,7 +64,7 @@ def add_task_log(task_id, message, status='info'):
             break
 
 
-def get_files_in_directory(directory, pattern='.*'):
+def get_files_in_directory(directory, pattern='.*', recursive=False):
     """获取目录下匹配正则的文件"""
     try:
         path = Path(directory)
@@ -71,10 +72,18 @@ def get_files_in_directory(directory, pattern='.*'):
             return []
         regex = re.compile(pattern)
         files = []
-        for item in path.iterdir():
-            if item.is_file():
-                if regex.search(item.name):
-                    files.append(str(item))
+        if recursive:
+            # 递归遍历所有子目录
+            for item in path.rglob('*'):
+                if item.is_file():
+                    if regex.search(item.name):
+                        files.append(str(item))
+        else:
+            # 只遍历当前目录
+            for item in path.iterdir():
+                if item.is_file():
+                    if regex.search(item.name):
+                        files.append(str(item))
         return files
     except Exception as e:
         logger.error(f'获取文件列表失败: {e}')
@@ -87,6 +96,7 @@ def execute_task(task):
     params = task.get('params', {})
     target_path = params.get('target_path', '/data')
     file_pattern = params.get('file_pattern', '.*')
+    recursive = params.get('recursive', False)
     task_type = task.get('type')
 
     add_task_log(task_id, f'任务 "{task_name}" 开始执行', 'info')
@@ -94,7 +104,7 @@ def execute_task(task):
 
     try:
         # ===== 获取匹配的文件列表 =====
-        files = get_files_in_directory(target_path, file_pattern)
+        files = get_files_in_directory(target_path, file_pattern, recursive)
         add_task_log(task_id, f'找到 {len(files)} 个匹配的文件', 'info')
 
         if not files:
@@ -102,6 +112,7 @@ def execute_task(task):
             running_tasks[task_id] = {'status': 'completed', 'end': datetime.now().isoformat()}
             return
 
+        # ===== 重命名 =====
         if task_type == 'rename':
             find_str = params.get('find', '')
             replace_str = params.get('replace', '')
@@ -109,7 +120,6 @@ def execute_task(task):
                 add_task_log(task_id, '重命名操作缺少查找内容', 'error')
                 running_tasks[task_id] = {'status': 'error', 'end': datetime.now().isoformat()}
                 return
-
             renamed = 0
             for file_path_str in files:
                 src = Path(file_path_str)
@@ -122,18 +132,15 @@ def execute_task(task):
                         add_task_log(task_id, f'重命名: {src.name} → {new_name}', 'success')
                     except Exception as e:
                         add_task_log(task_id, f'重命名失败: {src.name} - {str(e)}', 'error')
-
             add_task_log(task_id, f'重命名完成，共处理 {renamed} 个文件', 'success')
 
+        # ===== 去重 =====
         elif task_type == 'dedup':
-            from modules.dedup import register as dedup_register
-            # 直接调用去重逻辑
             deleted = 0
             seen = {}
             for file_path_str in files:
                 src = Path(file_path_str)
                 try:
-                    # 简单去重：按文件大小 + 名称判断
                     key = f'{src.stat().st_size}_{src.name}'
                     if key in seen:
                         src.unlink()
@@ -145,29 +152,157 @@ def execute_task(task):
                     add_task_log(task_id, f'去重失败: {src.name} - {str(e)}', 'error')
             add_task_log(task_id, f'去重完成，删除 {deleted} 个重复文件', 'success')
 
+        # ===== 分类整理 =====
         elif task_type == 'classify':
-            from modules.classify import register as classify_register
-            # 按扩展名分类
             classified = 0
             for file_path_str in files:
                 src = Path(file_path_str)
                 ext = src.suffix.lower()
-                if ext:
-                    # 去掉开头的点
-                    category = ext[1:] if ext.startswith('.') else ext
-                    if not category:
-                        category = '其他'
-                    dest_dir = Path(target_path) / '分类整理' / category
-                    dest = dest_dir / src.name
-                    try:
-                        dest_dir.mkdir(parents=True, exist_ok=True)
-                        if not dest.exists():
-                            src.rename(dest)
-                            classified += 1
-                            add_task_log(task_id, f'分类: {src.name} → {category}/', 'success')
-                    except Exception as e:
-                        add_task_log(task_id, f'分类失败: {src.name} - {str(e)}', 'error')
+                category = ext[1:] if ext.startswith('.') else (ext or '其他')
+                if not category:
+                    category = '其他'
+                dest_dir = Path(target_path) / '分类整理' / category
+                dest = dest_dir / src.name
+                try:
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                    if not dest.exists():
+                        src.rename(dest)
+                        classified += 1
+                        add_task_log(task_id, f'分类: {src.name} → {category}/', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'分类失败: {src.name} - {str(e)}', 'error')
             add_task_log(task_id, f'分类完成，共分类 {classified} 个文件', 'success')
+
+        # ===== 删除 =====
+        elif task_type == 'delete':
+            deleted = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                try:
+                    src.unlink()
+                    deleted += 1
+                    add_task_log(task_id, f'删除: {src.name}', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'删除失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'删除完成，共删除 {deleted} 个文件', 'success')
+
+        # ===== 移动/复制 =====
+        elif task_type == 'move_copy':
+            move_action = params.get('move_action', 'move')
+            move_target = params.get('move_target', '')
+            move_overwrite = params.get('move_overwrite', False)
+            if not move_target:
+                add_task_log(task_id, '移动/复制缺少目标目录', 'error')
+                running_tasks[task_id] = {'status': 'error', 'end': datetime.now().isoformat()}
+                return
+            dest_base = Path(move_target)
+            processed = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                dest = dest_base / src.name
+                try:
+                    dest_base.mkdir(parents=True, exist_ok=True)
+                    if dest.exists() and not move_overwrite:
+                        stem = src.stem
+                        ext = src.suffix
+                        counter = 1
+                        while True:
+                            new_name = f'{stem}_{counter}{ext}'
+                            new_dest = dest_base / new_name
+                            if not new_dest.exists():
+                                dest = new_dest
+                                break
+                            counter += 1
+                    if move_action == 'move':
+                        src.rename(dest)
+                        add_task_log(task_id, f'移动: {src.name} → {dest.parent.name}/', 'success')
+                    else:
+                        shutil.copy2(str(src), str(dest))
+                        add_task_log(task_id, f'复制: {src.name} → {dest.parent.name}/', 'success')
+                    processed += 1
+                except Exception as e:
+                    add_task_log(task_id, f'{move_action}失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'{move_action}完成，共处理 {processed} 个文件', 'success')
+
+        # ===== 权限修改 =====
+        elif task_type == 'chmod':
+            chmod_mode = int(params.get('chmod_mode', '755'), 8)
+            chmod_recursive = params.get('chmod_recursive', False)
+            processed = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                try:
+                    os.chmod(src, chmod_mode)
+                    processed += 1
+                    add_task_log(task_id, f'权限修改: {src.name} → {oct(chmod_mode)}', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'权限修改失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'权限修改完成，共处理 {processed} 个文件', 'success')
+
+        # ===== 图片压缩 =====
+        elif task_type == 'compress':
+            compress_quality = params.get('compress_quality', 85)
+            compress_format = params.get('compress_format', 'original')
+            compress_overwrite = params.get('compress_overwrite', False)
+            compressed = 0
+            image_exts = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'}
+            for file_path_str in files:
+                src = Path(file_path_str)
+                ext = src.suffix.lower()
+                if ext not in image_exts:
+                    continue
+                try:
+                    if compress_overwrite:
+                        output_path = src
+                    else:
+                        output_ext = '.' + compress_format if compress_format != 'original' else src.suffix
+                        output_name = src.stem + '_compressed' + output_ext
+                        output_path = src.parent / output_name
+                        if output_path.exists():
+                            output_name = src.stem + f'_compressed_{int(time.time())}' + output_ext
+                            output_path = src.parent / output_name
+
+                    if ext in ('.jpg', '.jpeg'):
+                        if compress_format == 'webp':
+                            import subprocess
+                            cmd = ['cwebp', '-q', str(compress_quality), str(src), '-o', str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                        else:
+                            import subprocess
+                            if compress_overwrite:
+                                cmd = ['jpegoptim', '--max=' + str(compress_quality), str(src)]
+                            else:
+                                shutil.copy2(str(src), str(output_path))
+                                cmd = ['jpegoptim', '--max=' + str(compress_quality), str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                    elif ext == '.png':
+                        if compress_format == 'webp':
+                            import subprocess
+                            cmd = ['cwebp', '-q', str(compress_quality), str(src), '-o', str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                        else:
+                            import subprocess
+                            if compress_overwrite:
+                                cmd = ['optipng', '-o2', str(src)]
+                            else:
+                                shutil.copy2(str(src), str(output_path))
+                                cmd = ['optipng', '-o2', str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                    else:
+                        # 其他格式转 WebP
+                        import subprocess
+                        cmd = ['cwebp', '-q', str(compress_quality), str(src), '-o', str(output_path)]
+                        subprocess.run(cmd, capture_output=True, check=False)
+
+                    if compress_overwrite:
+                        compressed += 1
+                        add_task_log(task_id, f'压缩: {src.name} (覆盖原图)', 'success')
+                    elif output_path.exists():
+                        compressed += 1
+                        add_task_log(task_id, f'压缩: {src.name} → {output_path.name}', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'压缩失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'压缩完成，共压缩 {compressed} 张图片', 'success')
 
         else:
             add_task_log(task_id, f'未知任务类型: {task_type}', 'error')
@@ -260,7 +395,6 @@ def register(app):
                 task['run_status'] = running_tasks[task_id]
             else:
                 task['run_status'] = None
-            # 确保 logs 字段存在
             if 'logs' not in task:
                 task['logs'] = task_logs.get(task_id, [])
         return jsonify({'tasks': tasks})
@@ -337,7 +471,6 @@ def register(app):
         tasks = load_tasks()
         for task in tasks:
             if task.get('id') == task_id:
-                # 清空旧日志
                 task_logs[task_id] = []
                 task['logs'] = []
                 task_queue.put(task)
