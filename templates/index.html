@@ -88,21 +88,30 @@
         /* ===== 模块通用样式 ===== */
         .module-rename,.module-move-copy,.module-dedup,.module-delete,.module-classify,.module-chmod,.module-media,.module-scheduler{padding:6px 14px;background:#14171f;border-bottom:1px solid #2d313e;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;min-height:34px}
 
-        /* ===== 重命名模块下拉框强制样式 ===== */
-        .module-rename select,
+        /* ===== 【修复】切换模块时输入框闪烁问题 ===== */
         .module-rename input,
-        .module-rename button {
+        .module-rename select {
             background: #1a1d27 !important;
-            border: 1px solid #2d313e;
-            border-radius: 4px;
+            border: 1px solid #2d313e !important;
+            border-radius: 4px !important;
             color: #e4e6eb !important;
-            padding: 3px 8px;
-            font-size: 12px;
-            height: 28px;
-            font-family: inherit;
-            outline: 0;
-            -webkit-appearance: auto;
-            appearance: auto;
+            padding: 3px 8px !important;
+            font-size: 12px !important;
+            height: 28px !important;
+            font-family: inherit !important;
+            outline: 0 !important;
+            -webkit-appearance: auto !important;
+            appearance: auto !important;
+            transition: none !important;
+        }
+        .module-rename input:focus,
+        .module-rename select:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+        }
+        .module-rename input:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0 1000px #1a1d27 inset !important;
+            -webkit-text-fill-color: #e4e6eb !important;
         }
         .module-rename select option {
             background: #1a1d27 !important;
@@ -113,19 +122,6 @@
             opacity: 0.7;
             cursor: not-allowed;
             color: #8b8fa3 !important;
-        }
-        .module-rename select:focus,
-        .module-rename input:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
-        }
-        .module-rename select:-moz-focusring {
-            color: #e4e6eb !important;
-            text-shadow: 0 0 0 #e4e6eb;
-        }
-        .module-rename select::-ms-expand {
-            background: #1a1d27;
-            color: #e4e6eb;
         }
 
         /* ===== 执行重命名按钮样式 ===== */
