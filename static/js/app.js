@@ -507,6 +507,18 @@ function renderFiles(files) {
 
     const fileData = files || window.fileList || [];
 
+    // ===== 判断当前是否是重命名模块 =====
+    const isRenameModule = ModuleRegistry.currentModule === 'rename';
+
+    // ===== 控制"新名称"列的显示 =====
+    const thead = document.querySelector('#fileListContainer thead tr');
+    if (thead) {
+        const newNameTh = thead.querySelector('.new-name-col');
+        if (newNameTh) {
+            newNameTh.style.display = isRenameModule ? '' : 'none';
+        }
+    }
+
     let filteredFiles = fileData;
     if (window.filterRegex) {
         try {
@@ -567,7 +579,7 @@ function renderFiles(files) {
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
             `<td class="name-col${isDir ? ' folder-row' : ''}">${icon} ${escapeHtml(file.name)}</td>` +
-            `<td class="new-name-col${isChanged && !isDir ? '' : ' unchanged'}">${isDir ? '-' : escapeHtml(newName)}</td>` +
+            `<td class="new-name-col${isChanged && !isDir ? '' : ' unchanged'}" style="${isRenameModule ? '' : 'display:none;'}">${isDir ? '-' : escapeHtml(newName)}</td>` +
             `<td class="size-col">${size}</td>` +
             `<td class="date-col">${date}</td>` +
             `<td class="status-col ${statusClass}">${statusText}</td>`;
