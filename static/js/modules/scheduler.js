@@ -1,400 +1,477 @@
-// static/js/modules/scheduler.js
-const SchedulerModule = {
-    name: 'scheduler',
+# modules/scheduler.py
+from flask import jsonify, request
+import json
+import threading
+import time
+import subprocess
+from pathlib import Path
+from datetime import datetime
+import queue
+import os
+import re
+import shutil
 
-    init() {
-        document.getElementById('schedulerAddBtn').addEventListener('click', () => this.addTask());
-        document.getElementById('schedulerRefreshBtn').addEventListener('click', () => this.loadTasks());
-        this.loadTasks();
-    },
+from core.config import WORK_DIR
+from core.logger import get_logger
 
-    destroy() {
-        closeModal();
-        selectedFiles.clear();
-        updateSelectedInfo();
-        if (typeof renderFiles === 'function' && window.fileList) {
-            renderFiles(window.fileList);
-        }
-    },
+logger = get_logger(__name__)
 
-    async loadTasks() {
-        const container = document.getElementById('schedulerList');
-        try {
-            const result = await fetch('/api/scheduler/list').then(r => r.json());
-            if (result.error) {
-                container.innerHTML = '<div style="color:#e53e3e;text-align:center;padding:20px;">❌ ' + result.error + '</div>';
-                return;
-            }
+# ===== 定时任务存储 =====
+SCHEDULE_FILE = '/data/.scheduler_tasks.json'
+task_queue = queue.Queue()
+running_tasks = {}
 
-            if (!result.tasks || result.tasks.length === 0) {
-                container.innerHTML = '<div style="color:#4a4e62;text-align:center;padding:20px;">📭 暂无定时任务</div>';
-                return;
-            }
+# ===== 任务日志存储 =====
+task_logs = {}
 
-            let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
-            result.tasks.forEach(task => {
-                const status = task.enabled ? '🟢 运行中' : '🔴 已暂停';
-                const runStatus = task.run_status ? (task.run_status.status === 'running' ? '⏳ 运行中' :
-                    '✅ ' + task.run_status.status) : '⏸️ 等待';
-                const lastRun = task.last_run ? new Date(task.last_run).toLocaleString() : '从未';
-                const cronDisplay = task.cron || '每 ' + (task.interval / 3600) + ' 小时';
 
-                const params = task.params || {};
-                const targetPath = params.target_path || '/data';
-                const filePattern = params.file_pattern || '*';
-                const recursive = params.recursive ? '📂 包含子目录' : '📁 仅当前目录';
+def load_tasks():
+    try:
+        if Path(SCHEDULE_FILE).exists():
+            with open(SCHEDULE_FILE, 'r') as f:
+                return json.load(f)
+    except:
+        pass
+    return []
 
-                const logs = task.logs || [];
-                const recentLogs = logs.slice(-3);
-                let logHtml = '';
-                if (recentLogs.length > 0) {
-                    logHtml = '<div style="font-size:10px;color:#4a4e62;margin-top:4px;border-top:1px solid #1f222c;padding-top:4px;">';
-                    recentLogs.forEach(log => {
-                        const logColor = log.status === 'success' ? '#68d391' : log.status === 'error' ? '#fc8181' : '#f6ad55';
-                        logHtml += `<div style="color:${logColor};">${log.time} - ${log.message}</div>`;
-                    });
-                    logHtml += '</div>';
-                }
 
-                html += `
-                <div style="background:#1a1d27;border-radius:8px;padding:10px 14px;border:1px solid #2d313e;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-                    <div style="flex:1;min-width:150px;">
-                        <div style="color:#e4e6eb;font-weight:600;font-size:14px;">${task.name}</div>
-                        <div style="color:#8b8fa3;font-size:12px;">类型: ${task.type} | 调度: ${cronDisplay}</div>
-                        <div style="color:#8b8fa3;font-size:11px;">📁 目标: ${targetPath}</div>
-                        <div style="color:#8b8fa3;font-size:11px;">📄 匹配: ${filePattern}</div>
-                        <div style="color:#8b8fa3;font-size:11px;">${recursive}</div>
-                        <div style="color:#8b8fa3;font-size:11px;">上次执行: ${lastRun} | 状态: ${runStatus}</div>
-                        ${logHtml}
-                    </div>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                        <span style="font-size:12px;padding:2px 10px;border-radius:12px;background:${task.enabled ? '#2d3b6e' : '#2d313e'};color:${task.enabled ? '#68d391' : '#8b8fa3'};">${status}</span>
-                        <button class="scheduler-toggle" data-id="${task.id}" style="background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;">${task.enabled ? '⏸️ 暂停' : '▶️ 启动'}</button>
-                        <button class="scheduler-run" data-id="${task.id}" style="background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;">▶️ 立即执行</button>
-                        <button class="scheduler-delete" data-id="${task.id}" style="background:#2d313e;border:0;color:#b5b9c9;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;">🗑️</button>
-                    </div>
-                </div>`;
-            });
-            html += '</div>';
-            container.innerHTML = html;
+def save_tasks(tasks):
+    try:
+        with open(SCHEDULE_FILE, 'w') as f:
+            json.dump(tasks, f, indent=2, ensure_ascii=False)
+    except:
+        pass
 
-            container.querySelectorAll('.scheduler-toggle').forEach(btn => {
-                btn.addEventListener('click', () => this.toggleTask(btn.dataset.id));
-            });
-            container.querySelectorAll('.scheduler-run').forEach(btn => {
-                btn.addEventListener('click', () => this.runTask(btn.dataset.id));
-            });
-            container.querySelectorAll('.scheduler-delete').forEach(btn => {
-                btn.addEventListener('click', () => this.deleteTask(btn.dataset.id));
-            });
 
-        } catch (e) {
-            container.innerHTML = '<div style="color:#e53e3e;text-align:center;padding:20px;">❌ 加载失败: ' + e.message + '</div>';
-        }
-    },
+def add_task_log(task_id, message, status='info'):
+    """添加任务日志"""
+    if task_id not in task_logs:
+        task_logs[task_id] = []
+    task_logs[task_id].append({
+        'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'message': message,
+        'status': status
+    })
+    # 保留最近50条日志
+    if len(task_logs[task_id]) > 50:
+        task_logs[task_id] = task_logs[task_id][-50:]
+    # 保存到任务数据中
+    tasks = load_tasks()
+    for task in tasks:
+        if task.get('id') == task_id:
+            task['logs'] = task_logs[task_id]
+            save_tasks(tasks)
+            break
 
-    addTask() {
-        let dirOptions = '';
-        const collectDirs = (nodes, prefix) => {
-            if (!nodes || nodes.length === 0) return;
-            for (let node of nodes) {
-                if (node.is_dir) {
-                    const path = prefix ? prefix + '/' + node.name : node.name;
-                    const displayPath = '/' + path;
-                    dirOptions += `<option value="${displayPath}">📁 ${displayPath}</option>`;
-                    if (node.children && node.children.length > 0) {
-                        collectDirs(node.children, path);
-                    }
-                }
-            }
-        };
-        collectDirs(window.fullTreeData || [], '');
 
-        const modalHtml = `
-        <div class="modal" style="max-width:580px;">
-            <h2>⏰ 添加定时任务</h2>
-            <div class="form-group">
-                <label>任务名称</label>
-                <input type="text" id="schedulerName" placeholder="例如: 每日去重" value="定时任务" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-            </div>
-            <div class="form-group">
-                <label>任务类型</label>
-                <select id="schedulerType" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                    <option value="rename">重命名</option>
-                    <option value="dedup">去重</option>
-                    <option value="classify">分类整理</option>
-                    <option value="delete">删除</option>
-                    <option value="move_copy">移动/复制</option>
-                    <option value="chmod">权限修改</option>
-                    <option value="compress">图片压缩</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>📁 操作目录</label>
-                <select id="schedulerTargetPath" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                    <option value="/data">📁 /data</option>
-                    ${dirOptions}
-                </select>
-                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 任务将在选中的目录下执行</div>
-            </div>
+def get_files_in_directory(directory, pattern='.*', recursive=False):
+    """获取目录下匹配正则的文件"""
+    try:
+        path = Path(directory)
+        if not path.exists():
+            return []
+        regex = re.compile(pattern)
+        files = []
+        if recursive:
+            for item in path.rglob('*'):
+                if item.is_file():
+                    if regex.search(item.name):
+                        files.append(str(item))
+        else:
+            for item in path.iterdir():
+                if item.is_file():
+                    if regex.search(item.name):
+                        files.append(str(item))
+        return files
+    except Exception as e:
+        logger.error(f'获取文件列表失败: {e}')
+        return []
 
-            <!-- ===== 文件匹配 ===== -->
-            <div class="form-group">
-                <label>📄 文件匹配（正则表达式）</label>
-                <input type="text" id="schedulerFilePattern" value=".*" placeholder=".* 匹配所有文件" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 例如: \\.jpg$ 只匹配 JPG 文件</div>
-            </div>
 
-            <!-- ===== 【新增】包括子目录选项 ===== -->
-            <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <label style="margin:0;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                    <input type="checkbox" id="schedulerRecursive" style="accent-color:#667eea;width:16px;height:16px;">
-                    <span style="color:#8b8fa3;font-size:13px;">📂 包括子目录</span>
-                </label>
-                <span style="color:#4a4e62;font-size:11px;">（勾选后将对所有子目录进行相同操作）</span>
-            </div>
+def execute_task(task):
+    task_id = task.get('id')
+    task_name = task.get('name', '未知任务')
+    params = task.get('params', {})
+    target_path = params.get('target_path', '/data')
+    file_pattern = params.get('file_pattern', '.*')
+    recursive = params.get('recursive', False)
+    task_type = task.get('type')
 
-            <!-- ===== 重命名参数 ===== -->
-            <div class="form-group" id="schedulerRenameParams" style="display:block;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div>
-                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">🔍 查找</label>
-                        <input type="text" id="schedulerFind" placeholder="要查找的字符" style="width:100%;padding:6px 10px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;box-sizing:border-box;height:34px;">
-                    </div>
-                    <div>
-                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">📝 替换为</label>
-                        <input type="text" id="schedulerReplace" placeholder="替换成的字符" style="width:100%;padding:6px 10px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;box-sizing:border-box;height:34px;">
-                    </div>
-                </div>
-            </div>
+    add_task_log(task_id, f'任务 "{task_name}" 开始执行', 'info')
+    running_tasks[task_id] = {'status': 'running', 'start': datetime.now().isoformat()}
 
-            <!-- ===== 移动/复制参数 ===== -->
-            <div class="form-group" id="schedulerMoveCopyParams" style="display:none;">
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-                    <div>
-                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">操作</label>
-                        <select id="schedulerMoveAction" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                            <option value="move">移动</option>
-                            <option value="copy">复制</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">目标目录</label>
-                        <input type="text" id="schedulerMoveTarget" placeholder="/data/目标目录" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                    </div>
-                    <div style="display:flex;align-items:center;padding-top:20px;">
-                        <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;cursor:pointer;margin:0;">
-                            <input type="checkbox" id="schedulerMoveOverwrite" style="accent-color:#667eea;width:14px;height:14px;">
-                            覆盖已存在
-                        </label>
-                    </div>
-                </div>
-            </div>
+    try:
+        files = get_files_in_directory(target_path, file_pattern, recursive)
+        add_task_log(task_id, f'找到 {len(files)} 个匹配的文件', 'info')
 
-            <!-- ===== 权限修改参数 ===== -->
-            <div class="form-group" id="schedulerChmodParams" style="display:none;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div>
-                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">权限模式</label>
-                        <select id="schedulerChmodMode" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                            <option value="755">755 (rwxr-xr-x)</option>
-                            <option value="644">644 (rw-r--r--)</option>
-                            <option value="777">777 (rwxrwxrwx)</option>
-                            <option value="600">600 (rw-------)</option>
-                            <option value="700">700 (rwx------)</option>
-                            <option value="775">775 (rwxrwxr-x)</option>
-                        </select>
-                    </div>
-                    <div style="display:flex;align-items:center;padding-top:20px;">
-                        <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;cursor:pointer;margin:0;">
-                            <input type="checkbox" id="schedulerChmodRecursive" style="accent-color:#667eea;width:14px;height:14px;">
-                            递归子目录
-                        </label>
-                    </div>
-                </div>
-            </div>
+        if not files:
+            add_task_log(task_id, f'没有文件匹配模式: {file_pattern}', 'warning')
+            running_tasks[task_id] = {'status': 'completed', 'end': datetime.now().isoformat()}
+            return
 
-            <!-- ===== 图片压缩参数 ===== -->
-            <div class="form-group" id="schedulerCompressParams" style="display:none;">
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-                    <div>
-                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">压缩质量</label>
-                        <input type="number" id="schedulerCompressQuality" value="85" min="1" max="100" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                    </div>
-                    <div>
-                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">输出格式</label>
-                        <select id="schedulerCompressFormat" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                            <option value="original">保持原格式</option>
-                            <option value="webp">WebP</option>
-                            <option value="jpg">JPEG</option>
-                            <option value="png">PNG</option>
-                        </select>
-                    </div>
-                    <div style="display:flex;align-items:center;padding-top:20px;">
-                        <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;cursor:pointer;margin:0;">
-                            <input type="checkbox" id="schedulerCompressOverwrite" style="accent-color:#667eea;width:14px;height:14px;">
-                            覆盖原图
-                        </label>
-                    </div>
-                </div>
-            </div>
+        # ===== 重命名 =====
+        if task_type == 'rename':
+            find_str = params.get('find', '')
+            replace_str = params.get('replace', '')
+            if not find_str:
+                add_task_log(task_id, '重命名操作缺少查找内容', 'error')
+                running_tasks[task_id] = {'status': 'error', 'end': datetime.now().isoformat()}
+                return
+            renamed = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                new_name = src.name.replace(find_str, replace_str)
+                if new_name != src.name:
+                    new_path = src.parent / new_name
+                    try:
+                        src.rename(new_path)
+                        renamed += 1
+                        add_task_log(task_id, f'重命名: {src.name} → {new_name}', 'success')
+                    except Exception as e:
+                        add_task_log(task_id, f'重命名失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'重命名完成，共处理 {renamed} 个文件', 'success')
 
-            <div class="form-group">
-                <label>调度方式</label>
-                <select id="schedulerScheduleType" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                    <option value="cron">Cron 表达式</option>
-                    <option value="interval">间隔时间</option>
-                </select>
-            </div>
-            <div class="form-group" id="schedulerCronGroup">
-                <label>Cron 表达式 (如: 0 2 * * * 每天凌晨2点)</label>
-                <input type="text" id="schedulerCron" placeholder="0 2 * * *" value="0 2 * * *" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
-                    分 时 日 月 周 | 示例: 0 2 * * * = 每天凌晨2点
-                </div>
-            </div>
-            <div class="form-group" id="schedulerIntervalGroup" style="display:none;">
-                <label>间隔时间 (秒)</label>
-                <input type="number" id="schedulerInterval" value="3600" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
-                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">3600秒 = 1小时</div>
-            </div>
-            <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <label style="margin:0;display:flex;align-items:center;gap:4px;cursor:pointer;">
-                    <input type="checkbox" id="schedulerEnabled" checked style="width:16px;height:16px;accent-color:#667eea;">
-                    <span style="color:#8b8fa3;font-size:12px;">启用</span>
-                </label>
-            </div>
-            <div class="btn-row">
-                <button class="btn-cancel" onclick="closeModal()">取消</button>
-                <button class="btn-confirm" id="schedulerSaveBtn">保存</button>
-            </div>
-        </div>`;
+        # ===== 去重 =====
+        elif task_type == 'dedup':
+            deleted = 0
+            seen = {}
+            for file_path_str in files:
+                src = Path(file_path_str)
+                try:
+                    key = f'{src.stat().st_size}_{src.name}'
+                    if key in seen:
+                        src.unlink()
+                        deleted += 1
+                        add_task_log(task_id, f'删除重复: {src.name}', 'success')
+                    else:
+                        seen[key] = True
+                except Exception as e:
+                    add_task_log(task_id, f'去重失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'去重完成，删除 {deleted} 个重复文件', 'success')
 
-        const overlay = openModal(modalHtml);
-        overlay.querySelector('#schedulerScheduleType').addEventListener('change', function() {
-            document.getElementById('schedulerCronGroup').style.display = this.value === 'cron' ? 'block' : 'none';
-            document.getElementById('schedulerIntervalGroup').style.display = this.value === 'interval' ? 'block' : 'none';
-        });
-        overlay.querySelector('#schedulerType').addEventListener('change', function() {
-            const type = this.value;
-            document.getElementById('schedulerRenameParams').style.display = type === 'rename' ? 'block' : 'none';
-            document.getElementById('schedulerMoveCopyParams').style.display = type === 'move_copy' ? 'block' : 'none';
-            document.getElementById('schedulerChmodParams').style.display = type === 'chmod' ? 'block' : 'none';
-            document.getElementById('schedulerCompressParams').style.display = type === 'compress' ? 'block' : 'none';
-        });
-        overlay.querySelector('#schedulerSaveBtn').addEventListener('click', () => this.saveTask());
-    },
+        # ===== 分类整理 =====
+        elif task_type == 'classify':
+            classified = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                ext = src.suffix.lower()
+                category = ext[1:] if ext.startswith('.') else (ext or '其他')
+                if not category:
+                    category = '其他'
+                dest_dir = Path(target_path) / '分类整理' / category
+                dest = dest_dir / src.name
+                try:
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                    if not dest.exists():
+                        src.rename(dest)
+                        classified += 1
+                        add_task_log(task_id, f'分类: {src.name} → {category}/', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'分类失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'分类完成，共分类 {classified} 个文件', 'success')
 
-    async saveTask() {
-        const name = document.getElementById('schedulerName').value.trim() || '定时任务';
-        const type = document.getElementById('schedulerType').value;
-        const scheduleType = document.getElementById('schedulerScheduleType').value;
-        const cron = scheduleType === 'cron' ? document.getElementById('schedulerCron').value : '';
-        const interval = scheduleType === 'interval' ? parseInt(document.getElementById('schedulerInterval').value) || 3600 : 0;
-        const enabled = document.getElementById('schedulerEnabled').checked;
-        const targetPath = document.getElementById('schedulerTargetPath').value.trim() || '/data';
-        const filePattern = document.getElementById('schedulerFilePattern').value.trim() || '.*';
-        // ===== 【新增】读取子目录选项 =====
-        const recursive = document.getElementById('schedulerRecursive').checked;
+        # ===== 删除 =====
+        elif task_type == 'delete':
+            deleted = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                try:
+                    src.unlink()
+                    deleted += 1
+                    add_task_log(task_id, f'删除: {src.name}', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'删除失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'删除完成，共删除 {deleted} 个文件', 'success')
 
-        const params = {
-            target_path: targetPath,
-            file_pattern: filePattern,
-            recursive: recursive  // ===== 传递子目录参数 =====
-        };
+        # ===== 移动/复制 =====
+        elif task_type == 'move_copy':
+            move_action = params.get('move_action', 'move')
+            move_target = params.get('move_target', '')
+            move_overwrite = params.get('move_overwrite', False)
+            if not move_target:
+                add_task_log(task_id, '移动/复制缺少目标目录', 'error')
+                running_tasks[task_id] = {'status': 'error', 'end': datetime.now().isoformat()}
+                return
+            dest_base = Path(move_target)
+            processed = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                dest = dest_base / src.name
+                try:
+                    dest_base.mkdir(parents=True, exist_ok=True)
+                    if dest.exists() and not move_overwrite:
+                        stem = src.stem
+                        ext = src.suffix
+                        counter = 1
+                        while True:
+                            new_name = f'{stem}_{counter}{ext}'
+                            new_dest = dest_base / new_name
+                            if not new_dest.exists():
+                                dest = new_dest
+                                break
+                            counter += 1
+                    if move_action == 'move':
+                        src.rename(dest)
+                        add_task_log(task_id, f'移动: {src.name} → {dest.parent.name}/', 'success')
+                    else:
+                        shutil.copy2(str(src), str(dest))
+                        add_task_log(task_id, f'复制: {src.name} → {dest.parent.name}/', 'success')
+                    processed += 1
+                except Exception as e:
+                    add_task_log(task_id, f'{move_action}失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'{move_action}完成，共处理 {processed} 个文件', 'success')
 
-        if (type === 'rename') {
-            params.find = document.getElementById('schedulerFind')?.value || '';
-            params.replace = document.getElementById('schedulerReplace')?.value || '';
-        } else if (type === 'move_copy') {
-            params.move_action = document.getElementById('schedulerMoveAction')?.value || 'move';
-            params.move_target = document.getElementById('schedulerMoveTarget')?.value.trim() || '';
-            params.move_overwrite = document.getElementById('schedulerMoveOverwrite')?.checked || false;
-        } else if (type === 'chmod') {
-            params.chmod_mode = document.getElementById('schedulerChmodMode')?.value || '755';
-            params.chmod_recursive = document.getElementById('schedulerChmodRecursive')?.checked || false;
-        } else if (type === 'compress') {
-            params.compress_quality = parseInt(document.getElementById('schedulerCompressQuality')?.value) || 85;
-            params.compress_format = document.getElementById('schedulerCompressFormat')?.value || 'original';
-            params.compress_overwrite = document.getElementById('schedulerCompressOverwrite')?.checked || false;
+        # ===== 权限修改 =====
+        elif task_type == 'chmod':
+            chmod_mode = int(params.get('chmod_mode', '755'), 8)
+            chmod_recursive = params.get('chmod_recursive', False)
+            processed = 0
+            for file_path_str in files:
+                src = Path(file_path_str)
+                try:
+                    os.chmod(src, chmod_mode)
+                    processed += 1
+                    add_task_log(task_id, f'权限修改: {src.name} → {oct(chmod_mode)}', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'权限修改失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'权限修改完成，共处理 {processed} 个文件', 'success')
+
+        # ===== 图片压缩 =====
+        elif task_type == 'compress':
+            compress_quality = params.get('compress_quality', 85)
+            compress_format = params.get('compress_format', 'original')
+            compress_overwrite = params.get('compress_overwrite', False)
+            compressed = 0
+            image_exts = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif'}
+            for file_path_str in files:
+                src = Path(file_path_str)
+                ext = src.suffix.lower()
+                if ext not in image_exts:
+                    continue
+                try:
+                    if compress_overwrite:
+                        output_path = src
+                    else:
+                        output_ext = '.' + compress_format if compress_format != 'original' else src.suffix
+                        output_name = src.stem + '_compressed' + output_ext
+                        output_path = src.parent / output_name
+                        if output_path.exists():
+                            output_name = src.stem + f'_compressed_{int(time.time())}' + output_ext
+                            output_path = src.parent / output_name
+
+                    if ext in ('.jpg', '.jpeg'):
+                        if compress_format == 'webp':
+                            import subprocess
+                            cmd = ['cwebp', '-q', str(compress_quality), str(src), '-o', str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                        else:
+                            import subprocess
+                            if compress_overwrite:
+                                cmd = ['jpegoptim', '--max=' + str(compress_quality), str(src)]
+                            else:
+                                shutil.copy2(str(src), str(output_path))
+                                cmd = ['jpegoptim', '--max=' + str(compress_quality), str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                    elif ext == '.png':
+                        if compress_format == 'webp':
+                            import subprocess
+                            cmd = ['cwebp', '-q', str(compress_quality), str(src), '-o', str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                        else:
+                            import subprocess
+                            if compress_overwrite:
+                                cmd = ['optipng', '-o2', str(src)]
+                            else:
+                                shutil.copy2(str(src), str(output_path))
+                                cmd = ['optipng', '-o2', str(output_path)]
+                            subprocess.run(cmd, capture_output=True, check=False)
+                    else:
+                        import subprocess
+                        cmd = ['cwebp', '-q', str(compress_quality), str(src), '-o', str(output_path)]
+                        subprocess.run(cmd, capture_output=True, check=False)
+
+                    if compress_overwrite:
+                        compressed += 1
+                        add_task_log(task_id, f'压缩: {src.name} (覆盖原图)', 'success')
+                    elif output_path.exists():
+                        compressed += 1
+                        add_task_log(task_id, f'压缩: {src.name} → {output_path.name}', 'success')
+                except Exception as e:
+                    add_task_log(task_id, f'压缩失败: {src.name} - {str(e)}', 'error')
+            add_task_log(task_id, f'压缩完成，共压缩 {compressed} 张图片', 'success')
+
+        else:
+            add_task_log(task_id, f'未知任务类型: {task_type}', 'error')
+
+        running_tasks[task_id] = {
+            'status': 'completed',
+            'end': datetime.now().isoformat()
         }
 
-        closeModal();
-        showLog('⏳ 创建定时任务...', 'info');
-
-        try {
-            const result = await fetch('/api/scheduler/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: name,
-                    type: type,
-                    cron: cron,
-                    interval: interval,
-                    enabled: enabled,
-                    params: params
-                })
-            }).then(r => r.json());
-
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-            showLog('✅ 定时任务 "' + name + '" 已创建', 'success');
-            this.loadTasks();
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
+    except Exception as e:
+        logger.error(f'任务执行失败: {task_id} - {e}', exc_info=True)
+        add_task_log(task_id, f'任务执行失败: {str(e)}', 'error')
+        running_tasks[task_id] = {
+            'status': 'error',
+            'end': datetime.now().isoformat(),
+            'error': str(e)
         }
-    },
 
-    async toggleTask(id) {
-        try {
-            const result = await fetch('/api/scheduler/toggle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
-            }).then(r => r.json());
 
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-            this.loadTasks();
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
+def task_worker():
+    while True:
+        try:
+            task = task_queue.get(timeout=5)
+            if task is None:
+                break
+            execute_task(task)
+        except queue.Empty:
+            continue
+
+
+def scheduler_loop():
+    while True:
+        try:
+            tasks = load_tasks()
+            now = datetime.now()
+            for task in tasks:
+                if not task.get('enabled', True):
+                    continue
+                last_run = task.get('last_run')
+                cron = task.get('cron')
+                if cron:
+                    try:
+                        import croniter
+                        if croniter.is_valid(cron):
+                            iter = croniter.croniter(cron, datetime.now())
+                            next_run = iter.get_next(datetime)
+                            if last_run:
+                                prev = datetime.fromisoformat(last_run) if isinstance(last_run, str) else last_run
+                                if now >= next_run and prev < next_run:
+                                    task_queue.put(task)
+                                    task['last_run'] = now.isoformat()
+                                    save_tasks(tasks)
+                            else:
+                                task_queue.put(task)
+                                task['last_run'] = now.isoformat()
+                                save_tasks(tasks)
+                    except Exception as e:
+                        print(f'Cron error: {e}')
+                elif task.get('interval'):
+                    interval = task.get('interval')
+                    if last_run:
+                        prev = datetime.fromisoformat(last_run) if isinstance(last_run, str) else last_run
+                        if (now - prev).total_seconds() >= interval:
+                            task_queue.put(task)
+                            task['last_run'] = now.isoformat()
+                            save_tasks(tasks)
+                    else:
+                        task_queue.put(task)
+                        task['last_run'] = now.isoformat()
+                        save_tasks(tasks)
+        except Exception as e:
+            logger.error(f'Scheduler error: {e}')
+        time.sleep(60)
+
+
+# ===== 启动调度线程 =====
+threading.Thread(target=scheduler_loop, daemon=True).start()
+threading.Thread(target=task_worker, daemon=True).start()
+
+
+def register(app):
+    """注册定时任务路由"""
+
+    @app.route('/api/scheduler/list', methods=['GET'])
+    def list_tasks():
+        tasks = load_tasks()
+        for task in tasks:
+            task_id = task.get('id')
+            if task_id in running_tasks:
+                task['run_status'] = running_tasks[task_id]
+            else:
+                task['run_status'] = None
+            if 'logs' not in task:
+                task['logs'] = task_logs.get(task_id, [])
+        return jsonify({'tasks': tasks})
+
+    @app.route('/api/scheduler/create', methods=['POST'])
+    def create_task():
+        data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+
+        name = data.get('name', '未命名任务')
+        task_type = data.get('type', 'rename')
+        cron = data.get('cron', '')
+        interval = data.get('interval', 3600)
+        enabled = data.get('enabled', True)
+        params = data.get('params', {})
+
+        tasks = load_tasks()
+        task_id = str(int(time.time() * 1000))
+        new_task = {
+            'id': task_id,
+            'name': name,
+            'type': task_type,
+            'cron': cron,
+            'interval': interval,
+            'enabled': enabled,
+            'params': params,
+            'created': datetime.now().isoformat(),
+            'last_run': None,
+            'logs': []
         }
-    },
+        tasks.append(new_task)
+        save_tasks(tasks)
+        task_logs[task_id] = []
 
-    async runTask(id) {
-        try {
-            showLog('⏳ 正在执行任务...', 'info');
-            const result = await fetch('/api/scheduler/run', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
-            }).then(r => r.json());
+        return jsonify({'success': True, 'task': new_task})
 
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-            showLog('✅ 任务已触发执行', 'success');
-            setTimeout(() => this.loadTasks(), 2000);
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    },
+    @app.route('/api/scheduler/delete', methods=['POST'])
+    def delete_task():
+        data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
 
-    async deleteTask(id) {
-        if (!confirm('确定要删除这个定时任务吗？')) return;
+        task_id = data.get('id')
+        tasks = load_tasks()
+        tasks = [t for t in tasks if t.get('id') != task_id]
+        save_tasks(tasks)
+        if task_id in task_logs:
+            del task_logs[task_id]
+        return jsonify({'success': True})
 
-        try {
-            const result = await fetch('/api/scheduler/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
-            }).then(r => r.json());
+    @app.route('/api/scheduler/toggle', methods=['POST'])
+    def toggle_task():
+        data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
 
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-            showLog('✅ 任务已删除', 'success');
-            this.loadTasks();
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    }
-};
+        task_id = data.get('id')
+        tasks = load_tasks()
+        for task in tasks:
+            if task.get('id') == task_id:
+                task['enabled'] = not task.get('enabled', True)
+                break
+        save_tasks(tasks)
+        return jsonify({'success': True})
 
-if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(SchedulerModule);
-}
+    @app.route('/api/scheduler/run', methods=['POST'])
+    def run_task_now():
+        data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+
+        task_id = data.get('id')
+        tasks = load_tasks()
+        for task in tasks:
+            if task.get('id') == task_id:
+                task_logs[task_id] = []
+                task['logs'] = []
+                task_queue.put(task)
+                task['last_run'] = datetime.now().isoformat()
+                save_tasks(tasks)
+                add_task_log(task_id, '手动触发执行', 'info')
+                return jsonify({'success': True, 'message': '任务已触发'})
+        return jsonify({'error': '任务不存在'}), 404
