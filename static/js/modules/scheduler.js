@@ -107,11 +107,7 @@ const SchedulerModule = {
                 }
             }
         };
-        // 从 window.fullTreeData 收集目录
         collectDirs(window.fullTreeData || [], '');
-
-        // 如果目录树还没加载，使用 /data 作为默认
-        const currentDir = window.currentPath || '/data';
 
         const modalHtml = `
         <div class="modal" style="max-width:550px;">
@@ -138,38 +134,38 @@ const SchedulerModule = {
             </div>
             <div class="form-group">
                 <label>📄 文件匹配（正则表达式）</label>
-                <input type="text" id="schedulerFilePattern" value=".*" placeholder=".* 匹配所有文件">
+                <input type="text" id="schedulerFilePattern" value=".*" placeholder=".* 匹配所有文件" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 例如: \\.jpg$ 只匹配 JPG 文件</div>
             </div>
             <div class="form-group" id="schedulerRenameParams" style="display:block;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                     <div>
-                        <label>查找</label>
-                        <input type="text" id="schedulerFind" placeholder="要查找的字符">
+                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">🔍 查找</label>
+                        <input type="text" id="schedulerFind" placeholder="要查找的字符" style="width:100%;padding:6px 10px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;box-sizing:border-box;height:34px;">
                     </div>
                     <div>
-                        <label>替换为</label>
-                        <input type="text" id="schedulerReplace" placeholder="替换成的字符">
+                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">📝 替换为</label>
+                        <input type="text" id="schedulerReplace" placeholder="替换成的字符" style="width:100%;padding:6px 10px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;box-sizing:border-box;height:34px;">
                     </div>
                 </div>
             </div>
             <div class="form-group">
                 <label>调度方式</label>
-                <select id="schedulerScheduleType">
+                <select id="schedulerScheduleType" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                     <option value="cron">Cron 表达式</option>
                     <option value="interval">间隔时间</option>
                 </select>
             </div>
             <div class="form-group" id="schedulerCronGroup">
                 <label>Cron 表达式 (如: 0 2 * * * 每天凌晨2点)</label>
-                <input type="text" id="schedulerCron" placeholder="0 2 * * *" value="0 2 * * *">
+                <input type="text" id="schedulerCron" placeholder="0 2 * * *" value="0 2 * * *" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
                     分 时 日 月 周 | 示例: 0 2 * * * = 每天凌晨2点
                 </div>
             </div>
             <div class="form-group" id="schedulerIntervalGroup" style="display:none;">
                 <label>间隔时间 (秒)</label>
-                <input type="number" id="schedulerInterval" value="3600">
+                <input type="number" id="schedulerInterval" value="3600" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">3600秒 = 1小时</div>
             </div>
             <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
