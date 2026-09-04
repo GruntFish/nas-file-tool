@@ -151,7 +151,6 @@ const MediaModule = {
     },
 
     async doCompress(files) {
-        // ===== 【修复】检查文件列表 =====
         if (!files || files.length === 0) {
             showLog('⚠️ 没有可压缩的图片文件', 'warning');
             return;
