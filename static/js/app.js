@@ -157,9 +157,8 @@ function clearLog() {
     logArea.classList.remove('show');
 }
 
-// ===== 【修复】openModal - 强制居中 =====
+// ===== openModal - 保留 CSS 类样式 =====
 function openModal(html) {
-    // 移除所有已有弹窗
     const existing = document.querySelectorAll('.modal-overlay');
     existing.forEach(el => el.remove());
 
@@ -181,35 +180,29 @@ function openModal(html) {
 
     if (!overlay) return null;
 
-    // ===== 【修复】直接设置样式，确保居中 =====
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 999999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: 0;
-        padding: 0;
-    `;
+    // ===== 只设置定位样式，不覆盖 CSS 类 =====
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.zIndex = '999999';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.margin = '0';
+    overlay.style.padding = '0';
 
-    // 点击背景关闭弹窗
     overlay.addEventListener('click', function(e) {
         if (e.target === this) this.remove();
     });
 
-    // ===== 【修复】添加到 body 最前面 =====
     document.body.prepend(overlay);
     return overlay;
 }
 
-// ===== closeModal =====
 function closeModal() {
     document.querySelectorAll('.modal-overlay.show').forEach(el => el.remove());
 }
