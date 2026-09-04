@@ -5,13 +5,25 @@ import os
 import time
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE
+from core.decorators import with_memory_cleanup, log_operation, handle_errors
+from core.security import is_safe_path
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def register(app):
     """注册权限管理路由"""
 
     @app.route('/api/chmod', methods=['POST'])
+    @handle_errors('修改权限失败')
+    @log_operation('修改权限')
+    @with_memory_cleanup(app)
     def chmod():
         data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+
         files = data.get('files', [])
         mode = data.get('mode', '755')
         recursive = data.get('recursive', False)
@@ -24,7 +36,6 @@ def register(app):
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
-        # 解析权限模式
         try:
             if isinstance(mode, str):
                 mode_num = int(mode, 8) if mode.startswith('0') else int(mode, 8)
@@ -47,11 +58,15 @@ def register(app):
 
         all_items = []
         for file_path_str in files:
-            target = Path(work_dir) / file_path_str
+            target = Path(work_dir) / file_path_str.lstrip('/')
+            if not is_safe_path(target, work_dir):
+                results.append({'path': file_path_str, 'status': 'skip', 'reason': '不安全路径'})
+                stats['skipped'] += 1
+                continue
             if target.exists():
                 if target.is_dir() and recursive:
                     for p in target.rglob('*'):
-                        if p.exists():
+                        if p.exists() and is_safe_path(p, work_dir):
                             all_items.append(str(p.relative_to(work_dir)))
                     all_items.append(file_path_str)
                 else:
@@ -65,7 +80,7 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(0.05)
 
-            target = Path(work_dir) / item_path_str
+            target = Path(work_dir) / item_path_str.lstrip('/')
             if not target.exists():
                 stats['skipped'] += 1
                 continue
@@ -104,6 +119,7 @@ def register(app):
                     })
                 except Exception as e:
                     stats['errors'] += 1
+                    logger.error(f'权限修改失败: {target} - {e}')
                     results.append({
                         'path': item_path_str,
                         'status': 'error',
