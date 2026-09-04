@@ -15,33 +15,23 @@ const RenameModule = {
     },
 
     destroy() {
+        // ===== 只清理数据，不清理样式，避免闪烁 =====
         window.renamePreview = {};
         selectedFiles.clear();
         updateSelectedInfo();
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
-        this.cleanup();
+        // 不调用 this.cleanup()
     },
 
     cleanup() {
+        // ===== 只清理按钮，不动输入框样式 =====
         const executeBtn = document.getElementById('executeRenameBtn');
         if (executeBtn) {
             const newBtn = executeBtn.cloneNode(true);
             executeBtn.parentNode.replaceChild(newBtn, executeBtn);
         }
-        const actionSelect = document.getElementById('renameAction');
-        if (actionSelect) {
-            actionSelect.disabled = false;
-            actionSelect.style.color = '';
-            actionSelect.style.background = '';
-        }
-        document.querySelectorAll('.module-rename input').forEach(input => {
-            if (input.type !== 'checkbox' && input.type !== 'number') {
-                input.style.color = '';
-                input.style.background = '';
-            }
-        });
     },
 
     bindEvents() {
@@ -402,18 +392,7 @@ const RenameModule = {
         const dateType = data.date_type || 'created';
         const dateFormat = data.date_format || 'YYYY-MM-DD';
         const position = data.date_pos || 'prefix';
-        let timestamp;
-        try {
-            if (dateType === 'created') {
-                timestamp = fs.statSync(filePath).birthtimeMs || fs.statSync(filePath).ctimeMs;
-            } else if (dateType === 'modified') {
-                timestamp = fs.statSync(filePath).mtimeMs;
-            } else {
-                timestamp = Date.now();
-            }
-        } catch (e) {
-            timestamp = Date.now();
-        }
+        const timestamp = Date.now();
         const dt = new Date(timestamp);
         const fmtMap = {
             'YYYY-MM-DD': dt.toISOString().split('T')[0],
@@ -589,14 +568,20 @@ const RenameModule = {
                 completeMessage: `✅ 成功重命名 ${filesToRename.length} 个文件`,
                 execute: async (progress) => {
                     progress.setTotal(filesToRename.length);
-                    const batchSize = 10;
-                    let processed = 0;
                     const requestData = {
                         action: action,
                         files: filesToRename,
                         ...params
                     };
-                    const result = await apiCall('/api/execute', requestData);
+                    let result;
+                    try {
+                        result = await apiCall('/api/execute', requestData);
+                    } catch (e) {
+                        throw new Error('请求失败: ' + e.message);
+                    }
+                    if (!result) {
+                        throw new Error('服务器无响应');
+                    }
                     if (result.error) {
                         throw new Error(result.error);
                     }
