@@ -8,6 +8,7 @@ from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BET
 from core.decorators import with_memory_cleanup, log_operation, handle_errors
 from core.security import is_safe_path, is_safe_delete
 from core.logger import get_logger
+from core.undo import add_undo_record, UndoAction
 
 logger = get_logger(__name__)
 
@@ -44,14 +45,12 @@ def register(app):
                 time.sleep(SLEEP_BETWEEN_BATCH)
 
             target = Path(work_dir) / file_path_str.lstrip('/')
-            
-            # ===== 【新增】路径安全检查 =====
+
             if not is_safe_path(target, work_dir):
                 logs.append({'text': f'⚠️ 不安全路径: {file_path_str}', 'type': 'warning'})
                 failed += 1
                 continue
-            
-            # ===== 【新增】删除黑名单检查 =====
+
             if not is_safe_delete(target):
                 logs.append({'text': f'⚠️ 文件在保护列表中: {target.name}', 'type': 'warning'})
                 failed += 1
@@ -59,7 +58,6 @@ def register(app):
 
             if target.exists():
                 try:
-                    # ===== 【新增】删除前备份（用于撤销） =====
                     backup_path = target.parent / f'.{target.name}.deleted_backup'
                     if target.is_file():
                         shutil.copy2(str(target), str(backup_path))
@@ -70,19 +68,14 @@ def register(app):
                         shutil.rmtree(target)
                         logs.append({'text': f'🗑️ 删除目录: {target.name}', 'type': 'success'})
                         deleted += 1
-                    # 保存撤销记录
-                    try:
-                        from core.undo import add_undo_record, UndoAction
-                        add_undo_record(
-                            UndoAction.DELETE,
-                            str(target),
-                            None,
-                            target.name,
-                            None,
-                            {'backup_path': str(backup_path)}
-                        )
-                    except:
-                        pass
+                    add_undo_record(
+                        UndoAction.DELETE,
+                        str(target),
+                        None,
+                        target.name,
+                        None,
+                        {'backup_path': str(backup_path)}
+                    )
                 except Exception as e:
                     failed += 1
                     logger.error(f'删除失败: {target.name} - {e}')
