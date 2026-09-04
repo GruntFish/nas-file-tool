@@ -39,12 +39,10 @@ const SchedulerModule = {
                 const lastRun = task.last_run ? new Date(task.last_run).toLocaleString() : '从未';
                 const cronDisplay = task.cron || '每 ' + (task.interval / 3600) + ' 小时';
 
-                // ===== 显示操作目标 =====
                 const params = task.params || {};
                 const targetPath = params.target_path || '/data';
                 const filePattern = params.file_pattern || '*';
 
-                // ===== 显示最近日志（最多3条） =====
                 const logs = task.logs || [];
                 const recentLogs = logs.slice(-3);
                 let logHtml = '';
@@ -94,7 +92,25 @@ const SchedulerModule = {
     },
 
     addTask() {
-        // ===== 获取当前目录用于默认值 =====
+        // ===== 收集目录树选项 =====
+        let dirOptions = '';
+        const collectDirs = (nodes, prefix) => {
+            if (!nodes || nodes.length === 0) return;
+            for (let node of nodes) {
+                if (node.is_dir) {
+                    const path = prefix ? prefix + '/' + node.name : node.name;
+                    const displayPath = '/' + path;
+                    dirOptions += `<option value="${displayPath}">📁 ${displayPath}</option>`;
+                    if (node.children && node.children.length > 0) {
+                        collectDirs(node.children, path);
+                    }
+                }
+            }
+        };
+        // 从 window.fullTreeData 收集目录
+        collectDirs(window.fullTreeData || [], '');
+
+        // 如果目录树还没加载，使用 /data 作为默认
         const currentDir = window.currentPath || '/data';
 
         const modalHtml = `
@@ -114,8 +130,11 @@ const SchedulerModule = {
             </div>
             <div class="form-group">
                 <label>📁 操作目录</label>
-                <input type="text" id="schedulerTargetPath" value="${currentDir}" placeholder="/data/你的目录">
-                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 任务将在此目录下执行</div>
+                <select id="schedulerTargetPath" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
+                    <option value="/data">📁 /data</option>
+                    ${dirOptions}
+                </select>
+                <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 任务将在选中的目录下执行</div>
             </div>
             <div class="form-group">
                 <label>📄 文件匹配（正则表达式）</label>
@@ -186,7 +205,6 @@ const SchedulerModule = {
         const targetPath = document.getElementById('schedulerTargetPath').value.trim() || '/data';
         const filePattern = document.getElementById('schedulerFilePattern').value.trim() || '.*';
 
-        // ===== 重命名参数 =====
         const find = document.getElementById('schedulerFind')?.value || '';
         const replace = document.getElementById('schedulerReplace')?.value || '';
 
@@ -248,7 +266,6 @@ const SchedulerModule = {
 
             if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
             showLog('✅ 任务已触发执行', 'success');
-            // 延迟刷新以查看日志更新
             setTimeout(() => this.loadTasks(), 2000);
         } catch (e) {
             showLog('❌ ' + e.message, 'error');
