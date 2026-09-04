@@ -36,8 +36,10 @@ const MoveCopyModule = {
             for (let node of nodes) {
                 if (node.is_dir) {
                     const path = prefix ? prefix + '/' + node.name : node.name;
-                    if (path !== currentDir.replace(/^\//, '')) {
-                        dirOptions += `<option value="${path}">📁 ${path}</option>`;
+                    // ===== 存储完整路径 =====
+                    const fullPath = node.path;
+                    if (fullPath !== currentDir) {
+                        dirOptions += `<option value="${fullPath}">📁 ${fullPath}</option>`;
                     }
                     if (node.children) collectDirs(node.children, path);
                 }
@@ -194,15 +196,35 @@ const MoveCopyModule = {
         let targetDir = document.getElementById('mcTargetSelect').value.trim();
         const inputDir = document.getElementById('mcTargetInput').value.trim();
 
+        // ===== 【修复】目标目录路径处理 =====
+        const currentDir = window.currentPath || '/';
+
         if (inputDir) {
-            const currentDir = window.currentPath || '/';
+            // 输入新目录：基于当前目录拼接
             if (currentDir === '/') {
-                targetDir = inputDir;
+                targetDir = '/' + inputDir;
             } else {
-                targetDir = currentDir.replace(/^\//, '') + '/' + inputDir;
+                targetDir = currentDir + '/' + inputDir;
+            }
+        } else if (targetDir) {
+            // 下拉框选择的目录：检查是否以 /data 开头
+            if (!targetDir.startsWith('/data') && !targetDir.startsWith('/')) {
+                // 相对路径，补全为绝对路径
+                targetDir = '/' + targetDir;
+            }
+            // 如果是以 / 开头但不是 /data，可能是用户在输入框输入的，保持不变
+        }
+
+        // ===== 【新增】确保目标目录是绝对路径 =====
+        if (targetDir && !targetDir.startsWith('/data') && targetDir.startsWith('/')) {
+            // 如果是以 / 开头但不是 /data，可能直接解析为 /xxx
+            // 这种情况下，如果当前目录是 /data/xxx，则拼接
+            if (currentDir.startsWith('/data') && !targetDir.startsWith('/data')) {
+                targetDir = currentDir + targetDir;
             }
         }
 
+        // 如果目标目录为空或无效，提示
         if (!targetDir) {
             showLog('⚠️ 请选择或输入目标目录', 'warning');
             return;
