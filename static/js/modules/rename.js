@@ -6,7 +6,6 @@ const RenameModule = {
         this.bindEvents();
         this.setupActionToggle();
         setTimeout(() => this.autoPreview(), 500);
-
         document.addEventListener('filesLoaded', () => {
             setTimeout(() => this.autoPreview(), 300);
         });
@@ -31,14 +30,12 @@ const RenameModule = {
             const newBtn = executeBtn.cloneNode(true);
             executeBtn.parentNode.replaceChild(newBtn, executeBtn);
         }
-
         const actionSelect = document.getElementById('renameAction');
         if (actionSelect) {
             actionSelect.disabled = false;
             actionSelect.style.color = '';
             actionSelect.style.background = '';
         }
-
         document.querySelectorAll('.module-rename input').forEach(input => {
             if (input.type !== 'checkbox' && input.type !== 'number') {
                 input.style.color = '';
@@ -54,23 +51,7 @@ const RenameModule = {
             executeBtn.parentNode.replaceChild(newBtn, executeBtn);
             newBtn.addEventListener('click', () => this.execute());
             newBtn.className = 'btn-execute';
-            newBtn.style.cssText = `
-                background: linear-gradient(135deg, #667eea, #764ba2) !important;
-                border: none !important;
-                color: #fff !important;
-                padding: 4px 18px !important;
-                border-radius: 6px !important;
-                font-size: 13px !important;
-                font-weight: 600 !important;
-                cursor: pointer !important;
-                font-family: inherit !important;
-                height: 30px !important;
-                min-width: 100px !important;
-                transition: all 0.15s ease !important;
-                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
-            `;
         }
-
         const actionSelect = document.getElementById('renameAction');
         if (actionSelect) {
             const newSelect = actionSelect.cloneNode(true);
@@ -83,7 +64,6 @@ const RenameModule = {
             newSelect.style.color = '#e4e6eb';
             newSelect.style.background = '#1a1d27';
         }
-
         ['findText', 'replaceText', 'caseSensitive', 'startNum', 'stepNum', 'digitsNum',
             'numberPos', 'extAction', 'extValue', 'removeStart', 'removeLen', 'removeFromEnd',
             'dateType', 'dateFormat', 'datePos'
@@ -105,7 +85,6 @@ const RenameModule = {
                 }
             }
         });
-
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 this.restoreSelectState();
@@ -129,29 +108,23 @@ const RenameModule = {
     setupActionToggle() {
         const actionEl = document.getElementById('renameAction');
         if (!actionEl) return;
-
         actionEl.disabled = false;
         actionEl.style.color = '#e4e6eb';
         actionEl.style.background = '#1a1d27';
-
         const action = actionEl.value;
-
         const numParams = document.getElementById('numParams');
         const extParams = document.getElementById('extParams');
         const removePosParams = document.getElementById('removePosParams');
         const dateParams = document.getElementById('dateParams');
-
         if (numParams) numParams.style.display = 'none';
         if (extParams) extParams.style.display = 'none';
         if (removePosParams) removePosParams.style.display = 'none';
         if (dateParams) dateParams.style.display = 'none';
-
         const findLabel = document.getElementById('findLabel');
         const findText = document.getElementById('findText');
         const replaceLabel = document.getElementById('replaceLabel');
         const replaceText = document.getElementById('replaceText');
         const caseSensitive = document.getElementById('caseSensitive');
-
         if (findLabel) findLabel.style.display = 'inline';
         if (findText) {
             findText.style.display = 'inline';
@@ -165,7 +138,6 @@ const RenameModule = {
             replaceText.style.background = '#1a1d27';
         }
         if (caseSensitive) caseSensitive.parentElement.style.display = 'inline-flex';
-
         switch (action) {
             case 'number':
                 if (numParams) numParams.style.display = 'inline';
@@ -239,7 +211,6 @@ const RenameModule = {
                 if (caseSensitive) caseSensitive.parentElement.style.display = 'inline-flex';
                 break;
         }
-
         document.querySelectorAll('.module-rename select, .module-rename input').forEach(el => {
             if (el.style.display !== 'none') {
                 el.style.visibility = 'visible';
@@ -255,7 +226,6 @@ const RenameModule = {
         }
         const action = actionEl.value;
         const params = { action };
-
         switch (action) {
             case 'replace':
             case 'regex':
@@ -299,7 +269,6 @@ const RenameModule = {
     applyRenameAction(oldName, params) {
         const action = params.action;
         let name, ext, newName;
-
         switch (action) {
             case 'replace':
                 const findStr = params.find || '';
@@ -418,10 +387,8 @@ const RenameModule = {
         const step = data.step || 1;
         const digits = data.digits || 2;
         const position = data.position || 'suffix';
-
         const num = start + (index - 1) * step;
         const numStr = String(num).padStart(digits, '0');
-
         if (position === 'prefix') {
             return numStr + '_' + oldName;
         } else {
@@ -435,7 +402,6 @@ const RenameModule = {
         const dateType = data.date_type || 'created';
         const dateFormat = data.date_format || 'YYYY-MM-DD';
         const position = data.date_pos || 'prefix';
-
         let timestamp;
         try {
             if (dateType === 'created') {
@@ -448,7 +414,6 @@ const RenameModule = {
         } catch (e) {
             timestamp = Date.now();
         }
-
         const dt = new Date(timestamp);
         const fmtMap = {
             'YYYY-MM-DD': dt.toISOString().split('T')[0],
@@ -456,7 +421,6 @@ const RenameModule = {
             'YYMMDD': dt.toISOString().split('T')[0].replace(/-/g, '').slice(2)
         };
         const dateStr = fmtMap[dateFormat] || fmtMap['YYYY-MM-DD'];
-
         if (position === 'prefix') {
             return dateStr + '_' + oldName;
         } else {
@@ -466,10 +430,7 @@ const RenameModule = {
 
     autoPreview() {
         const actionSelect = document.getElementById('renameAction');
-        if (!actionSelect) {
-            return;
-        }
-
+        if (!actionSelect) return;
         const currentFiles = window.fileList || [];
         if (currentFiles.length === 0) {
             window.renamePreview = {};
@@ -478,7 +439,6 @@ const RenameModule = {
             }
             return;
         }
-
         const files = Array.from(selectedFiles);
         if (files.length === 0) {
             window.renamePreview = {};
@@ -487,12 +447,10 @@ const RenameModule = {
             }
             return;
         }
-
         const targetFiles = files.filter(f => {
             const fileObj = currentFiles.find(cf => cf.path === f);
             return fileObj && !fileObj.is_dir;
         });
-
         if (targetFiles.length === 0) {
             window.renamePreview = {};
             if (typeof renderFiles === 'function') {
@@ -500,10 +458,8 @@ const RenameModule = {
             }
             return;
         }
-
         const params = this.getParams();
         const action = params.action;
-
         if (action === 'number') {
             const previewMap = {};
             targetFiles.forEach((filePath, idx) => {
@@ -519,7 +475,6 @@ const RenameModule = {
             }
             return;
         }
-
         if (action === 'date') {
             const previewMap = {};
             targetFiles.forEach((filePath) => {
@@ -535,7 +490,6 @@ const RenameModule = {
             }
             return;
         }
-
         const previewMap = {};
         let hasChanges = false;
         for (let filePath of targetFiles) {
@@ -546,9 +500,7 @@ const RenameModule = {
                 hasChanges = true;
             }
         }
-
         window.renamePreview = hasChanges ? previewMap : {};
-
         if (typeof renderFiles === 'function') {
             renderFiles(currentFiles);
         }
@@ -560,18 +512,15 @@ const RenameModule = {
             showLog('⚠️ 请先勾选要重命名的文件', 'warning');
             return;
         }
-
         const currentFiles = window.fileList || [];
         const targetFiles = files.filter(f => {
             const fileObj = currentFiles.find(cf => cf.path === f);
             return fileObj && !fileObj.is_dir;
         });
-
         if (targetFiles.length === 0) {
             showLog('⚠️ 选中的文件中没有可重命名的文件', 'warning');
             return;
         }
-
         let hasChange = false;
         for (let f of targetFiles) {
             if (window.renamePreview[f] && window.renamePreview[f] !== getFileName(f)) {
@@ -583,11 +532,9 @@ const RenameModule = {
             showLog('⚠️ 选中的文件没有需要修改的名称', 'warning');
             return;
         }
-
         const params = this.getParams();
         const action = params.action;
         const filesToRename = [];
-
         if (action === 'number') {
             let idx = 1;
             for (let f of targetFiles) {
@@ -628,69 +575,65 @@ const RenameModule = {
                 }
             }
         }
-
         if (filesToRename.length === 0) {
             showLog('⚠️ 选中的文件没有需要修改的名称', 'warning');
             return;
         }
-
         if (!confirm(`确定要重命名 ${filesToRename.length} 个选中的文件吗？`)) return;
-
         clearLog();
         showLog('⏳ 开始重命名 ' + filesToRename.length + ' 个选中的文件...', 'info');
 
         try {
-            const requestData = {
-                action: action,
-                files: filesToRename,
-                ...params
-            };
-            console.log('发送请求:', requestData);
-
-            const result = await apiCall('/api/execute', requestData);
-            console.log('后端返回:', result);
-
-            if (result.error) {
-                showLog('❌ ' + result.error, 'error');
-                return;
-            }
-
-            if (result.stats && result.stats.processed === 0 && !result.error) {
-                showLog('⚠️ 后端没有处理任何文件，请检查文件路径是否正确', 'warning');
-                if (result.logs && result.logs.length > 0) {
-                    result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+            await OperationManager.execute({
+                title: `✏️ 正在重命名 ${filesToRename.length} 个文件...`,
+                completeMessage: `✅ 成功重命名 ${filesToRename.length} 个文件`,
+                execute: async (progress) => {
+                    progress.setTotal(filesToRename.length);
+                    const batchSize = 10;
+                    let processed = 0;
+                    const requestData = {
+                        action: action,
+                        files: filesToRename,
+                        ...params
+                    };
+                    const result = await apiCall('/api/execute', requestData);
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
+                    if (result.logs) {
+                        result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                    }
+                    if (result.stats && result.stats.processed === 0 && !result.error) {
+                        showLog('⚠️ 后端没有处理任何文件，请检查文件路径是否正确', 'warning');
+                        if (result.logs && result.logs.length > 0) {
+                            result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                        }
+                        return;
+                    }
+                    if (result.stats) {
+                        showLog('✅ ' + result.stats.message, 'success');
+                    }
+                    if (result.history && result.history.length > 0) {
+                        window.renameHistory.push(...result.history);
+                        const undoBtn = document.getElementById('undoBtn');
+                        if (undoBtn) undoBtn.disabled = false;
+                    }
+                    window.renamePreview = {};
+                    selectedFiles.clear();
+                    await loadFiles(currentPath);
+                    this.restoreSelectState();
+                    if (result.stats && result.stats.processed > 0) {
+                        const findText = document.getElementById('findText');
+                        const replaceText = document.getElementById('replaceText');
+                        if (findText) findText.value = '';
+                        if (replaceText) replaceText.value = '';
+                        if (typeof renderFiles === 'function') {
+                            renderFiles(window.fileList);
+                        }
+                        showLog('✅ 输入框已清空，可以继续操作', 'info');
+                    }
                 }
-                return;
-            }
-
-            if (result.logs) {
-                result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-            }
-            if (result.stats) {
-                showLog('✅ ' + result.stats.message, 'success');
-            }
-            if (result.history && result.history.length > 0) {
-                window.renameHistory.push(...result.history);
-                const undoBtn = document.getElementById('undoBtn');
-                if (undoBtn) undoBtn.disabled = false;
-            }
-
-            window.renamePreview = {};
-            selectedFiles.clear();
-            await loadFiles(currentPath);
-            this.restoreSelectState();
-
-            if (result.stats && result.stats.processed > 0) {
-                const findText = document.getElementById('findText');
-                const replaceText = document.getElementById('replaceText');
-                if (findText) findText.value = '';
-                if (replaceText) replaceText.value = '';
-                if (typeof renderFiles === 'function') {
-                    renderFiles(window.fileList);
-                }
-                showLog('✅ 输入框已清空，可以继续操作', 'info');
-            }
-
+            });
         } catch (e) {
             console.error('重命名异常:', e);
             showLog('❌ ' + e.message, 'error');
