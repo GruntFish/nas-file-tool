@@ -1,49 +1,38 @@
-// static/js/app.js
-// 模块注册器
+// static/js/app.js - 完整版
 const ModuleRegistry = {
     modules: {},
     currentModule: null,
-
     register(module) {
         this.modules[module.name] = module;
     },
-
     async load(name) {
         if (this.currentModule === name && this.modules[name]?.loaded) return;
-
         window.selectedFiles.clear();
         updateSelectedInfo();
         window.renamePreview = {};
         closeModal();
-
         const selectAllCheckbox = document.getElementById('selectAll');
         if (selectAllCheckbox) {
             selectAllCheckbox.checked = false;
             selectAllCheckbox.indeterminate = false;
         }
-
         document.querySelectorAll('#fileTableBody tr.selected').forEach(tr => {
             tr.classList.remove('selected');
         });
         document.querySelectorAll('#fileTableBody input[type="checkbox"]').forEach(cb => {
             cb.checked = false;
         });
-
         if (this.currentModule && this.modules[this.currentModule] && this.modules[this.currentModule].destroy) {
             this.modules[this.currentModule].destroy();
         }
-
         this.currentModule = name;
-
         const container = document.getElementById('moduleContent');
         if (!container) return;
-
         try {
             const res = await fetch(`/modules/${name}.html`);
             if (!res.ok) throw new Error('模块不存在');
             const html = await res.text();
             container.innerHTML = html;
-
             if (this.modules[name] && this.modules[name].init) {
                 this.modules[name].init();
                 this.modules[name].loaded = true;
@@ -51,11 +40,9 @@ const ModuleRegistry = {
         } catch (e) {
             container.innerHTML = `<div style="padding:20px;color:#fc8181;">❌ 模块加载失败: ${e.message}</div>`;
         }
-
         if (typeof renderFiles === 'function') {
             renderFiles(window.fileList);
         }
-
         // ===== 切换模块后重新应用正则过滤 =====
         if (window.filterRegex) {
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
@@ -75,15 +62,12 @@ const ModuleRegistry = {
                         window.selectedFiles.delete(cb.value);
                     }
                 });
-            } catch (e) {
-                // 正则无效，忽略
-            }
+            } catch (e) {}
             updateSelectedInfo();
             updateSelectAllState();
         }
     }
 };
-
 window.ModuleRegistry = ModuleRegistry;
 
 window.currentPath = '/';
@@ -102,7 +86,6 @@ async function apiCall(endpoint, data) {
     });
     return res.json();
 }
-
 async function fetchTree(path) { return apiCall('/api/tree', { path }); }
 async function fetchFiles(path) { return apiCall('/api/files', { path }); }
 async function dedupFiles(data) { return apiCall('/api/dedup', data); }
@@ -112,19 +95,16 @@ function getFileName(filePath) {
     const parts = filePath.split('/');
     return parts[parts.length - 1];
 }
-
 function getFileExtension(fileName) {
     const idx = fileName.lastIndexOf('.');
     if (idx > 0) return fileName.substring(idx);
     return '';
 }
-
 function getFileNameWithoutExt(fileName) {
     const idx = fileName.lastIndexOf('.');
     if (idx > 0) return fileName.substring(0, idx);
     return fileName;
 }
-
 function formatSize(bytes) {
     if (!bytes) return '';
     const units = ['B', 'KB', 'MB', 'GB'];
@@ -132,7 +112,6 @@ function formatSize(bytes) {
     while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
     return bytes.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
 }
-
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -149,7 +128,6 @@ function showLog(msg, type) {
     logArea.appendChild(div);
     logArea.scrollTop = logArea.scrollHeight;
 }
-
 function clearLog() {
     const logArea = document.getElementById('logArea');
     if (!logArea) return;
@@ -157,11 +135,10 @@ function clearLog() {
     logArea.classList.remove('show');
 }
 
-// ===== openModal - 保留 CSS 类样式 =====
+// ===== openModal - 弹窗 =====
 function openModal(html) {
     const existing = document.querySelectorAll('.modal-overlay');
     existing.forEach(el => el.remove());
-
     let overlay;
     if (html && html.includes('modal-overlay')) {
         const temp = document.createElement('div');
@@ -177,10 +154,7 @@ function openModal(html) {
             overlay.innerHTML = html;
         }
     }
-
     if (!overlay) return null;
-
-    // ===== 只设置定位样式，不覆盖 CSS 类 =====
     overlay.style.position = 'fixed';
     overlay.style.top = '0';
     overlay.style.left = '0';
@@ -194,18 +168,96 @@ function openModal(html) {
     overlay.style.alignItems = 'center';
     overlay.style.margin = '0';
     overlay.style.padding = '0';
-
     overlay.addEventListener('click', function(e) {
         if (e.target === this) this.remove();
     });
-
     document.body.prepend(overlay);
     return overlay;
 }
-
 function closeModal() {
     document.querySelectorAll('.modal-overlay.show').forEach(el => el.remove());
 }
+
+// ===== 操作锁和进度条管理 =====
+const OperationManager = {
+    _isRunning: false,
+    _queue: [],
+    _currentProgress: null,
+    isRunning() { return this._isRunning; },
+    getStatus() {
+        return { isRunning: this._isRunning, queueLength: this._queue.length };
+    },
+    async execute(options) {
+        return new Promise((resolve, reject) => {
+            this._queue.push({ options, resolve, reject });
+            this._processQueue();
+        });
+    },
+    async _processQueue() {
+        if (this._isRunning || this._queue.length === 0) return;
+        this._isRunning = true;
+        const { options, resolve, reject } = this._queue.shift();
+        this._setButtonsEnabled(false);
+        let progress = null;
+        try {
+            progress = new ProgressBar({
+                title: options.title || '处理中...',
+                onCancel: () => {
+                    if (options.onCancel) options.onCancel();
+                    this._cancelCurrent();
+                }
+            });
+            this._currentProgress = progress;
+            progress.show();
+            const result = await options.execute(progress);
+            progress.complete(options.completeMessage || '✅ 处理完成');
+            resolve(result);
+        } catch (e) {
+            if (progress) {
+                progress.error(e.message || '操作失败');
+            }
+            reject(e);
+        } finally {
+            this._isRunning = false;
+            this._currentProgress = null;
+            this._setButtonsEnabled(true);
+            setTimeout(() => this._processQueue(), 300);
+        }
+    },
+    _cancelCurrent() {
+        if (this._currentProgress) {
+            this._currentProgress.hide();
+            this._currentProgress = null;
+        }
+        this._isRunning = false;
+        this._setButtonsEnabled(true);
+        this._queue = [];
+        showLog('⏹️ 操作已取消', 'warning');
+    },
+    _setButtonsEnabled(enabled) {
+        const btnSelectors = [
+            '#executeRenameBtn', '#moveCopyConfirmBtn', '#deleteConfirmBtn',
+            '#dedupConfirmBtn', '#classifyConfirmBtn', '#chmodConfirmBtn',
+            '#mediaCompressConfirm', '#mediaConvertConfirm', '#mediaResizeConfirm'
+        ];
+        btnSelectors.forEach(selector => {
+            const btn = document.querySelector(selector);
+            if (btn) {
+                btn.disabled = !enabled;
+                btn.style.opacity = enabled ? '1' : '0.5';
+                btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            }
+        });
+        document.querySelectorAll('.module-dedup button, .module-delete button, .module-classify button, .module-chmod button, .module-media button, .module-move-copy button').forEach(btn => {
+            if (!btn.closest('.module-rename')) {
+                btn.disabled = !enabled;
+                btn.style.opacity = enabled ? '1' : '0.5';
+                btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            }
+        });
+    }
+};
+window.OperationManager = OperationManager;
 
 async function loadTree(path) {
     try {
@@ -217,7 +269,6 @@ async function loadTree(path) {
         console.error(err);
     }
 }
-
 function renderTree(nodes, container) {
     if (!container) return;
     container.innerHTML = '';
@@ -269,16 +320,13 @@ function renderTree(nodes, container) {
 function updateSelectAllState() {
     const selectAll = document.getElementById('selectAll');
     if (!selectAll) return;
-
     const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
     const checkedBoxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled):checked');
-
     if (checkboxes.length === 0) {
         selectAll.checked = false;
         selectAll.indeterminate = false;
         return;
     }
-
     if (checkedBoxes.length === checkboxes.length) {
         selectAll.checked = true;
         selectAll.indeterminate = false;
@@ -309,9 +357,7 @@ async function loadFiles(path) {
 function renderFiles(files) {
     const tbody = document.getElementById('fileTableBody');
     if (!tbody) return;
-
     const fileData = files || window.fileList || [];
-
     let filteredFiles = fileData;
     if (window.filterRegex) {
         try {
@@ -324,7 +370,6 @@ function renderFiles(files) {
             filteredFiles = fileData;
         }
     }
-
     const filterCountEl = document.getElementById('filterCount');
     if (filterCountEl) {
         const total = fileData.length;
@@ -335,7 +380,6 @@ function renderFiles(files) {
             filterCountEl.textContent = '';
         }
     }
-
     tbody.innerHTML = '';
     if (!filteredFiles || filteredFiles.length === 0) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="6">📭 此目录为空</td></tr>';
@@ -346,13 +390,11 @@ function renderFiles(files) {
         }
         return;
     }
-
     filteredFiles.sort((a, b) => {
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
         return a.name.localeCompare(b.name);
     });
-
     filteredFiles.forEach(file => {
         const tr = document.createElement('tr');
         const isDir = file.is_dir;
@@ -363,12 +405,10 @@ function renderFiles(files) {
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
-
-        const isChecked = window.selectedFiles.has(file.path) || 
-                          window.selectedFiles.has(file.path.replace(/^\//, '')) ||
-                          window.selectedFiles.has('/' + file.path);
+        const isChecked = window.selectedFiles.has(file.path) ||
+            window.selectedFiles.has(file.path.replace(/^\//, '')) ||
+            window.selectedFiles.has('/' + file.path);
         const checked = isChecked ? 'checked' : '';
-
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
             `<td class="name-col${isDir ? ' folder-row' : ''}">${icon} ${escapeHtml(file.name)}</td>` +
@@ -376,7 +416,6 @@ function renderFiles(files) {
             `<td class="size-col">${size}</td>` +
             `<td class="date-col">${date}</td>` +
             `<td class="status-col ${statusClass}">${statusText}</td>`;
-
         const cb = tr.querySelector('input[type="checkbox"]');
         if (!isDir) {
             if (isChecked) {
@@ -395,17 +434,15 @@ function renderFiles(files) {
                 }
                 updateSelectedInfo();
                 updateSelectAllState();
-                document.dispatchEvent(new CustomEvent('selectionChanged', { 
-                    detail: { selected: window.selectedFiles } 
+                document.dispatchEvent(new CustomEvent('selectionChanged', {
+                    detail: { selected: window.selectedFiles }
                 }));
             });
         } else {
             cb.disabled = true;
         }
-
         tbody.appendChild(tr);
     });
-
     updateSelectedInfo();
     updateSelectAllState();
 }
@@ -431,11 +468,8 @@ document.addEventListener('DOMContentLoaded', function() {
         filterInput.addEventListener('input', function() {
             const val = this.value.trim();
             window.filterRegex = val || null;
-
             renderFiles(window.fileList);
-
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
-
             if (val === '') {
                 checkboxes.forEach(cb => {
                     cb.checked = false;
@@ -469,7 +503,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
             }
-
             updateSelectedInfo();
             updateSelectAllState();
             document.dispatchEvent(new CustomEvent('selectionChanged', {
@@ -489,8 +522,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             updateSelectedInfo();
             updateSelectAllState();
-            document.dispatchEvent(new CustomEvent('selectionChanged', { 
-                detail: { selected: window.selectedFiles } 
+            document.dispatchEvent(new CustomEvent('selectionChanged', {
+                detail: { selected: window.selectedFiles }
             }));
         });
     }
@@ -506,8 +539,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             updateSelectedInfo();
             updateSelectAllState();
-            document.dispatchEvent(new CustomEvent('selectionChanged', { 
-                detail: { selected: window.selectedFiles } 
+            document.dispatchEvent(new CustomEvent('selectionChanged', {
+                detail: { selected: window.selectedFiles }
             }));
         });
     }
@@ -534,8 +567,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             this.indeterminate = false;
             updateSelectedInfo();
-            document.dispatchEvent(new CustomEvent('selectionChanged', { 
-                detail: { selected: window.selectedFiles } 
+            document.dispatchEvent(new CustomEvent('selectionChanged', {
+                detail: { selected: window.selectedFiles }
             }));
         });
     }
