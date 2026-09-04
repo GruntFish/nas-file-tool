@@ -115,7 +115,6 @@ const DedupModule = {
                             log.message.includes('重复组') ||
                             log.message.includes('保留')
                         );
-                        // 限制显示数量，避免刷屏
                         const displayLogs = keyLogs.slice(-50);
                         displayLogs.forEach(log => {
                             const statusMap = {
