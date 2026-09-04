@@ -3,11 +3,11 @@ const RenameModule = {
     name: 'rename',
 
     init() {
-        // ===== 只绑定一次 =====
         if (!this._initialized) {
             this.bindEvents();
             this._initialized = true;
         }
+        this.bindInputEvents();
         this.setupActionToggle();
         setTimeout(() => this.autoPreview(), 500);
         document.addEventListener('filesLoaded', () => {
@@ -28,7 +28,23 @@ const RenameModule = {
         }
         // 不重置 _initialized，避免重新绑定
     },
-
+    
+    bindInputEvents() {
+        const findText = document.getElementById('findText');
+        const replaceText = document.getElementById('replaceText');
+    
+        if (findText) {
+            findText.removeEventListener('input', this._findHandler);
+            this._findHandler = () => this.autoPreview();
+            findText.addEventListener('input', this._findHandler);
+        }
+        if (replaceText) {
+            replaceText.removeEventListener('input', this._replaceHandler);
+            this._replaceHandler = () => this.autoPreview();
+            replaceText.addEventListener('input', this._replaceHandler);
+        }
+    },
+    
     // ===== 事件绑定只执行一次 =====
     bindEvents() {
         if (this._bound) return;
