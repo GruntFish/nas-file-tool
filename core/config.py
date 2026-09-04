@@ -25,7 +25,7 @@ def get_env(key, default):
 
 # ===== NAS 性能优化配置 =====
 MAX_HISTORY = get_env('MAX_HISTORY', 50)
-MAX_FILES_PER_OPERATION = get_env('MAX_FILES_PER_OPERATION', 0)
+MAX_FILES_PER_OPERATION = get_env('MAX_FILES_PER_OPERATION', 10000)
 MAX_DEDUP_FILES = get_env('MAX_DEDUP_FILES', 3000)
 BATCH_SIZE = get_env('BATCH_SIZE', 20)
 TREE_MAX_DEPTH = get_env('TREE_MAX_DEPTH', 3)
