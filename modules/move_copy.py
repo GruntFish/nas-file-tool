@@ -6,6 +6,12 @@ import time
 import re
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BETWEEN_BATCH
+from core.decorators import with_memory_cleanup, log_operation, handle_errors
+from core.security import is_safe_path
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def register(app):
     """注册移动/复制路由"""
@@ -52,11 +58,14 @@ def register(app):
         return filtered
 
     @app.route('/api/move_copy', methods=['POST'])
+    @handle_errors('移动/复制失败')
+    @log_operation('移动/复制')
+    @with_memory_cleanup(app)
     def move_copy():
         data = request.json
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
-            
+
         action = data.get('action', 'move')
         files = data.get('files', [])
         target_dir = data.get('target_dir', '')
@@ -74,18 +83,18 @@ def register(app):
         if not target_dir:
             return jsonify({'error': '目标目录不能为空'}), 400
 
-        # ===== 正确处理目标路径 =====
         if target_dir.startswith('/'):
             target_path = Path(work_dir) / target_dir.lstrip('/')
         else:
             target_path = Path(work_dir) / target_dir
-        
         target_path = target_path.resolve()
-        
+
+        if not is_safe_path(target_path, work_dir):
+            return jsonify({'error': '目标目录不安全'}), 403
+
         results = []
         stats = {'processed': 0, 'moved': 0, 'copied': 0, 'skipped': 0, 'errors': 0}
 
-        # 应用过滤
         all_file_paths = [Path(work_dir) / f.lstrip('/') for f in files]
         if filters and any(filters.values()):
             filtered_paths = apply_file_filters(all_file_paths, filters)
@@ -107,10 +116,14 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(SLEEP_BETWEEN_BATCH)
 
-            # ===== 正确处理源文件路径 =====
             clean_path = file_path_str.lstrip('/')
             src = Path(work_dir) / clean_path
-            
+
+            if not is_safe_path(src, work_dir):
+                stats['skipped'] += 1
+                results.append({'file': file_path_str, 'status': 'skip', 'reason': '不安全路径'})
+                continue
+
             if not src.exists():
                 stats['skipped'] += 1
                 results.append({'file': file_path_str, 'status': 'skip', 'reason': '文件不存在'})
@@ -118,7 +131,6 @@ def register(app):
 
             dest = target_path / src.name
 
-            # 处理重名
             if dest.exists() and not overwrite:
                 stem = src.stem
                 ext = src.suffix
@@ -170,6 +182,7 @@ def register(app):
                 stats['processed'] += 1
             except Exception as e:
                 stats['errors'] += 1
+                logger.error(f'移动/复制失败: {src} -> {dest} - {e}')
                 results.append({'file': src.name, 'status': 'error', 'reason': str(e)})
 
         if hasattr(app, 'memory'):
@@ -184,11 +197,12 @@ def register(app):
         })
 
     @app.route('/api/filter_preview', methods=['POST'])
+    @handle_errors('过滤预览失败')
     def filter_preview():
         data = request.json
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
-            
+
         files = data.get('files', [])
         filters = data.get('filters', {})
         work_dir = WORK_DIR
