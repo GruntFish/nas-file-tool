@@ -35,8 +35,10 @@ SAMPLE_SIZE = get_env('SAMPLE_SIZE', 4096)
 
 WORK_DIR = get_env('WORK_DIR', '/data')
 
+# ===== 【新增】日志级别配置 =====
+LOG_LEVEL = get_env('LOG_LEVEL', 'INFO')
 
-# ===== 【新增】自动扫描 /data 下的子目录作为根目录 =====
+
 def scan_root_dirs():
     """自动扫描 WORK_DIR 下的子目录作为根目录"""
     roots = []
@@ -45,13 +47,11 @@ def scan_root_dirs():
         if data_path.exists() and data_path.is_dir():
             for item in data_path.iterdir():
                 if item.is_dir() and not item.name.startswith('.'):
-                    # 排除系统目录
                     if item.name not in ['logs', 'lost+found']:
                         roots.append(str(item))
     except Exception as e:
         print(f'扫描根目录失败: {e}')
     
-    # 如果没有任何子目录，使用 WORK_DIR 本身
     if not roots:
         roots = [WORK_DIR]
     
