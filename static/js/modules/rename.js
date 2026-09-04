@@ -3,7 +3,11 @@ const RenameModule = {
     name: 'rename',
 
     init() {
-        this.bindEvents();
+        // ===== 只绑定一次 =====
+        if (!this._initialized) {
+            this.bindEvents();
+            this._initialized = true;
+        }
         this.setupActionToggle();
         setTimeout(() => this.autoPreview(), 500);
         document.addEventListener('filesLoaded', () => {
@@ -15,71 +19,69 @@ const RenameModule = {
     },
 
     destroy() {
-        // ===== 只清理数据，不清理样式，避免闪烁 =====
+        // ===== 只清理数据，不清理样式 =====
         window.renamePreview = {};
         selectedFiles.clear();
         updateSelectedInfo();
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
-        // 不调用 this.cleanup()
+        // 不重置 _initialized，避免重新绑定
     },
 
-    cleanup() {
-        // ===== 只清理按钮，不动输入框样式 =====
-        const executeBtn = document.getElementById('executeRenameBtn');
-        if (executeBtn) {
-            const newBtn = executeBtn.cloneNode(true);
-            executeBtn.parentNode.replaceChild(newBtn, executeBtn);
-        }
-    },
-
+    // ===== 事件绑定只执行一次 =====
     bindEvents() {
+        if (this._bound) return;
+        this._bound = true;
+
+        // ===== 【修复】直接绑定事件，不替换 DOM =====
         const executeBtn = document.getElementById('executeRenameBtn');
         if (executeBtn) {
-            const newBtn = executeBtn.cloneNode(true);
-            executeBtn.parentNode.replaceChild(newBtn, executeBtn);
-            newBtn.addEventListener('click', () => this.execute());
-            newBtn.className = 'btn-execute';
+            executeBtn.addEventListener('click', () => this.execute());
+            executeBtn.className = 'btn-execute';
         }
+
         const actionSelect = document.getElementById('renameAction');
         if (actionSelect) {
-            const newSelect = actionSelect.cloneNode(true);
-            actionSelect.parentNode.replaceChild(newSelect, actionSelect);
-            newSelect.addEventListener('change', () => {
+            actionSelect.addEventListener('change', () => {
                 this.setupActionToggle();
                 this.autoPreview();
             });
-            newSelect.disabled = false;
-            newSelect.style.color = '#e4e6eb';
-            newSelect.style.background = '#1a1d27';
+            actionSelect.disabled = false;
+            actionSelect.style.color = '#e4e6eb';
+            actionSelect.style.background = '#1a1d27';
         }
+
         ['findText', 'replaceText', 'caseSensitive', 'startNum', 'stepNum', 'digitsNum',
             'numberPos', 'extAction', 'extValue', 'removeStart', 'removeLen', 'removeFromEnd',
             'dateType', 'dateFormat', 'datePos'
         ].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                const newEl = el.cloneNode(true);
-                el.parentNode.replaceChild(newEl, el);
-                newEl.addEventListener('input', () => this.autoPreview());
-                newEl.addEventListener('change', () => this.autoPreview());
-                if (newEl.tagName === 'SELECT') {
-                    newEl.style.color = '#e4e6eb';
-                    newEl.style.background = '#1a1d27';
-                    newEl.disabled = false;
+                el.addEventListener('input', () => this.autoPreview());
+                el.addEventListener('change', () => this.autoPreview());
+                if (el.tagName === 'SELECT') {
+                    el.style.color = '#e4e6eb';
+                    el.style.background = '#1a1d27';
+                    el.disabled = false;
                 }
-                if (newEl.tagName === 'INPUT' && newEl.type !== 'checkbox') {
-                    newEl.style.color = '#e4e6eb';
-                    newEl.style.background = '#1a1d27';
+                if (el.tagName === 'INPUT' && el.type !== 'checkbox') {
+                    el.style.color = '#e4e6eb';
+                    el.style.background = '#1a1d27';
                 }
             }
         });
+
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 this.restoreSelectState();
             }
         });
+    },
+
+    cleanup() {
+        // ===== 只清理按钮，不动输入框 =====
+        // 实际上现在不需要了，因为不再替换 DOM
     },
 
     restoreSelectState() {
