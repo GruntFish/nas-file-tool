@@ -42,6 +42,7 @@ const SchedulerModule = {
                 const params = task.params || {};
                 const targetPath = params.target_path || '/data';
                 const filePattern = params.file_pattern || '*';
+                const recursive = params.recursive ? '📂 包含子目录' : '📁 仅当前目录';
 
                 const logs = task.logs || [];
                 const recentLogs = logs.slice(-3);
@@ -62,6 +63,7 @@ const SchedulerModule = {
                         <div style="color:#8b8fa3;font-size:12px;">类型: ${task.type} | 调度: ${cronDisplay}</div>
                         <div style="color:#8b8fa3;font-size:11px;">📁 目标: ${targetPath}</div>
                         <div style="color:#8b8fa3;font-size:11px;">📄 匹配: ${filePattern}</div>
+                        <div style="color:#8b8fa3;font-size:11px;">${recursive}</div>
                         <div style="color:#8b8fa3;font-size:11px;">上次执行: ${lastRun} | 状态: ${runStatus}</div>
                         ${logHtml}
                     </div>
@@ -92,7 +94,6 @@ const SchedulerModule = {
     },
 
     addTask() {
-        // ===== 收集目录树选项 =====
         let dirOptions = '';
         const collectDirs = (nodes, prefix) => {
             if (!nodes || nodes.length === 0) return;
@@ -110,18 +111,22 @@ const SchedulerModule = {
         collectDirs(window.fullTreeData || [], '');
 
         const modalHtml = `
-        <div class="modal" style="max-width:550px;">
+        <div class="modal" style="max-width:580px;">
             <h2>⏰ 添加定时任务</h2>
             <div class="form-group">
                 <label>任务名称</label>
-                <input type="text" id="schedulerName" placeholder="例如: 每日去重" value="定时任务">
+                <input type="text" id="schedulerName" placeholder="例如: 每日去重" value="定时任务" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
             </div>
             <div class="form-group">
                 <label>任务类型</label>
-                <select id="schedulerType">
+                <select id="schedulerType" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                     <option value="rename">重命名</option>
                     <option value="dedup">去重</option>
                     <option value="classify">分类整理</option>
+                    <option value="delete">删除</option>
+                    <option value="move_copy">移动/复制</option>
+                    <option value="chmod">权限修改</option>
+                    <option value="compress">图片压缩</option>
                 </select>
             </div>
             <div class="form-group">
@@ -132,11 +137,24 @@ const SchedulerModule = {
                 </select>
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 任务将在选中的目录下执行</div>
             </div>
+
+            <!-- ===== 文件匹配 ===== -->
             <div class="form-group">
                 <label>📄 文件匹配（正则表达式）</label>
                 <input type="text" id="schedulerFilePattern" value=".*" placeholder=".* 匹配所有文件" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 例如: \\.jpg$ 只匹配 JPG 文件</div>
             </div>
+
+            <!-- ===== 【新增】包括子目录选项 ===== -->
+            <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <label style="margin:0;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                    <input type="checkbox" id="schedulerRecursive" style="accent-color:#667eea;width:16px;height:16px;">
+                    <span style="color:#8b8fa3;font-size:13px;">📂 包括子目录</span>
+                </label>
+                <span style="color:#4a4e62;font-size:11px;">（勾选后将对所有子目录进行相同操作）</span>
+            </div>
+
+            <!-- ===== 重命名参数 ===== -->
             <div class="form-group" id="schedulerRenameParams" style="display:block;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                     <div>
@@ -149,6 +167,78 @@ const SchedulerModule = {
                     </div>
                 </div>
             </div>
+
+            <!-- ===== 移动/复制参数 ===== -->
+            <div class="form-group" id="schedulerMoveCopyParams" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div>
+                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">操作</label>
+                        <select id="schedulerMoveAction" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
+                            <option value="move">移动</option>
+                            <option value="copy">复制</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">目标目录</label>
+                        <input type="text" id="schedulerMoveTarget" placeholder="/data/目标目录" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
+                    </div>
+                    <div style="display:flex;align-items:center;padding-top:20px;">
+                        <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;cursor:pointer;margin:0;">
+                            <input type="checkbox" id="schedulerMoveOverwrite" style="accent-color:#667eea;width:14px;height:14px;">
+                            覆盖已存在
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 权限修改参数 ===== -->
+            <div class="form-group" id="schedulerChmodParams" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div>
+                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">权限模式</label>
+                        <select id="schedulerChmodMode" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
+                            <option value="755">755 (rwxr-xr-x)</option>
+                            <option value="644">644 (rw-r--r--)</option>
+                            <option value="777">777 (rwxrwxrwx)</option>
+                            <option value="600">600 (rw-------)</option>
+                            <option value="700">700 (rwx------)</option>
+                            <option value="775">775 (rwxrwxr-x)</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;padding-top:20px;">
+                        <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;cursor:pointer;margin:0;">
+                            <input type="checkbox" id="schedulerChmodRecursive" style="accent-color:#667eea;width:14px;height:14px;">
+                            递归子目录
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 图片压缩参数 ===== -->
+            <div class="form-group" id="schedulerCompressParams" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div>
+                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">压缩质量</label>
+                        <input type="number" id="schedulerCompressQuality" value="85" min="1" max="100" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
+                    </div>
+                    <div>
+                        <label style="display:block;color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:3px;">输出格式</label>
+                        <select id="schedulerCompressFormat" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
+                            <option value="original">保持原格式</option>
+                            <option value="webp">WebP</option>
+                            <option value="jpg">JPEG</option>
+                            <option value="png">PNG</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;padding-top:20px;">
+                        <label style="display:flex;align-items:center;gap:6px;color:#8b8fa3;font-size:12px;cursor:pointer;margin:0;">
+                            <input type="checkbox" id="schedulerCompressOverwrite" style="accent-color:#667eea;width:14px;height:14px;">
+                            覆盖原图
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>调度方式</label>
                 <select id="schedulerScheduleType" style="width:100%;padding:5px 8px;background:#14171f;border:1px solid #2d313e;border-radius:6px;color:#e4e6eb;font-size:13px;outline:0;font-family:inherit;">
@@ -186,7 +276,11 @@ const SchedulerModule = {
             document.getElementById('schedulerIntervalGroup').style.display = this.value === 'interval' ? 'block' : 'none';
         });
         overlay.querySelector('#schedulerType').addEventListener('change', function() {
-            document.getElementById('schedulerRenameParams').style.display = this.value === 'rename' ? 'block' : 'none';
+            const type = this.value;
+            document.getElementById('schedulerRenameParams').style.display = type === 'rename' ? 'block' : 'none';
+            document.getElementById('schedulerMoveCopyParams').style.display = type === 'move_copy' ? 'block' : 'none';
+            document.getElementById('schedulerChmodParams').style.display = type === 'chmod' ? 'block' : 'none';
+            document.getElementById('schedulerCompressParams').style.display = type === 'compress' ? 'block' : 'none';
         });
         overlay.querySelector('#schedulerSaveBtn').addEventListener('click', () => this.saveTask());
     },
@@ -200,16 +294,30 @@ const SchedulerModule = {
         const enabled = document.getElementById('schedulerEnabled').checked;
         const targetPath = document.getElementById('schedulerTargetPath').value.trim() || '/data';
         const filePattern = document.getElementById('schedulerFilePattern').value.trim() || '.*';
-
-        const find = document.getElementById('schedulerFind')?.value || '';
-        const replace = document.getElementById('schedulerReplace')?.value || '';
+        // ===== 【新增】读取子目录选项 =====
+        const recursive = document.getElementById('schedulerRecursive').checked;
 
         const params = {
             target_path: targetPath,
             file_pattern: filePattern,
-            find: find,
-            replace: replace
+            recursive: recursive  // ===== 传递子目录参数 =====
         };
+
+        if (type === 'rename') {
+            params.find = document.getElementById('schedulerFind')?.value || '';
+            params.replace = document.getElementById('schedulerReplace')?.value || '';
+        } else if (type === 'move_copy') {
+            params.move_action = document.getElementById('schedulerMoveAction')?.value || 'move';
+            params.move_target = document.getElementById('schedulerMoveTarget')?.value.trim() || '';
+            params.move_overwrite = document.getElementById('schedulerMoveOverwrite')?.checked || false;
+        } else if (type === 'chmod') {
+            params.chmod_mode = document.getElementById('schedulerChmodMode')?.value || '755';
+            params.chmod_recursive = document.getElementById('schedulerChmodRecursive')?.checked || false;
+        } else if (type === 'compress') {
+            params.compress_quality = parseInt(document.getElementById('schedulerCompressQuality')?.value) || 85;
+            params.compress_format = document.getElementById('schedulerCompressFormat')?.value || 'original';
+            params.compress_overwrite = document.getElementById('schedulerCompressOverwrite')?.checked || false;
+        }
 
         closeModal();
         showLog('⏳ 创建定时任务...', 'info');
