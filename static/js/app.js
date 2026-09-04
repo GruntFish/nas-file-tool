@@ -157,7 +157,6 @@ function clearLog() {
     logArea.classList.remove('show');
 }
 
-// ===== openModal - 修复弹窗样式 =====
 function openModal(html) {
     const existing = document.querySelectorAll('.modal-overlay');
     existing.forEach(el => el.remove());
@@ -417,22 +416,19 @@ function renderTree(nodes, container) {
     if (!container) return;
     container.innerHTML = '';
     if (!nodes || nodes.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>';
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有目录</div>';
         return;
     }
-    const folders = nodes.filter(n => n.is_dir);
-    if (folders.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a4e62;font-size:13px;">📭 没有子目录</div>';
-        return;
-    }
-    folders.sort((a, b) => a.name.localeCompare(b.name));
-    folders.forEach(node => {
+
+    nodes.sort((a, b) => a.name.localeCompare(b.name));
+    nodes.forEach(node => {
         const item = document.createElement('div');
         item.className = 'tree-item';
         if (node.path === window.currentPath) item.classList.add('active');
+        const icon = node.is_root ? '💾' : '📁';
         const hasChildren = node.children && node.children.length > 0;
         item.innerHTML =
-            `<span class="icon">📁</span><span class="name">${escapeHtml(node.name)}</span>${hasChildren ? '<span class="arrow open">▼</span>' : ''}`;
+            `<span class="icon">${icon}</span><span class="name">${escapeHtml(node.name)}</span>${hasChildren ? '<span class="arrow open">▼</span>' : ''}`;
         item.addEventListener('click', function(e) {
             if (e.target.classList.contains('arrow')) return;
             window.currentPath = node.path;
