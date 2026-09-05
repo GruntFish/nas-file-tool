@@ -12,6 +12,7 @@ const MediaModule = {
         closeModal();
         selectedFiles.clear();
         updateSelectedInfo();
+        window.compressPreview = {};
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
@@ -26,16 +27,30 @@ const MediaModule = {
     getImageFiles() {
         const exts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.ico', '.svg'];
         const selected = Array.from(selectedFiles);
-        
+
         if (selected.length === 0) {
             return [];
         }
-        
+
         const fileList = window.fileList || [];
         const imageFiles = [];
-        
+
         selected.forEach(path => {
-            const fileObj = fileList.find(f => f.path === path);
+            const normalizedPath = path.startsWith('/') ? path : '/' + path;
+            const normalizedPathNoSlash = path.replace(/^\//, '');
+
+            let fileObj = fileList.find(f => f.path === path);
+            if (!fileObj) {
+                fileObj = fileList.find(f => f.path === normalizedPath);
+            }
+            if (!fileObj) {
+                fileObj = fileList.find(f => f.path === normalizedPathNoSlash);
+            }
+            if (!fileObj) {
+                const fileName = path.split('/').pop();
+                fileObj = fileList.find(f => f.name === fileName && !f.is_dir);
+            }
+
             if (fileObj && !fileObj.is_dir) {
                 const ext = fileObj.name.substring(fileObj.name.lastIndexOf('.')).toLowerCase();
                 if (exts.includes(ext)) {
@@ -43,7 +58,7 @@ const MediaModule = {
                 }
             }
         });
-        
+
         return imageFiles;
     },
 
@@ -93,6 +108,10 @@ const MediaModule = {
     async previewCompress(files) {
         if (!files || files.length === 0) {
             document.getElementById('mediaPreviewArea').style.display = 'none';
+            window.compressPreview = {};
+            if (typeof renderFiles === 'function') {
+                renderFiles(window.fileList);
+            }
             return;
         }
 
@@ -107,12 +126,17 @@ const MediaModule = {
                 overwrite: overwrite
             });
 
-            if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
+            if (result.error) {
+                showLog('❌ ' + result.error, 'error');
+                return;
+            }
 
             const previewList = document.getElementById('mediaPreviewList');
             const stats = document.getElementById('mediaStats');
             const previewArea = document.getElementById('mediaPreviewArea');
 
+            // ===== 构建压缩预览数据，写入 window.compressPreview =====
+            const compressMap = {};
             previewList.innerHTML = '';
             if (result.results && result.results.length > 0) {
                 let totalSaved = 0;
@@ -121,10 +145,19 @@ const MediaModule = {
                         const div = document.createElement('div');
                         const saved = r.estimated_ratio || 0;
                         const overwriteTag = r.overwrite ? ' [覆盖原图]' : '';
-                        
+
                         const originalSize = formatSize(r.original_size);
                         const estimatedSize = formatSize(r.estimated_size);
-                        
+
+                        // ===== 写入 compressPreview =====
+                        compressMap[r.file] = {
+                            original: originalSize,
+                            new: estimatedSize,
+                            ratio: saved,
+                            isPreview: true,
+                            output: r.output
+                        };
+
                         div.style.cssText = 'color:#68d391;padding:2px 0;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f222c;';
                         div.innerHTML = `
                             <span>📄 ${r.file}</span>
@@ -145,6 +178,13 @@ const MediaModule = {
                 previewList.innerHTML = '<div style="color:#4a4e62;text-align:center;padding:8px;">没有图片需要压缩</div>';
                 previewArea.style.display = 'block';
             }
+
+            // ===== 更新文件列表 =====
+            window.compressPreview = compressMap;
+            if (typeof renderFiles === 'function') {
+                renderFiles(window.fileList);
+            }
+
         } catch (e) {
             console.error('预览失败:', e);
         }
@@ -187,6 +227,9 @@ const MediaModule = {
                         throw new Error(result.error);
                     }
 
+                    // ===== 构建压缩结果数据，写入 window.compressPreview =====
+                    const compressMap = {};
+
                     if (result.results) {
                         if (dryRun) {
                             result.results.forEach(r => {
@@ -194,6 +237,14 @@ const MediaModule = {
                                     const tag = r.overwrite ? ' [覆盖]' : '';
                                     const saved = r.estimated_ratio || 0;
                                     showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + saved.toFixed(1) + '%)', 'info');
+                                    // ===== 写入 compressPreview =====
+                                    compressMap[r.file] = {
+                                        original: formatSize(r.original_size),
+                                        new: formatSize(r.estimated_size),
+                                        ratio: saved,
+                                        isPreview: true,
+                                        output: r.output
+                                    };
                                 }
                             });
                             showLog('📊 预览完成，共 ' + result.results.length + ' 张图片', 'info');
@@ -203,10 +254,24 @@ const MediaModule = {
                                 const saved = r.ratio || 0;
                                 const tag = r.overwrite ? ' [覆盖原图]' : '';
                                 showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
+                                // ===== 写入 compressPreview =====
+                                compressMap[r.file] = {
+                                    original: formatSize(r.original_size),
+                                    new: formatSize(r.new_size),
+                                    ratio: saved,
+                                    isPreview: false,
+                                    output: r.output
+                                };
                             });
                             const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
                             showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
                         }
+                    }
+
+                    // ===== 更新文件列表 =====
+                    window.compressPreview = compressMap;
+                    if (typeof renderFiles === 'function') {
+                        renderFiles(window.fileList);
                     }
 
                     await loadFiles(currentPath);
