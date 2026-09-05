@@ -90,6 +90,7 @@ window.currentPath = '/';
 window.fileList = [];
 window.selectedFiles = new Set();
 window.renamePreview = {};
+window.compressPreview = {};
 window.renameHistory = [];
 window.fullTreeData = [];
 window.filterRegex = null;
@@ -562,7 +563,18 @@ function renderFiles(files) {
         const icon = isDir ? '📁' : '📄';
         const size = isDir ? '' : formatSize(file.size);
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
-        const newName = window.renamePreview[file.path] || file.name;
+        let newName = window.renamePreview[file.path] || file.name;
+
+        // ===== 【新增】检查是否有压缩预览信息 =====
+        if (window.compressPreview && window.compressPreview[file.path]) {
+            const info = window.compressPreview[file.path];
+            const ratioStr = info.ratio > 0 ? `(-${info.ratio.toFixed(1)}%)` : '';
+            newName = `${info.original} → ${info.new} ${ratioStr}`;
+            if (info.output && info.output !== file.name && !info.isPreview) {
+                newName += ` (${info.output})`;
+            }
+        }
+
         const isChanged = newName !== file.name && !isDir;
         const statusText = isDir ? '📁 文件夹' : (isChanged ? '🔄 修改' : '✓ 不变');
         const statusClass = isChanged ? 'changed' : 'ok';
@@ -581,7 +593,6 @@ function renderFiles(files) {
             `<td class="status-col ${statusClass}">${statusText}</td>`;
 
         const cb = tr.querySelector('input[type="checkbox"]');
-        // ===== 【修改】目录也可以勾选 =====
         if (isChecked) {
             tr.classList.add('selected');
             if (!window.selectedFiles.has(file.path)) {
