@@ -84,10 +84,10 @@ def register(app):
         if not target_dir:
             return jsonify({'error': '目标目录不能为空'}), 400
 
-        if target_dir.startswith('/'):
+        # 处理目标路径
+        target_path = Path(target_dir)
+        if not target_path.is_absolute():
             target_path = Path(work_dir) / target_dir.lstrip('/')
-        else:
-            target_path = Path(work_dir) / target_dir
         target_path = target_path.resolve()
 
         if not is_safe_path(target_path, work_dir):
@@ -96,10 +96,14 @@ def register(app):
         results = []
         stats = {'processed': 0, 'moved': 0, 'copied': 0, 'skipped': 0, 'errors': 0}
 
-        # ===== 收集所有要操作的项目（文件+目录） =====
+        # ===== 【修复】收集所有要操作的项目（文件+目录），不重复拼接路径 =====
         items_to_process = []
         for file_path_str in files:
-            src = Path(work_dir) / file_path_str.lstrip('/')
+            # 直接使用前端传来的完整路径
+            src = Path(file_path_str)
+            if not src.is_absolute():
+                src = Path(work_dir) / file_path_str.lstrip('/')
+            
             if src.exists():
                 items_to_process.append({
                     'path': file_path_str,
