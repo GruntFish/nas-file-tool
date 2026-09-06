@@ -145,12 +145,12 @@ const SchedulerModule = {
             </div>
 
             <!-- ===== 包括子目录（修复排版） ===== -->
-            <div class="form-group" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-                <label style="margin:0;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">
+            <div class="form-group" style="margin-bottom:8px;">
+                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#8b8fa3;">
                     <input type="checkbox" id="schedulerRecursive" style="accent-color:#667eea;width:15px;height:15px;margin:0;">
-                    <span style="color:#8b8fa3;font-size:13px;">📂 包括子目录</span>
+                    📂 包括子目录
                 </label>
-                <span style="color:#4a4e62;font-size:11px;margin-left:2px;">（勾选后将对所有子目录进行相同操作）</span>
+                <span style="color:#4a4e62;font-size:11px;margin-left:6px;">（勾选后将对所有子目录进行相同操作）</span>
             </div>
 
             <div class="form-group" id="schedulerRenameParams" style="display:block;">
