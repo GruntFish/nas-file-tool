@@ -3,10 +3,6 @@ const RenameModule = {
     name: 'rename',
 
     init() {
-        if (!this._initialized) {
-            this.bindEvents();
-            this._initialized = true;
-        }
         this.bindInputEvents();
         this.setupActionToggle();
         setTimeout(() => this.autoPreview(), 500);
@@ -19,63 +15,44 @@ const RenameModule = {
     },
 
     destroy() {
-        // ===== 只清理数据，不清理样式 =====
         window.renamePreview = {};
         selectedFiles.clear();
         updateSelectedInfo();
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
         }
-        // 不重置 _initialized，避免重新绑定
     },
-    
+
     bindInputEvents() {
         const findText = document.getElementById('findText');
         const replaceText = document.getElementById('replaceText');
-    
+        
         if (findText) {
             findText.removeEventListener('input', this._findHandler);
             this._findHandler = () => this.autoPreview();
             findText.addEventListener('input', this._findHandler);
+            findText.style.color = '#e4e6eb';
+            findText.style.background = '#1a1d27';
         }
         if (replaceText) {
             replaceText.removeEventListener('input', this._replaceHandler);
             this._replaceHandler = () => this.autoPreview();
             replaceText.addEventListener('input', this._replaceHandler);
-        }
-    },
-    
-    // ===== 事件绑定只执行一次 =====
-    bindEvents() {
-        if (this._bound) return;
-        this._bound = true;
-
-        // ===== 【修复】直接绑定事件，不替换 DOM =====
-        const executeBtn = document.getElementById('executeRenameBtn');
-        if (executeBtn) {
-            executeBtn.addEventListener('click', () => this.execute());
-            executeBtn.className = 'btn-execute';
+            replaceText.style.color = '#e4e6eb';
+            replaceText.style.background = '#1a1d27';
         }
 
-        const actionSelect = document.getElementById('renameAction');
-        if (actionSelect) {
-            actionSelect.addEventListener('change', () => {
-                this.setupActionToggle();
-                this.autoPreview();
-            });
-            actionSelect.disabled = false;
-            actionSelect.style.color = '#e4e6eb';
-            actionSelect.style.background = '#1a1d27';
-        }
-
-        ['findText', 'replaceText', 'caseSensitive', 'startNum', 'stepNum', 'digitsNum',
+        ['caseSensitive', 'startNum', 'stepNum', 'digitsNum',
             'numberPos', 'extAction', 'extValue', 'removeStart', 'removeLen', 'removeFromEnd',
             'dateType', 'dateFormat', 'datePos'
         ].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                el.addEventListener('input', () => this.autoPreview());
-                el.addEventListener('change', () => this.autoPreview());
+                el.removeEventListener('input', this._autoPreviewHandler);
+                el.removeEventListener('change', this._autoPreviewHandler);
+                this._autoPreviewHandler = () => this.autoPreview();
+                el.addEventListener('input', this._autoPreviewHandler);
+                el.addEventListener('change', this._autoPreviewHandler);
                 if (el.tagName === 'SELECT') {
                     el.style.color = '#e4e6eb';
                     el.style.background = '#1a1d27';
@@ -88,17 +65,29 @@ const RenameModule = {
             }
         });
 
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                this.restoreSelectState();
-            }
-        });
+        const actionSelect = document.getElementById('renameAction');
+        if (actionSelect) {
+            actionSelect.removeEventListener('change', this._actionHandler);
+            this._actionHandler = () => {
+                this.setupActionToggle();
+                this.autoPreview();
+            };
+            actionSelect.addEventListener('change', this._actionHandler);
+            actionSelect.disabled = false;
+            actionSelect.style.color = '#e4e6eb';
+            actionSelect.style.background = '#1a1d27';
+        }
+
+        const executeBtn = document.getElementById('executeRenameBtn');
+        if (executeBtn) {
+            executeBtn.removeEventListener('click', this._executeHandler);
+            this._executeHandler = () => this.execute();
+            executeBtn.addEventListener('click', this._executeHandler);
+            executeBtn.className = 'btn-execute';
+        }
     },
 
-    cleanup() {
-        // ===== 只清理按钮，不动输入框 =====
-        // 实际上现在不需要了，因为不再替换 DOM
-    },
+    cleanup() {},
 
     restoreSelectState() {
         const selects = document.querySelectorAll('.module-rename select');
@@ -605,6 +594,9 @@ const RenameModule = {
                     }
                     if (result.logs) {
                         result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                        // 更新进度
+                        const processed = result.logs.filter(l => l.type === 'success').length;
+                        progress.update(processed, `已处理 ${processed}/${filesToRename.length}`);
                     }
                     if (result.stats && result.stats.processed === 0 && !result.error) {
                         showLog('⚠️ 后端没有处理任何文件，请检查文件路径是否正确', 'warning');
@@ -615,6 +607,7 @@ const RenameModule = {
                     }
                     if (result.stats) {
                         showLog('✅ ' + result.stats.message, 'success');
+                        progress.update(filesToRename.length);
                     }
                     if (result.history && result.history.length > 0) {
                         window.renameHistory.push(...result.history);
