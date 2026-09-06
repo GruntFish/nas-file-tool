@@ -36,7 +36,6 @@ const MoveCopyModule = {
             for (let node of nodes) {
                 if (node.is_dir) {
                     const path = prefix ? prefix + '/' + node.name : node.name;
-                    // ===== 存储完整路径 =====
                     const fullPath = node.path;
                     if (fullPath !== currentDir) {
                         dirOptions += `<option value="${fullPath}">📁 ${fullPath}</option>`;
@@ -196,35 +195,25 @@ const MoveCopyModule = {
         let targetDir = document.getElementById('mcTargetSelect').value.trim();
         const inputDir = document.getElementById('mcTargetInput').value.trim();
 
-        // ===== 【修复】目标目录路径处理 =====
         const currentDir = window.currentPath || '/';
 
         if (inputDir) {
-            // 输入新目录：基于当前目录拼接
             if (currentDir === '/') {
                 targetDir = '/' + inputDir;
             } else {
                 targetDir = currentDir + '/' + inputDir;
             }
         } else if (targetDir) {
-            // 下拉框选择的目录：检查是否以 /data 开头
             if (!targetDir.startsWith('/data') && !targetDir.startsWith('/')) {
-                // 相对路径，补全为绝对路径
                 targetDir = '/' + targetDir;
             }
-            // 如果是以 / 开头但不是 /data，可能是用户在输入框输入的，保持不变
-        }
-
-        // ===== 【新增】确保目标目录是绝对路径 =====
-        if (targetDir && !targetDir.startsWith('/data') && targetDir.startsWith('/')) {
-            // 如果是以 / 开头但不是 /data，可能直接解析为 /xxx
-            // 这种情况下，如果当前目录是 /data/xxx，则拼接
-            if (currentDir.startsWith('/data') && !targetDir.startsWith('/data')) {
-                targetDir = currentDir + targetDir;
+            if (targetDir && !targetDir.startsWith('/data') && targetDir.startsWith('/')) {
+                if (currentDir.startsWith('/data') && !targetDir.startsWith('/data')) {
+                    targetDir = currentDir + targetDir;
+                }
             }
         }
 
-        // 如果目标目录为空或无效，提示
         if (!targetDir) {
             showLog('⚠️ 请选择或输入目标目录', 'warning');
             return;
@@ -251,39 +240,88 @@ const MoveCopyModule = {
                 title: `📦 正在${action === 'move' ? '移动' : '复制'} ${files.length} 个文件/目录...`,
                 completeMessage: `✅ 成功${action === 'move' ? '移动' : '复制'} ${files.length} 个文件/目录`,
                 execute: async (progress) => {
+                    // ===== 设置总进度 =====
                     progress.setTotal(files.length);
-                    const result = await apiCall('/api/move_copy', {
-                        action: action,
-                        files: files,
-                        target_dir: targetDir,
-                        overwrite: overwrite,
-                        filters: filters,
-                        dry_run: false,
-                        include_dirs: true
-                    });
-                    if (result.error) {
-                        throw new Error(result.error);
+                    showLog(`📊 共 ${files.length} 个项目待处理`, 'info');
+
+                    let processed = 0;
+                    let lastResult = null;
+                    const batchSize = 5;
+
+                    for (let i = 0; i < files.length; i += batchSize) {
+                        const batch = files.slice(i, i + batchSize);
+                        const currentFile = files[i]?.split('/').pop() || '未知';
+
+                        progress.update(
+                            processed,
+                            `[${i + 1}/${files.length}] ${currentFile} (${processed}/${files.length})`
+                        );
+
+                        const result = await apiCall('/api/move_copy', {
+                            action: action,
+                            files: batch,
+                            target_dir: targetDir,
+                            overwrite: overwrite,
+                            filters: filters,
+                            dry_run: false,
+                            include_dirs: true
+                        });
+
+                        if (result.error) {
+                            throw new Error(result.error);
+                        }
+
+                        lastResult = result;
+
+                        if (result.results) {
+                            const success = result.results.filter(r => r.status === 'success');
+                            const errors = result.results.filter(r => r.status === 'error');
+                            const skipped = result.results.filter(r => r.status === 'skip');
+
+                            success.forEach(r => {
+                                const typeTag = r.is_dir ? '📁 ' : '📄 ';
+                                showLog('✅ ' + typeTag + r.file + ' → ' + r.to, 'success');
+                                processed++;
+                                progress.update(
+                                    processed,
+                                    `✅ ${r.file.split('/').pop()} (${processed}/${files.length})`
+                                );
+                            });
+                            errors.forEach(r => {
+                                const typeTag = r.is_dir ? '📁 ' : '📄 ';
+                                showLog('❌ ' + typeTag + r.file + ' - ' + r.reason, 'error');
+                                processed++;
+                                progress.update(
+                                    processed,
+                                    `❌ ${r.file.split('/').pop()} 失败 (${processed}/${files.length})`
+                                );
+                            });
+                            skipped.forEach(r => {
+                                showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning');
+                                processed++;
+                                progress.update(
+                                    processed,
+                                    `⏭️ ${r.file.split('/').pop()} 跳过 (${processed}/${files.length})`
+                                );
+                            });
+                        }
+
+                        progress.update(processed, `[${i + batchSize}/${files.length}] 已完成 ${processed} 个`);
                     }
-                    if (result.results) {
-                        const success = result.results.filter(r => r.status === 'success');
-                        const errors = result.results.filter(r => r.status === 'error');
-                        const skipped = result.results.filter(r => r.status === 'skip');
-                        success.forEach((r, idx) => {
-                            progress.update(idx + 1, `已处理: ${r.file}`);
-                            const typeTag = r.is_dir ? '📁 ' : '📄 ';
-                            showLog('✅ ' + typeTag + r.file + ' → ' + r.to, 'success');
-                        });
-                        errors.forEach(r => {
-                            const typeTag = r.is_dir ? '📁 ' : '📄 ';
-                            showLog('❌ ' + typeTag + r.file + ' - ' + r.reason, 'error');
-                        });
-                        skipped.forEach(r => {
-                            showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning');
-                        });
-                    }
-                    const msg = result.stats?.message || '处理完成';
+
+                    const msg = lastResult?.stats?.message || '处理完成';
                     showLog('✅ ' + msg, 'success');
+
+                    // ===== 【修复1】刷新文件列表 =====
                     await loadFiles(window.currentPath);
+
+                    // ===== 【修复2】刷新左侧目录树 =====
+                    await loadTree('/');
+
+                    selectedFiles.clear();
+                    updateSelectedInfo();
+
+                    showLog('📂 目录树已刷新', 'info');
                 }
             });
         } catch (e) {
