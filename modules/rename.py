@@ -221,7 +221,6 @@ def register(app):
 
         logs = []
         stats = {'processed': 0, 'message': '成功'}
-        history = []
 
         if len(files) > MAX_FILES_PER_OPERATION:
             return jsonify({'error': f'一次最多处理 {MAX_FILES_PER_OPERATION} 个文件'}), 400
@@ -233,7 +232,6 @@ def register(app):
                         app.memory['cleanup']()
                     time.sleep(SLEEP_BETWEEN_BATCH)
 
-                # ===== 【修复】直接使用完整路径，不再拼接 =====
                 old_path = Path(item['old_path'])
                 if not old_path.is_absolute():
                     old_path = Path(work_dir) / item['old_path'].lstrip('/')
@@ -249,11 +247,6 @@ def register(app):
                     logs.append({
                         'text': f'✏️ 重命名: {item["old_name"]} → {item["new_name"]}',
                         'type': 'success'
-                    })
-                    history.append({
-                        'old_path': str(old_path),
-                        'new_path': str(new_path),
-                        'old_name': item['old_name']
                     })
                     stats['processed'] += 1
                 else:
@@ -277,11 +270,10 @@ def register(app):
                 return jsonify({
                     'logs': logs if logs else [{'text': '没有文件被重命名，请检查文件是否存在', 'type': 'warning'}],
                     'stats': stats,
-                    'history': history,
                     'warning': '没有文件被处理'
                 })
 
-            return jsonify({'logs': logs, 'stats': stats, 'history': history})
+            return jsonify({'logs': logs, 'stats': stats})
 
         except Exception as e:
             import traceback
