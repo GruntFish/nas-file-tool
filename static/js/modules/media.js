@@ -135,7 +135,6 @@ const MediaModule = {
             const stats = document.getElementById('mediaStats');
             const previewArea = document.getElementById('mediaPreviewArea');
 
-            // ===== 构建压缩预览数据，写入 window.compressPreview =====
             const compressMap = {};
             previewList.innerHTML = '';
             if (result.results && result.results.length > 0) {
@@ -149,7 +148,6 @@ const MediaModule = {
                         const originalSize = formatSize(r.original_size);
                         const estimatedSize = formatSize(r.estimated_size);
 
-                        // ===== 写入 compressPreview =====
                         compressMap[r.file] = {
                             original: originalSize,
                             new: estimatedSize,
@@ -179,7 +177,6 @@ const MediaModule = {
                 previewArea.style.display = 'block';
             }
 
-            // ===== 更新文件列表 =====
             window.compressPreview = compressMap;
             if (typeof renderFiles === 'function') {
                 renderFiles(window.fileList);
@@ -227,17 +224,18 @@ const MediaModule = {
                         throw new Error(result.error);
                     }
 
-                    // ===== 构建压缩结果数据，写入 window.compressPreview =====
                     const compressMap = {};
 
                     if (result.results) {
                         if (dryRun) {
+                            let processed = 0;
                             result.results.forEach(r => {
                                 if (r.status === 'preview') {
                                     const tag = r.overwrite ? ' [覆盖]' : '';
                                     const saved = r.estimated_ratio || 0;
                                     showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + saved.toFixed(1) + '%)', 'info');
-                                    // ===== 写入 compressPreview =====
+                                    processed++;
+                                    progress.update(processed, `📋 ${r.file} 预览 (${processed}/${files.length})`);
                                     compressMap[r.file] = {
                                         original: formatSize(r.original_size),
                                         new: formatSize(r.estimated_size),
@@ -250,11 +248,13 @@ const MediaModule = {
                             showLog('📊 预览完成，共 ' + result.results.length + ' 张图片', 'info');
                         } else {
                             const success = result.results.filter(r => r.status === 'success');
+                            let processed = 0;
                             success.forEach(r => {
                                 const saved = r.ratio || 0;
                                 const tag = r.overwrite ? ' [覆盖原图]' : '';
                                 showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
-                                // ===== 写入 compressPreview =====
+                                processed++;
+                                progress.update(processed, `✅ ${r.file} 已压缩 (${processed}/${files.length})`);
                                 compressMap[r.file] = {
                                     original: formatSize(r.original_size),
                                     new: formatSize(r.new_size),
@@ -268,7 +268,6 @@ const MediaModule = {
                         }
                     }
 
-                    // ===== 更新文件列表 =====
                     window.compressPreview = compressMap;
                     if (typeof renderFiles === 'function') {
                         renderFiles(window.fileList);
