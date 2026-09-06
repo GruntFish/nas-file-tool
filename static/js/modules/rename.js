@@ -574,60 +574,96 @@ const RenameModule = {
                 title: `✏️ 正在重命名 ${filesToRename.length} 个文件...`,
                 completeMessage: `✅ 成功重命名 ${filesToRename.length} 个文件`,
                 execute: async (progress) => {
+                    // ===== 设置总进度 =====
                     progress.setTotal(filesToRename.length);
-                    const requestData = {
-                        action: action,
-                        files: filesToRename,
-                        ...params
-                    };
-                    let result;
-                    try {
-                        result = await apiCall('/api/execute', requestData);
-                    } catch (e) {
-                        throw new Error('请求失败: ' + e.message);
-                    }
-                    if (!result) {
-                        throw new Error('服务器无响应');
-                    }
-                    if (result.error) {
-                        throw new Error(result.error);
-                    }
-                    if (result.logs) {
-                        result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-                        // 更新进度
-                        const processed = result.logs.filter(l => l.type === 'success').length;
-                        progress.update(processed, `已处理 ${processed}/${filesToRename.length}`);
-                    }
-                    if (result.stats && result.stats.processed === 0 && !result.error) {
-                        showLog('⚠️ 后端没有处理任何文件，请检查文件路径是否正确', 'warning');
-                        if (result.logs && result.logs.length > 0) {
-                            result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                    showLog(`📊 共 ${filesToRename.length} 个文件待处理`, 'info');
+
+                    let processed = 0;
+                    let lastResult = null;
+                    const batchSize = 10;
+
+                    for (let i = 0; i < filesToRename.length; i += batchSize) {
+                        const batch = filesToRename.slice(i, i + batchSize);
+                        const currentFile = batch[0]?.old_name || '未知';
+
+                        // ===== 更新进度 =====
+                        progress.update(
+                            processed,
+                            `[${i + 1}/${filesToRename.length}] ${currentFile} (${processed}/${filesToRename.length})`
+                        );
+
+                        const requestData = {
+                            action: action,
+                            files: batch,
+                            ...params
+                        };
+
+                        let result;
+                        try {
+                            result = await apiCall('/api/execute', requestData);
+                        } catch (e) {
+                            throw new Error('请求失败: ' + e.message);
                         }
-                        return;
+
+                        if (!result) {
+                            throw new Error('服务器无响应');
+                        }
+                        if (result.error) {
+                            throw new Error(result.error);
+                        }
+
+                        lastResult = result;
+
+                        if (result.logs) {
+                            result.logs.forEach(log => {
+                                showLog(log.text, log.type || 'info');
+                                if (log.type === 'success') {
+                                    processed++;
+                                    progress.update(
+                                        processed,
+                                        `✅ ${log.text.replace('✏️ 重命名: ', '').split(' → ')[0]} (${processed}/${filesToRename.length})`
+                                    );
+                                }
+                            });
+                        }
+
+                        if (result.stats && result.stats.processed === 0 && !result.error) {
+                            showLog('⚠️ 后端没有处理任何文件，请检查文件路径是否正确', 'warning');
+                            if (result.logs && result.logs.length > 0) {
+                                result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                            }
+                            return;
+                        }
+
+                        // 更新进度
+                        progress.update(processed, `[${i + batchSize}/${filesToRename.length}] 已完成 ${processed} 个`);
                     }
-                    if (result.stats) {
-                        showLog('✅ ' + result.stats.message, 'success');
-                        progress.update(filesToRename.length);
+
+                    // 最终更新
+                    progress.update(filesToRename.length, `✅ 完成 (${filesToRename.length}/${filesToRename.length})`);
+
+                    if (lastResult?.stats) {
+                        showLog('✅ ' + lastResult.stats.message, 'success');
                     }
-                    if (result.history && result.history.length > 0) {
-                        window.renameHistory.push(...result.history);
+                    if (lastResult?.history && lastResult.history.length > 0) {
+                        window.renameHistory.push(...lastResult.history);
                         const undoBtn = document.getElementById('undoBtn');
                         if (undoBtn) undoBtn.disabled = false;
                     }
+
                     window.renamePreview = {};
                     selectedFiles.clear();
                     await loadFiles(currentPath);
                     this.restoreSelectState();
-                    if (result.stats && result.stats.processed > 0) {
-                        const findText = document.getElementById('findText');
-                        const replaceText = document.getElementById('replaceText');
-                        if (findText) findText.value = '';
-                        if (replaceText) replaceText.value = '';
-                        if (typeof renderFiles === 'function') {
-                            renderFiles(window.fileList);
-                        }
-                        showLog('✅ 输入框已清空，可以继续操作', 'info');
+
+                    const findText = document.getElementById('findText');
+                    const replaceText = document.getElementById('replaceText');
+                    if (findText) findText.value = '';
+                    if (replaceText) replaceText.value = '';
+                    if (typeof renderFiles === 'function') {
+                        renderFiles(window.fileList);
                     }
+                    showLog('✅ 输入框已清空，可以继续操作', 'info');
                 }
             });
         } catch (e) {
