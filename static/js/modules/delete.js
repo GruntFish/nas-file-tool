@@ -1,119 +1,81 @@
-// static/js/modules/delete.js
-const DeleteModule = {
-    name: 'delete',
+# modules/delete.py
+from flask import jsonify, request
+from pathlib import Path
+import shutil
+import time
 
-    init() {
-        document.getElementById('deleteOpenBtn').addEventListener('click', () => this.openModal());
-        this.updateCount();
-        document.addEventListener('selectionChanged', () => { this.updateCount(); });
-    },
+from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BETWEEN_BATCH
+from core.decorators import with_memory_cleanup, log_operation, handle_errors
+from core.security import is_safe_path, is_safe_delete
+from core.logger import get_logger
 
-    destroy() {
-        closeModal();
-        selectedFiles.clear();
-        updateSelectedInfo();
-        if (typeof renderFiles === 'function' && window.fileList) {
-            renderFiles(window.fileList);
-        }
-    },
+logger = get_logger(__name__)
 
-    updateCount() {
-        const count = selectedFiles.size;
-        const el = document.getElementById('deleteSelectedCount');
-        if (el) el.textContent = count;
-    },
 
-    openModal() {
-        const files = Array.from(selectedFiles);
-        if (files.length === 0) {
-            showLog('⚠️ 请先选择要删除的文件或目录', 'warning');
-            return;
-        }
+def register(app):
+    """注册删除路由"""
 
-        const fileList = files.map(f => '  📄 ' + getFileName(f)).join('\n');
+    @app.route('/api/delete', methods=['POST'])
+    @handle_errors('删除失败')
+    @log_operation('删除文件')
+    @with_memory_cleanup(app)
+    def delete_files():
+        data = request.json
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
 
-        const modalHtml = `
-        <div class="modal" style="max-width:500px;">
-            <h2>🗑️ 删除文件/目录</h2>
-            <div style="color:#e53e3e;font-size:13px;margin-bottom:10px;">
-                ⚠️ 警告：删除操作不可恢复！
-            </div>
-            <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
-                将删除 <strong style="color:#e4e6eb;">${files.length}</strong> 个文件/目录：
-                <div style="background:#14171f;border-radius:6px;padding:8px 12px;margin-top:6px;font-size:12px;font-family:monospace;color:#b5b9c9;max-height:150px;overflow-y:auto;">
-                    ${fileList}
-                </div>
-            </div>
-            <div class="btn-row">
-                <button class="btn-cancel" onclick="closeModal()">取消</button>
-                <button class="btn-confirm" id="deleteConfirmBtn" style="background:#e53e3e;color:#fff;">确认删除</button>
-            </div>
-        </div>`;
+        files = data.get('files', [])
+        work_dir = WORK_DIR
 
-        const overlay = openModal(modalHtml);
-        overlay.querySelector('#deleteConfirmBtn').addEventListener('click', () => this.execute(files));
-    },
+        if not files:
+            return jsonify({'error': '请选择要删除的文件'}), 400
 
-    async execute(files) {
-        closeModal();
-        clearLog();
-        showLog('⏳ 开始删除 ' + files.length + ' 个文件/目录...', 'info');
+        if len(files) > MAX_FILES_PER_OPERATION:
+            return jsonify({'error': f'一次最多删除 {MAX_FILES_PER_OPERATION} 个文件'}), 400
 
-        try {
-            await OperationManager.execute({
-                title: `🗑️ 正在删除 ${files.length} 个文件...`,
-                completeMessage: `✅ 成功删除 ${files.length} 个文件`,
-                onCancel: () => {
-                    showLog('⏹️ 删除已取消', 'warning');
-                },
-                execute: async (progress) => {
-                    progress.setTotal(files.length);
-                    let deleted = 0;
-                    let failed = 0;
+        logs = []
+        deleted = 0
+        failed = 0
 
-                    for (let i = 0; i < files.length; i++) {
-                        if (progress.isCancelled()) {
-                            throw new Error('操作已取消');
-                        }
-                        const filePath = files[i];
-                        const fileName = getFileName(filePath);
-                        progress.update(i, `[${i + 1}/${files.length}] 正在删除: ${fileName}`);
+        for i, file_path_str in enumerate(files):
+            if i % BATCH_SIZE == 0:
+                if hasattr(app, 'memory'):
+                    app.memory['cleanup']()
+                time.sleep(SLEEP_BETWEEN_BATCH)
 
-                        try {
-                            const result = await apiCall('/api/delete', { files: [filePath] });
-                            if (result.error) {
-                                failed++;
-                                showLog('❌ 删除失败: ' + fileName + ' - ' + result.error, 'error');
-                                progress.update(i + 1, `❌ ${fileName} 失败 (${deleted}/${files.length})`);
-                            } else {
-                                deleted++;
-                                if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-                                progress.update(i + 1, `✅ ${fileName} 已删除 (${deleted}/${files.length})`);
-                            }
-                        } catch (e) {
-                            failed++;
-                            showLog('❌ 删除失败: ' + fileName + ' - ' + e.message, 'error');
-                            progress.update(i + 1, `❌ ${fileName} 失败 (${deleted}/${files.length})`);
-                        }
+            target = Path(file_path_str)
+            if not target.is_absolute():
+                target = Path(work_dir) / file_path_str.lstrip('/')
 
-                        if (i % 10 === 0) {
-                            await new Promise(resolve => setTimeout(resolve, 50));
-                        }
-                    }
+            if not is_safe_path(target, work_dir):
+                logs.append({'text': f'⚠️ 不安全路径: {file_path_str}', 'type': 'warning'})
+                failed += 1
+                continue
 
-                    if (deleted > 0) showLog('✅ 成功删除 ' + deleted + ' 个文件/目录', 'success');
-                    if (failed > 0) showLog('⚠️ 删除失败 ' + failed + ' 个文件/目录', 'error');
+            if not is_safe_delete(target):
+                logs.append({'text': f'⚠️ 文件在保护列表中: {target.name}', 'type': 'warning'})
+                failed += 1
+                continue
 
-                    selectedFiles.clear();
-                    await loadFiles(currentPath);
-                }
-            });
-        } catch (e) {
-            showLog('❌ ' + e.message, 'error');
-        }
-    }
-};
+            if target.exists():
+                try:
+                    if target.is_file():
+                        target.unlink()
+                        logs.append({'text': f'🗑️ 删除文件: {target.name}', 'type': 'success'})
+                        deleted += 1
+                    elif target.is_dir():
+                        shutil.rmtree(target)
+                        logs.append({'text': f'🗑️ 删除目录: {target.name}', 'type': 'success'})
+                        deleted += 1
+                except Exception as e:
+                    failed += 1
+                    logger.error(f'删除失败: {target.name} - {e}')
+                    logs.append({'text': f'❌ 删除失败: {target.name} - {str(e)}', 'type': 'error'})
+            else:
+                logs.append({'text': f'⚠️ 不存在: {file_path_str}', 'type': 'warning'})
 
-if (typeof ModuleRegistry !== 'undefined') {
-    ModuleRegistry.register(DeleteModule);
-}
+        if hasattr(app, 'memory'):
+            app.memory['cleanup']()
+
+        logger.info(f'删除完成: 成功 {deleted} 个，失败 {failed} 个')
+        return jsonify({'logs': logs, 'deleted': deleted, 'failed': failed})
