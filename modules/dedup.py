@@ -102,7 +102,6 @@ def register(app):
         logs = []
 
         def add_log(message, status='info', file_path=None):
-            """添加日志"""
             log_entry = {
                 'time': time.strftime('%Y-%m-%d %H:%M:%S'),
                 'message': message,
@@ -127,11 +126,13 @@ def register(app):
             if mem_check['exceeded']:
                 return jsonify({'error': '内存使用超过限制，请稍后再试'}), 503
 
+        # ===== 【修复】直接使用完整路径 =====
         if base_path == '/':
             target = Path(work_dir)
         else:
-            clean = base_path.lstrip('/')
-            target = Path(work_dir) / clean
+            target = Path(base_path)
+            if not target.is_absolute():
+                target = Path(work_dir) / base_path.lstrip('/')
 
         target = target.resolve()
         base = Path(work_dir).resolve()
