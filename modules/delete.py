@@ -8,7 +8,6 @@ from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BET
 from core.decorators import with_memory_cleanup, log_operation, handle_errors
 from core.security import is_safe_path, is_safe_delete
 from core.logger import get_logger
-from core.undo import add_undo_record, UndoAction
 
 logger = get_logger(__name__)
 
@@ -44,7 +43,6 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(SLEEP_BETWEEN_BATCH)
 
-            # ===== 【修复】直接使用完整路径 =====
             target = Path(file_path_str)
             if not target.is_absolute():
                 target = Path(work_dir) / file_path_str.lstrip('/')
@@ -61,9 +59,7 @@ def register(app):
 
             if target.exists():
                 try:
-                    backup_path = target.parent / f'.{target.name}.deleted_backup'
                     if target.is_file():
-                        shutil.copy2(str(target), str(backup_path))
                         target.unlink()
                         logs.append({'text': f'🗑️ 删除文件: {target.name}', 'type': 'success'})
                         deleted += 1
@@ -71,14 +67,6 @@ def register(app):
                         shutil.rmtree(target)
                         logs.append({'text': f'🗑️ 删除目录: {target.name}', 'type': 'success'})
                         deleted += 1
-                    add_undo_record(
-                        UndoAction.DELETE,
-                        str(target),
-                        None,
-                        target.name,
-                        None,
-                        {'backup_path': str(backup_path)}
-                    )
                 except Exception as e:
                     failed += 1
                     logger.error(f'删除失败: {target.name} - {e}')
