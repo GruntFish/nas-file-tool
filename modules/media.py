@@ -69,7 +69,10 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(0.05)
 
-            src = Path(work_dir) / file_path_str.lstrip('/')
+            src = Path(file_path_str)
+            if not src.is_absolute():
+                src = Path(work_dir) / file_path_str.lstrip('/')
+            
             if not src.exists():
                 stats['skipped'] += 1
                 results.append({'file': file_path_str, 'status': 'skip', 'reason': '文件不存在'})
