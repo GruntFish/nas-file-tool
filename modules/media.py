@@ -50,7 +50,10 @@ def register(app):
             has_jpeg = False
             has_png = False
             for f in files:
-                src = Path(work_dir) / f.lstrip('/')
+                # ===== 【修复】直接使用完整路径 =====
+                src = Path(f)
+                if not src.is_absolute():
+                    src = Path(work_dir) / f.lstrip('/')
                 if src.suffix.lower() in ('.jpg', '.jpeg'):
                     has_jpeg = True
                 elif src.suffix.lower() == '.png':
@@ -69,10 +72,11 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(0.05)
 
+            # ===== 【修复】直接使用完整路径 =====
             src = Path(file_path_str)
             if not src.is_absolute():
                 src = Path(work_dir) / file_path_str.lstrip('/')
-            
+
             if not src.exists():
                 stats['skipped'] += 1
                 results.append({'file': file_path_str, 'status': 'skip', 'reason': '文件不存在'})
