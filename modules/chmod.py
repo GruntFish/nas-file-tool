@@ -58,7 +58,11 @@ def register(app):
 
         all_items = []
         for file_path_str in files:
-            target = Path(work_dir) / file_path_str.lstrip('/')
+            
+            target = Path(file_path_str)
+            if not target.is_absolute():
+                target = Path(work_dir) / file_path_str.lstrip('/')
+            
             if not is_safe_path(target, work_dir):
                 results.append({'path': file_path_str, 'status': 'skip', 'reason': '不安全路径'})
                 stats['skipped'] += 1
