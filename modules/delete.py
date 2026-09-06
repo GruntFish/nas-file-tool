@@ -44,7 +44,9 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(SLEEP_BETWEEN_BATCH)
 
-            target = Path(work_dir) / file_path_str.lstrip('/')
+            target = Path(file_path_str)
+            if not target.is_absolute():
+                target = Path(work_dir) / file_path_str.lstrip('/')
 
             if not is_safe_path(target, work_dir):
                 logs.append({'text': f'⚠️ 不安全路径: {file_path_str}', 'type': 'warning'})
