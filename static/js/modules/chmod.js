@@ -137,7 +137,18 @@ const ChmodModule = {
 
                     if (result.results) {
                         const success = result.results.filter(r => r.status === 'success');
-                        success.forEach(r => showLog('✅ ' + r.path + ' → ' + r.current, 'success'));
+                        let processed = 0;
+                        success.forEach(r => {
+                            showLog('✅ ' + r.path + ' → ' + r.current, 'success');
+                            processed++;
+                            progress.update(processed, `✅ ${r.path} (${processed}/${files.length})`);
+                        });
+                        const errors = result.results.filter(r => r.status === 'error');
+                        errors.forEach(r => {
+                            showLog('❌ ' + r.path + ' - ' + r.reason, 'error');
+                            processed++;
+                            progress.update(processed, `❌ ${r.path} 失败 (${processed}/${files.length})`);
+                        });
                     }
 
                     showLog('✅ ' + result.stats.changed + ' 个文件/目录权限已修改', 'success');
