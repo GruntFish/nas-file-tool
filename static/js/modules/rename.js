@@ -574,7 +574,6 @@ const RenameModule = {
                 title: `✏️ 正在重命名 ${filesToRename.length} 个文件...`,
                 completeMessage: `✅ 成功重命名 ${filesToRename.length} 个文件`,
                 execute: async (progress) => {
-                    // ===== 设置总进度 =====
                     progress.setTotal(filesToRename.length);
                     showLog(`📊 共 ${filesToRename.length} 个文件待处理`, 'info');
 
@@ -586,7 +585,6 @@ const RenameModule = {
                         const batch = filesToRename.slice(i, i + batchSize);
                         const currentFile = batch[0]?.old_name || '未知';
 
-                        // ===== 更新进度 =====
                         progress.update(
                             processed,
                             `[${i + 1}/${filesToRename.length}] ${currentFile} (${processed}/${filesToRename.length})`
@@ -635,20 +633,13 @@ const RenameModule = {
                             return;
                         }
 
-                        // 更新进度
                         progress.update(processed, `[${i + batchSize}/${filesToRename.length}] 已完成 ${processed} 个`);
                     }
 
-                    // 最终更新
                     progress.update(filesToRename.length, `✅ 完成 (${filesToRename.length}/${filesToRename.length})`);
 
                     if (lastResult?.stats) {
                         showLog('✅ ' + lastResult.stats.message, 'success');
-                    }
-                    if (lastResult?.history && lastResult.history.length > 0) {
-                        window.renameHistory.push(...lastResult.history);
-                        const undoBtn = document.getElementById('undoBtn');
-                        if (undoBtn) undoBtn.disabled = false;
                     }
 
                     window.renamePreview = {};
