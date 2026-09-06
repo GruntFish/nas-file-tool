@@ -56,7 +56,6 @@ const ModuleRegistry = {
             renderFiles(window.fileList);
         }
 
-        // ===== 切换模块后重新应用正则过滤 =====
         if (window.filterRegex) {
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
             try {
@@ -180,7 +179,6 @@ function openModal(html) {
 
     if (!overlay) return null;
 
-    // ===== 设置遮罩层样式 =====
     overlay.style.position = 'fixed';
     overlay.style.top = '0';
     overlay.style.left = '0';
@@ -196,7 +194,6 @@ function openModal(html) {
     overlay.style.padding = '0';
     overlay.style.background = 'rgba(0, 0, 0, 0.6)';
 
-    // ===== 强制弹窗内部样式 =====
     const modal = overlay.querySelector('.modal');
     if (modal) {
         modal.style.background = '#1a1d27';
@@ -212,7 +209,6 @@ function openModal(html) {
         modal.style.margin = 'auto';
         modal.style.color = '#e4e6eb';
 
-        // 标题
         const h2 = modal.querySelector('h2');
         if (h2) {
             h2.style.color = '#e4e6eb';
@@ -220,7 +216,6 @@ function openModal(html) {
             h2.style.marginBottom = '12px';
         }
 
-        // 所有文本
         const allText = modal.querySelectorAll('p, div, span, label, li');
         allText.forEach(el => {
             if (!el.style.color && !el.closest('.btn-row') && !el.closest('button')) {
@@ -228,7 +223,6 @@ function openModal(html) {
             }
         });
 
-        // 按钮
         const btns = modal.querySelectorAll('.btn-confirm, .btn-cancel');
         btns.forEach(btn => {
             if (btn.classList.contains('btn-confirm')) {
@@ -248,7 +242,6 @@ function openModal(html) {
             btn.style.flex = '1';
         });
 
-        // 按钮行
         const btnRow = modal.querySelector('.btn-row');
         if (btnRow) {
             btnRow.style.display = 'flex';
@@ -256,7 +249,6 @@ function openModal(html) {
             btnRow.style.marginTop = '14px';
         }
 
-        // 表单组
         const formGroups = modal.querySelectorAll('.form-group');
         formGroups.forEach(fg => {
             fg.style.marginBottom = '8px';
@@ -282,7 +274,6 @@ function openModal(html) {
             }
         });
 
-        // 预览列表
         const previewList = modal.querySelector('.preview-list');
         if (previewList) {
             previewList.style.maxHeight = '120px';
@@ -504,10 +495,8 @@ function renderFiles(files) {
 
     const fileData = files || window.fileList || [];
 
-    // ===== 判断当前是否是重命名模块 =====
     const isRenameModule = ModuleRegistry.currentModule === 'rename';
 
-    // ===== 控制"新名称"列的显示 =====
     const thead = document.querySelector('#fileListContainer thead tr');
     if (thead) {
         const newNameTh = thead.querySelector('.new-name-col');
@@ -565,7 +554,6 @@ function renderFiles(files) {
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
         let newName = window.renamePreview[file.path] || file.name;
 
-        // ===== 【新增】检查是否有压缩预览信息 =====
         if (window.compressPreview && window.compressPreview[file.path]) {
             const info = window.compressPreview[file.path];
             const ratioStr = info.ratio > 0 ? `(-${info.ratio.toFixed(1)}%)` : '';
@@ -762,11 +750,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('clearAllBtn');
             if (btn) btn.click();
         }
-        if (e.ctrlKey && e.key === 'z') {
-            e.preventDefault();
-            const undoBtn = document.getElementById('undoBtn');
-            if (undoBtn && !undoBtn.disabled) undoBtn.click();
-        }
     });
 
     loadTree('/');
@@ -784,21 +767,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // ===== 撤销按钮已禁用 =====
     const undoBtn = document.getElementById('undoBtn');
     if (undoBtn) {
-        undoBtn.addEventListener('click', async function() {
-            if (window.renameHistory.length === 0) return;
-            try {
-                const result = await apiCall('/api/undo', {});
-                if (result.error) { showLog('❌ ' + result.error, 'error'); return; }
-                showLog('↩ ' + result.message, 'success');
-                window.renameHistory.pop();
-                if (window.renameHistory.length === 0) this.disabled = true;
-                window.renamePreview = {};
-                window.selectedFiles.clear();
-                await loadFiles(window.currentPath);
-            } catch (e) { showLog('❌ ' + e.message, 'error'); }
-        });
+        undoBtn.style.display = 'none';
     }
 
     document.getElementById('refreshTreeBtn')?.addEventListener('click', function() {
