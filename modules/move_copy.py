@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 import time
 import re
+import os
 
 from core.config import WORK_DIR, MAX_FILES_PER_OPERATION, BATCH_SIZE, SLEEP_BETWEEN_BATCH
 from core.decorators import with_memory_cleanup, log_operation, handle_errors
@@ -75,6 +76,8 @@ def register(app):
         include_dirs = data.get('include_dirs', True)
         work_dir = WORK_DIR
 
+        logger.info(f'移动/复制请求: action={action}, files={len(files)}, target_dir={target_dir}')
+
         if not files:
             return jsonify({'error': '请选择要操作的文件或目录'}), 400
 
@@ -84,11 +87,16 @@ def register(app):
         if not target_dir:
             return jsonify({'error': '目标目录不能为空'}), 400
 
-        # 处理目标路径
-        target_path = Path(target_dir)
-        if not target_path.is_absolute():
-            target_path = Path(work_dir) / target_dir.lstrip('/')
-        target_path = target_path.resolve()
+        # ===== 处理目标路径 =====
+        try:
+            target_path = Path(target_dir)
+            if not target_path.is_absolute():
+                target_path = Path(work_dir) / target_dir.lstrip('/')
+            target_path = target_path.resolve()
+            logger.info(f'目标路径: {target_path}')
+        except Exception as e:
+            logger.error(f'目标路径解析失败: {e}')
+            return jsonify({'error': f'目标路径无效: {str(e)}'}), 400
 
         if not is_safe_path(target_path, work_dir):
             return jsonify({'error': '目标目录不安全'}), 403
@@ -96,23 +104,32 @@ def register(app):
         results = []
         stats = {'processed': 0, 'moved': 0, 'copied': 0, 'skipped': 0, 'errors': 0}
 
-        # ===== 【修复】收集所有要操作的项目（文件+目录），不重复拼接路径 =====
+        # ===== 收集所有要操作的项目 =====
         items_to_process = []
         for file_path_str in files:
-            # 直接使用前端传来的完整路径
-            src = Path(file_path_str)
-            if not src.is_absolute():
-                src = Path(work_dir) / file_path_str.lstrip('/')
-            
-            if src.exists():
-                items_to_process.append({
-                    'path': file_path_str,
-                    'src': src,
-                    'is_dir': src.is_dir()
-                })
-            else:
-                stats['skipped'] += 1
-                results.append({'file': file_path_str, 'status': 'skip', 'reason': '文件不存在'})
+            try:
+                # 直接使用前端传来的完整路径
+                src = Path(file_path_str)
+                if not src.is_absolute():
+                    src = Path(work_dir) / file_path_str.lstrip('/')
+                
+                logger.info(f'检查文件: {src}')
+                
+                if src.exists():
+                    items_to_process.append({
+                        'path': file_path_str,
+                        'src': src,
+                        'is_dir': src.is_dir()
+                    })
+                    logger.info(f'文件存在: {src}')
+                else:
+                    stats['skipped'] += 1
+                    results.append({'file': file_path_str, 'status': 'skip', 'reason': '文件不存在'})
+                    logger.warning(f'文件不存在: {src}')
+            except Exception as e:
+                logger.error(f'处理文件路径失败: {file_path_str} - {e}')
+                stats['errors'] += 1
+                results.append({'file': file_path_str, 'status': 'error', 'reason': str(e)})
 
         if not items_to_process:
             return jsonify({
@@ -123,7 +140,7 @@ def register(app):
                 'target_dir': str(target_path)
             })
 
-        # ===== 应用过滤（只对文件过滤，目录不过滤） =====
+        # ===== 应用过滤 =====
         if filters and any(filters.values()):
             filtered_paths = []
             for item in items_to_process:
@@ -142,10 +159,15 @@ def register(app):
                 'dry_run': dry_run
             })
 
+        logger.info(f'开始处理 {len(items_to_process)} 个项目')
+
         for i, item in enumerate(items_to_process):
             if i % BATCH_SIZE == 0:
                 if hasattr(app, 'memory'):
-                    app.memory['cleanup']()
+                    try:
+                        app.memory['cleanup']()
+                    except:
+                        pass
                 time.sleep(SLEEP_BETWEEN_BATCH)
 
             src = item['src']
@@ -197,20 +219,16 @@ def register(app):
             try:
                 target_path.mkdir(parents=True, exist_ok=True)
                 if action == 'move':
-                    if item['is_dir']:
-                        shutil.move(str(src), str(dest))
-                        stats['moved'] += 1
-                    else:
-                        shutil.move(str(src), str(dest))
-                        stats['moved'] += 1
+                    shutil.move(str(src), str(dest))
+                    stats['moved'] += 1
                 else:
                     if item['is_dir']:
                         shutil.copytree(str(src), str(dest))
-                        stats['copied'] += 1
                     else:
                         shutil.copy2(str(src), str(dest))
-                        stats['copied'] += 1
+                    stats['copied'] += 1
                 stats['processed'] += 1
+                logger.info(f'处理成功: {src.name} -> {dest.name}')
                 try:
                     to_path = str(dest.relative_to(work_dir))
                 except ValueError:
@@ -232,7 +250,12 @@ def register(app):
                 })
 
         if hasattr(app, 'memory'):
-            app.memory['cleanup']()
+            try:
+                app.memory['cleanup']()
+            except:
+                pass
+
+        logger.info(f'移动/复制完成: 处理 {stats["processed"]} 个, 错误 {stats["errors"]} 个')
 
         return jsonify({
             'results': results,
