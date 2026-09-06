@@ -44,6 +44,7 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(SLEEP_BETWEEN_BATCH)
 
+            # ===== 【修复】直接使用完整路径 =====
             target = Path(file_path_str)
             if not target.is_absolute():
                 target = Path(work_dir) / file_path_str.lstrip('/')
