@@ -76,23 +76,26 @@ const DeleteModule = {
                             throw new Error('操作已取消');
                         }
                         const filePath = files[i];
-                        progress.update(i + 1, `正在删除: ${getFileName(filePath)}`);
+                        const fileName = getFileName(filePath);
+                        progress.update(i, `[${i + 1}/${files.length}] 正在删除: ${fileName}`);
 
                         try {
                             const result = await apiCall('/api/delete', { files: [filePath] });
                             if (result.error) {
                                 failed++;
-                                showLog('❌ 删除失败: ' + getFileName(filePath) + ' - ' + result.error, 'error');
+                                showLog('❌ 删除失败: ' + fileName + ' - ' + result.error, 'error');
+                                progress.update(i + 1, `❌ ${fileName} 失败 (${deleted}/${files.length})`);
                             } else {
                                 deleted++;
                                 if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                                progress.update(i + 1, `✅ ${fileName} 已删除 (${deleted}/${files.length})`);
                             }
                         } catch (e) {
                             failed++;
-                            showLog('❌ 删除失败: ' + getFileName(filePath) + ' - ' + e.message, 'error');
+                            showLog('❌ 删除失败: ' + fileName + ' - ' + e.message, 'error');
+                            progress.update(i + 1, `❌ ${fileName} 失败 (${deleted}/${files.length})`);
                         }
 
-                        // 每10个文件刷新一次界面
                         if (i % 10 === 0) {
                             await new Promise(resolve => setTimeout(resolve, 50));
                         }
