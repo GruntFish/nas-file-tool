@@ -141,11 +141,9 @@ def register(app):
         date_str = dt.strftime(fmt)
 
         if position == 'prefix':
-            return date_str + '_' + old_name
+            return date_str + '_' + oldName
         else:
             return name + '_' + date_str + ext
-
-    # ===== 【修复】所有路由使用传入的 app =====
 
     @app.route('/api/preview', methods=['POST'])
     def preview():
@@ -235,8 +233,16 @@ def register(app):
                         app.memory['cleanup']()
                     time.sleep(SLEEP_BETWEEN_BATCH)
 
-                old_path = Path(work_dir) / item['old_path'].lstrip('/')
-                new_path = Path(work_dir) / item['new_path'].lstrip('/')
+                # ===== 【修复】直接使用完整路径，不再拼接 =====
+                old_path = Path(item['old_path'])
+                if not old_path.is_absolute():
+                    old_path = Path(work_dir) / item['old_path'].lstrip('/')
+                
+                new_path = Path(item['new_path'])
+                if not new_path.is_absolute():
+                    new_path = Path(work_dir) / item['new_path'].lstrip('/')
+
+                logger.info(f'重命名: {old_path} -> {new_path}')
 
                 if old_path.exists() and not new_path.exists():
                     old_path.rename(new_path)
