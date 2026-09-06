@@ -180,12 +180,23 @@ const ClassifyModule = {
                         const errors = result.results.filter(r => r.status === 'error');
                         const skipped = result.results.filter(r => r.status === 'skip');
 
+                        let processed = 0;
                         success.forEach(r => {
                             const action = copyMode ? '复制' : '移动';
                             showLog('✅ ' + action + ': ' + r.file + ' → ' + r.to, 'success');
+                            processed++;
+                            progress.update(processed, `✅ ${r.file} 已${action} (${processed}/${files.length})`);
                         });
-                        errors.forEach(r => showLog('❌ ' + r.file + ' - ' + r.reason, 'error'));
-                        skipped.forEach(r => showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning'));
+                        errors.forEach(r => {
+                            showLog('❌ ' + r.file + ' - ' + r.reason, 'error');
+                            processed++;
+                            progress.update(processed, `❌ ${r.file} 失败 (${processed}/${files.length})`);
+                        });
+                        skipped.forEach(r => {
+                            showLog('⚠️ ' + r.file + ' - ' + r.reason, 'warning');
+                            processed++;
+                            progress.update(processed, `⏭️ ${r.file} 跳过 (${processed}/${files.length})`);
+                        });
                     }
 
                     const msg = result.stats.processed + ' 个文件处理完成' +
