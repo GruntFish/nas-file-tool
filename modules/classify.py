@@ -94,10 +94,11 @@ def register(app):
                     app.memory['cleanup']()
                 time.sleep(0.05)
 
+            # ===== 【修复】直接使用完整路径 =====
             src = Path(file_path_str)
             if not src.is_absolute():
                 src = Path(work_dir) / file_path_str.lstrip('/')
-                
+
             if not src.exists():
                 stats['skipped'] += 1
                 results.append({'file': src.name, 'status': 'skip', 'reason': '文件不存在'})
