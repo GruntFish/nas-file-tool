@@ -1,5 +1,5 @@
 // static/js/app.js
-// 模块注册器
+
 const ModuleRegistry = {
     modules: {},
     currentModule: null,
@@ -70,8 +70,6 @@ const ModuleRegistry = {
                     }
                     if (isMatch) {
                         window.selectedFiles.add(cb.value);
-                    } else {
-                        window.selectedFiles.delete(cb.value);
                     }
                 });
             } catch (e) {
@@ -631,6 +629,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const val = this.value.trim();
             window.filterRegex = val || null;
 
+            // ===== 【核心修复】先清空所有选中的文件 =====
+            window.selectedFiles.clear();
+
             renderFiles(window.fileList);
 
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
@@ -638,7 +639,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (val === '') {
                 checkboxes.forEach(cb => {
                     cb.checked = false;
-                    window.selectedFiles.delete(cb.value);
                     const tr = cb.closest('tr');
                     if (tr) tr.classList.remove('selected');
                 });
@@ -655,14 +655,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         if (isMatch) {
                             window.selectedFiles.add(cb.value);
-                        } else {
-                            window.selectedFiles.delete(cb.value);
                         }
                     });
                 } catch (e) {
                     checkboxes.forEach(cb => {
                         cb.checked = false;
-                        window.selectedFiles.delete(cb.value);
                         const tr = cb.closest('tr');
                         if (tr) tr.classList.remove('selected');
                     });
@@ -766,12 +763,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ModuleRegistry.load(this.dataset.module);
         });
     });
-
-    // ===== 撤销按钮已禁用 =====
-    const undoBtn = document.getElementById('undoBtn');
-    if (undoBtn) {
-        undoBtn.style.display = 'none';
-    }
 
     document.getElementById('refreshTreeBtn')?.addEventListener('click', function() {
         loadTree(window.currentPath);
