@@ -34,12 +34,14 @@ const DedupModule = {
             <div class="form-group">
                 <label>去重模式</label>
                 <select id="dedupMode">
-                    <option value="fast">⚡ 快速（按大小）</option>
-                    <option value="standard" selected>📋 标准（动态采样，推荐）</option>
-                    <option value="precise">🎯 精确（MD5，限500文件）</option>
+                    <select id="dedupMode">
+                    <option value="fast">⚡ 快速（文件名+大小+哈希）</option>
+                    <option value="standard" selected>📋 哈希 + MD5（推荐）</option>
+                    <option value="precise">🎯 精确（完整 MD5，速度较慢）</option>
+                </select>
                 </select>
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">
-                    标准模式：小文件MD5，大文件多点采样
+                    标准模式可以找出文件名不同但相同的文件
                 </div>
             </div>
             <div class="form-group" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
