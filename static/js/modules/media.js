@@ -6,12 +6,22 @@ const MediaModule = {
         document.getElementById('mediaCompressBtn').addEventListener('click', () => this.compress());
         this.updateCount();
         document.addEventListener('selectionChanged', () => { this.updateCount(); });
+        // ===== 监听模块切换，清除压缩预览数据 =====
+        document.addEventListener('moduleChanged', () => {
+            if (ModuleRegistry.currentModule !== 'media') {
+                window.compressPreview = {};
+                if (typeof renderFiles === 'function') {
+                    renderFiles(window.fileList);
+                }
+            }
+        });
     },
 
     destroy() {
         closeModal();
         selectedFiles.clear();
         updateSelectedInfo();
+        // ===== 清除压缩预览数据 =====
         window.compressPreview = {};
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
@@ -74,44 +84,40 @@ const MediaModule = {
             <h2>🖼️ 图片压缩</h2>
             <div style="color:#8b8fa3;font-size:13px;margin-bottom:10px;">
                 已选 <strong style="color:#e4e6eb;">${files.length}</strong> 张图片
+                <div style="color:#4a4e62;font-size:10px;margin-top:2px;">💡 下方显示的是 <strong style="color:#f0c94d;">预估</strong> 压缩后大小，实际以执行为准</div>
             </div>
             <div class="form-group">
                 <label>压缩质量 (1-100)</label>
                 <input type="number" id="mediaQuality" value="85" min="1" max="100">
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">值越高画质越好，文件越大</div>
             </div>
-            <div style="color:#8b8fa3;font-size:12px;margin-bottom:6px;">
-                <input type="checkbox" id="mediaDryRun" checked> 预览模式（不实际压缩）
-            </div>
             <div style="color:#f6ad55;font-size:12px;margin-bottom:6px;padding:4px 8px;background:#1f1a1a;border-radius:4px;border:1px solid #3d2d1a;">
                 <input type="checkbox" id="mediaOverwrite"> ⚠️ 覆盖原图（压缩后直接替换原文件，不可恢复！）
                 <div style="color:#8b8fa3;font-size:10px;margin-top:2px;padding-left:20px;">勾选后原图将被压缩后的图片覆盖，建议先备份</div>
             </div>
-            <div id="mediaPreviewArea" style="display:none;margin-top:8px;">
-                <div class="preview-list" id="mediaPreviewList" style="max-height:200px;"></div>
+            <div id="mediaPreviewArea" style="margin-top:8px;">
+                <div style="color:#8b8fa3;font-size:12px;font-weight:600;margin-bottom:4px;">📊 预估压缩结果</div>
+                <div class="preview-list" id="mediaPreviewList" style="max-height:200px;background:#14171f;border-radius:6px;padding:4px 8px;border:1px solid #2d313e;"></div>
                 <div style="color:#68d391;font-size:12px;margin-top:4px;" id="mediaStats"></div>
             </div>
             <div class="btn-row">
                 <button class="btn-cancel" onclick="closeModal()">取消</button>
-                <button class="btn-confirm" id="mediaCompressConfirm">执行压缩</button>
+                <button class="btn-confirm" id="mediaCompressConfirm">✅ 执行压缩</button>
             </div>
         </div>`;
 
         const overlay = openModal(modalHtml);
         overlay.querySelector('#mediaCompressConfirm').addEventListener('click', () => this.doCompress(files));
         overlay.querySelector('#mediaQuality').addEventListener('input', () => this.previewCompress(files));
-        overlay.querySelector('#mediaDryRun').addEventListener('change', () => this.previewCompress(files));
         overlay.querySelector('#mediaOverwrite').addEventListener('change', () => this.previewCompress(files));
         setTimeout(() => this.previewCompress(files), 100);
     },
 
+    // ===== 预览：显示预估压缩结果（只显示在弹窗中） =====
     async previewCompress(files) {
         if (!files || files.length === 0) {
-            document.getElementById('mediaPreviewArea').style.display = 'none';
-            window.compressPreview = {};
-            if (typeof renderFiles === 'function') {
-                renderFiles(window.fileList);
-            }
+            document.getElementById('mediaPreviewList').innerHTML = '<div style="color:#4a4e62;text-align:center;padding:8px;">没有图片</div>';
+            document.getElementById('mediaStats').textContent = '';
             return;
         }
 
@@ -133,9 +139,7 @@ const MediaModule = {
 
             const previewList = document.getElementById('mediaPreviewList');
             const stats = document.getElementById('mediaStats');
-            const previewArea = document.getElementById('mediaPreviewArea');
 
-            const compressMap = {};
             previewList.innerHTML = '';
             if (result.results && result.results.length > 0) {
                 let totalSaved = 0;
@@ -148,20 +152,12 @@ const MediaModule = {
                         const originalSize = formatSize(r.original_size);
                         const estimatedSize = formatSize(r.estimated_size);
 
-                        compressMap[r.file] = {
-                            original: originalSize,
-                            new: estimatedSize,
-                            ratio: saved,
-                            isPreview: true,
-                            output: r.output
-                        };
-
-                        div.style.cssText = 'color:#68d391;padding:2px 0;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f222c;';
+                        div.style.cssText = 'color:#b5b9c9;padding:3px 0;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f222c;';
                         div.innerHTML = `
-                            <span>📄 ${r.file}</span>
-                            <span style="color:#b5b9c9;font-size:11px;">
-                                ${originalSize} → <span style="color:#68d391;">${estimatedSize}</span>
-                                <span style="color:#f0c94d;font-size:10px;margin-left:4px;">(-${saved.toFixed(1)}%)</span>
+                            <span style="color:#b5b9c9;">📄 ${r.file}</span>
+                            <span style="color:#8b8fa3;font-size:11px;">
+                                ${originalSize} → <span style="color:#f0c94d;">${estimatedSize}</span>
+                                <span style="color:#68d391;font-size:10px;margin-left:4px;">⬇ ${saved.toFixed(1)}%</span>
                                 ${overwriteTag}
                             </span>
                         `;
@@ -170,16 +166,11 @@ const MediaModule = {
                     }
                 });
                 const avg = result.results.length > 0 ? (totalSaved / result.results.length).toFixed(1) : 0;
-                stats.textContent = '📊 共 ' + result.results.length + ' 张图片，平均节省 ' + avg + '%' + (overwrite ? ' ⚠️ 将覆盖原图' : '');
-                previewArea.style.display = 'block';
+                stats.textContent = '📊 共 ' + result.results.length + ' 张图片，平均预计节省 ' + avg + '%' + (overwrite ? ' ⚠️ 将覆盖原图' : '');
+                stats.style.color = '#68d391';
             } else {
                 previewList.innerHTML = '<div style="color:#4a4e62;text-align:center;padding:8px;">没有图片需要压缩</div>';
-                previewArea.style.display = 'block';
-            }
-
-            window.compressPreview = compressMap;
-            if (typeof renderFiles === 'function') {
-                renderFiles(window.fileList);
+                stats.textContent = '';
             }
 
         } catch (e) {
@@ -187,6 +178,7 @@ const MediaModule = {
         }
     },
 
+    // ===== 执行压缩：真实压缩，完成后更新文件列表 =====
     async doCompress(files) {
         if (!files || files.length === 0) {
             showLog('⚠️ 没有可压缩的图片文件', 'warning');
@@ -194,10 +186,9 @@ const MediaModule = {
         }
 
         const quality = parseInt(document.getElementById('mediaQuality').value) || 85;
-        const dryRun = document.getElementById('mediaDryRun').checked;
         const overwrite = document.getElementById('mediaOverwrite')?.checked || false;
 
-        if (overwrite && !dryRun) {
+        if (overwrite) {
             if (!confirm('⚠️ 警告：你选择了「覆盖原图」模式，压缩后将直接替换原始文件，此操作不可恢复！\n\n确定要继续吗？')) {
                 return;
             }
@@ -216,7 +207,7 @@ const MediaModule = {
                     const result = await apiCall('/api/media/compress', {
                         files: files,
                         quality: quality,
-                        dry_run: dryRun,
+                        dry_run: false,
                         overwrite: overwrite
                     });
 
@@ -224,50 +215,33 @@ const MediaModule = {
                         throw new Error(result.error);
                     }
 
+                    // ===== 构建压缩结果数据，写入 window.compressPreview =====
                     const compressMap = {};
 
                     if (result.results) {
-                        if (dryRun) {
-                            let processed = 0;
-                            result.results.forEach(r => {
-                                if (r.status === 'preview') {
-                                    const tag = r.overwrite ? ' [覆盖]' : '';
-                                    const saved = r.estimated_ratio || 0;
-                                    showLog('📋 ' + r.file + ' → ' + r.output + tag + ' (预计节省 ' + saved.toFixed(1) + '%)', 'info');
-                                    processed++;
-                                    progress.update(processed, `📋 ${r.file} 预览 (${processed}/${files.length})`);
-                                    compressMap[r.file] = {
-                                        original: formatSize(r.original_size),
-                                        new: formatSize(r.estimated_size),
-                                        ratio: saved,
-                                        isPreview: true,
-                                        output: r.output
-                                    };
-                                }
-                            });
-                            showLog('📊 预览完成，共 ' + result.results.length + ' 张图片', 'info');
-                        } else {
-                            const success = result.results.filter(r => r.status === 'success');
-                            let processed = 0;
-                            success.forEach(r => {
-                                const saved = r.ratio || 0;
-                                const tag = r.overwrite ? ' [覆盖原图]' : '';
-                                showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
-                                processed++;
-                                progress.update(processed, `✅ ${r.file} 已压缩 (${processed}/${files.length})`);
-                                compressMap[r.file] = {
-                                    original: formatSize(r.original_size),
-                                    new: formatSize(r.new_size),
-                                    ratio: saved,
-                                    isPreview: false,
-                                    output: r.output
-                                };
-                            });
-                            const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
-                            showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
-                        }
+                        const success = result.results.filter(r => r.status === 'success');
+                        let processed = 0;
+                        success.forEach(r => {
+                            const saved = r.ratio || 0;
+                            const tag = r.overwrite ? ' [覆盖原图]' : '';
+                            showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
+                            processed++;
+                            progress.update(processed, `✅ ${r.file} 已压缩 (${processed}/${files.length})`);
+                            // ===== 写入 compressPreview，用于文件列表显示 =====
+                            compressMap[r.file] = {
+                                original: formatSize(r.original_size),
+                                new: formatSize(r.new_size),
+                                ratio: saved,
+                                isPreview: false,
+                                output: r.output,
+                                isCompressed: true  // 标记已压缩
+                            };
+                        });
+                        const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
+                        showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
                     }
 
+                    // ===== 更新文件列表显示压缩结果 =====
                     window.compressPreview = compressMap;
                     if (typeof renderFiles === 'function') {
                         renderFiles(window.fileList);
