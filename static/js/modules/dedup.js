@@ -42,16 +42,6 @@ const DedupModule = {
                     标准模式：小文件MD5，大文件多点采样
                 </div>
             </div>
-            <div class="form-group">
-                <label>操作</label>
-                <select id="dedupAction">
-                    <option value="find">仅查找（列出重复项）</option>
-                    <option value="delete_first">删除重复（保留第一个）</option>
-                    <option value="delete_last">删除重复（保留最后一个）</option>
-                    <option value="delete_smallest">删除重复（保留最大的）</option>
-                    <option value="delete_largest">删除重复（保留最小的）</option>
-                </select>
-            </div>
             <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                 <label style="margin:0;display:flex;align-items:center;gap:6px;cursor:pointer;">
                     <input type="checkbox" id="dedupRecursive" style="accent-color:#667eea;width:16px;height:16px;">
@@ -59,104 +49,216 @@ const DedupModule = {
                 </label>
                 <span style="color:#4a4e62;font-size:11px;">（勾选后将对所有子目录进行去重）</span>
             </div>
-            <div id="dedupPreviewArea" style="display:none;margin-top:8px;">
-                <div class="preview-list" id="dedupPreviewList" style="max-height:200px;"></div>
-                <div style="color:#f6ad55;font-size:12px;margin-top:4px;" id="dedupStats"></div>
+            <div id="dedupResultArea" style="display:none;margin-top:8px;">
+                <div style="color:#e4e6eb;font-size:14px;font-weight:600;margin-bottom:6px;">📋 重复文件组</div>
+                <div id="dedupResultList" style="max-height:300px;overflow-y:auto;background:#14171f;border-radius:6px;padding:8px;border:1px solid #2d313e;"></div>
+                <div style="color:#f6ad55;font-size:12px;margin-top:6px;" id="dedupResultStats"></div>
+                <div class="btn-row" style="margin-top:10px;">
+                    <button class="btn-confirm" id="dedupDeleteBtn" style="background:#e53e3e;color:#fff;display:none;">🗑️ 删除选中的重复文件</button>
+                </div>
             </div>
             <div class="btn-row">
                 <button class="btn-cancel" onclick="closeModal()">取消</button>
-                <button class="btn-confirm" id="dedupConfirmBtn">确认执行</button>
+                <button class="btn-confirm" id="dedupScanBtn">🔍 扫描重复</button>
             </div>
         </div>`;
 
         const overlay = openModal(modalHtml);
-        overlay.querySelector('#dedupConfirmBtn').addEventListener('click', () => this.execute());
+        overlay.querySelector('#dedupScanBtn').addEventListener('click', () => this.scan());
+        overlay.querySelector('#dedupDeleteBtn').addEventListener('click', () => this.deleteSelected());
+        this._overlay = overlay;
     },
 
-    async execute() {
+    async scan() {
         const mode = document.getElementById('dedupMode').value;
-        const action = document.getElementById('dedupAction').value;
         const recursive = document.getElementById('dedupRecursive').checked;
+        const scanBtn = document.getElementById('dedupScanBtn');
+        const resultArea = document.getElementById('dedupResultArea');
+        const resultList = document.getElementById('dedupResultList');
+        const resultStats = document.getElementById('dedupResultStats');
+        const deleteBtn = document.getElementById('dedupDeleteBtn');
+
+        scanBtn.disabled = true;
+        scanBtn.textContent = '⏳ 扫描中...';
+        resultArea.style.display = 'none';
+        deleteBtn.style.display = 'none';
+
+        showLog('⏳ 开始扫描重复文件...' + (recursive ? ' (包含子目录)' : ' (仅当前目录)'), 'info');
+
+        try {
+            const result = await dedupFiles({
+                method: 'md5',
+                mode,
+                action: 'find',
+                recursive: recursive,
+                path: currentPath
+            });
+
+            if (result.error) {
+                showLog('❌ ' + result.error, 'error');
+                scanBtn.disabled = false;
+                scanBtn.textContent = '🔍 扫描重复';
+                return;
+            }
+
+            if (!result.duplicates || result.duplicates.length === 0) {
+                resultArea.style.display = 'block';
+                resultList.innerHTML = '<div style="color:#68d391;text-align:center;padding:20px;">✅ 没有发现重复文件</div>';
+                resultStats.textContent = '';
+                deleteBtn.style.display = 'none';
+                showLog('✅ 没有发现重复文件', 'success');
+                scanBtn.disabled = false;
+                scanBtn.textContent = '🔍 扫描重复';
+                return;
+            }
+
+            // ===== 显示重复文件组 =====
+            let html = '';
+            let totalDup = 0;
+            let groupId = 0;
+
+            result.duplicates.forEach(group => {
+                groupId++;
+                const groupLabel = `📁 重复组 #${groupId}（${group.length} 个文件）`;
+                html += `<div style="color:#f0c94d;font-weight:600;font-size:13px;margin-top:6px;padding:4px 0;">${groupLabel}</div>`;
+                
+                group.forEach((filePath, idx) => {
+                    const fileName = filePath.split('/').pop();
+                    const isChecked = idx === 0 ? 'checked' : ''; // 默认保留第一个
+                    const fileSize = formatSize(Path(filePath).stat().st_size) || '';
+                    html += `
+                        <div style="display:flex;align-items:center;gap:8px;padding:2px 4px;background:${idx === 0 ? '#1a2a1a' : '#1a1a1a'};border-radius:3px;margin:1px 0;">
+                            <input type="checkbox" class="dedup-file-checkbox" data-group="${groupId}" data-path="${filePath}" ${isChecked} style="accent-color:#667eea;width:14px;height:14px;">
+                            <span style="color:${idx === 0 ? '#68d391' : '#b5b9c9'};font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                ${idx === 0 ? '✅ ' : '📄 '}${fileName}
+                            </span>
+                            <span style="color:#4a4e62;font-size:10px;">${fileSize}</span>
+                        </div>
+                    `;
+                });
+                totalDup += group.length;
+            });
+
+            resultList.innerHTML = html;
+            resultStats.textContent = `📊 发现 ${result.duplicates.length} 组重复，共 ${totalDup} 个文件（每组默认保留第一个）`;
+            resultArea.style.display = 'block';
+            deleteBtn.style.display = 'block';
+            deleteBtn.textContent = `🗑️ 删除 ${totalDup - result.duplicates.length} 个重复文件`;
+
+            // ===== 存储结果供删除使用 =====
+            window._dedupResult = {
+                groups: result.duplicates,
+                totalFiles: totalDup
+            };
+
+            // ===== 复选框事件：确保每组至少保留一个 =====
+            resultList.querySelectorAll('.dedup-file-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const group = this.dataset.group;
+                    const checkboxes = resultList.querySelectorAll(`.dedup-file-checkbox[data-group="${group}"]`);
+                    const checked = resultList.querySelectorAll(`.dedup-file-checkbox[data-group="${group"]:checked`);
+                    
+                    // 如果取消后该组没有任何选中，强制选中当前这个（防止全部取消）
+                    if (!this.checked && checked.length === 0) {
+                        this.checked = true;
+                        showLog('⚠️ 每组至少保留一个文件', 'warning');
+                        return;
+                    }
+                    
+                    // 更新删除按钮计数
+                    const allCheckboxes = resultList.querySelectorAll('.dedup-file-checkbox');
+                    const allChecked = resultList.querySelectorAll('.dedup-file-checkbox:checked');
+                    const totalFiles = window._dedupResult?.totalFiles || 0;
+                    const toDelete = totalFiles - allChecked.length;
+                    if (toDelete > 0) {
+                        deleteBtn.textContent = `🗑️ 删除 ${toDelete} 个重复文件`;
+                    } else {
+                        deleteBtn.textContent = '✅ 没有重复文件需要删除';
+                    }
+                });
+            });
+
+            showLog(`📋 发现 ${result.duplicates.length} 组重复文件`, 'info');
+
+        } catch (e) {
+            showLog('❌ ' + e.message, 'error');
+        } finally {
+            scanBtn.disabled = false;
+            scanBtn.textContent = '🔍 扫描重复';
+        }
+    },
+
+    async deleteSelected() {
+        const resultList = document.getElementById('dedupResultList');
+        const checkboxes = resultList.querySelectorAll('.dedup-file-checkbox:checked');
+        const toDelete = [];
+
+        checkboxes.forEach(cb => {
+            // 只收集未选中的（即要删除的）
+            const path = cb.dataset.path;
+            if (!cb.checked) {
+                toDelete.push(path);
+            }
+        });
+
+        // 实际逻辑：选中的是保留的，未选中的是删除的
+        // 所以我们要删除的是未选中的
+        const allCheckboxes = resultList.querySelectorAll('.dedup-file-checkbox');
+        const toDeleteFiles = [];
+        allCheckboxes.forEach(cb => {
+            if (!cb.checked) {
+                toDeleteFiles.push(cb.dataset.path);
+            }
+        });
+
+        if (toDeleteFiles.length === 0) {
+            showLog('⚠️ 没有需要删除的重复文件', 'warning');
+            return;
+        }
+
+        if (!confirm(`确定要删除 ${toDeleteFiles.length} 个重复文件吗？\n\n⚠️ 此操作不可恢复！`)) {
+            return;
+        }
 
         closeModal();
         clearLog();
-        showLog('⏳ 开始去重扫描...' + (recursive ? ' (包含子目录)' : ' (仅当前目录)'), 'info');
+        showLog('⏳ 开始删除 ' + toDeleteFiles.length + ' 个重复文件...', 'info');
 
         try {
             await OperationManager.execute({
-                title: `🧹 正在去重扫描...`,
-                completeMessage: `✅ 去重完成`,
+                title: `🗑️ 正在删除 ${toDeleteFiles.length} 个重复文件...`,
+                completeMessage: `✅ 成功删除 ${toDeleteFiles.length} 个重复文件`,
                 execute: async (progress) => {
-                    progress.setTotal(1);
-                    progress.update(0, '正在扫描文件...');
+                    progress.setTotal(toDeleteFiles.length);
+                    let deleted = 0;
+                    let failed = 0;
 
-                    const result = await dedupFiles({
-                        method: 'md5',
-                        mode,
-                        action,
-                        recursive: recursive,
-                        path: currentPath
-                    });
+                    for (let i = 0; i < toDeleteFiles.length; i++) {
+                        if (progress.isCancelled()) {
+                            throw new Error('操作已取消');
+                        }
+                        const filePath = toDeleteFiles[i];
+                        const fileName = filePath.split('/').pop();
+                        progress.update(i, `[${i + 1}/${toDeleteFiles.length}] 正在删除: ${fileName}`);
 
-                    progress.update(1, '处理完成');
-
-                    if (result.error) {
-                        throw new Error(result.error);
-                    }
-
-                    if (result.logs && result.logs.length > 0) {
-                        showLog(`📋 共 ${result.logs.length} 条操作日志`, 'info');
-                        const keyLogs = result.logs.filter(log => 
-                            log.status === 'success' || 
-                            log.status === 'error' || 
-                            log.status === 'warning' ||
-                            log.message.includes('MD5') ||
-                            log.message.includes('删除') ||
-                            log.message.includes('重复组') ||
-                            log.message.includes('保留')
-                        );
-                        const displayLogs = keyLogs.slice(-50);
-                        displayLogs.forEach(log => {
-                            const statusMap = {
-                                'success': '✅',
-                                'error': '❌',
-                                'warning': '⚠️',
-                                'info': '📋'
-                            };
-                            const icon = statusMap[log.status] || '📋';
-                            let fileInfo = '';
-                            if (log.file) {
-                                const parts = log.file.split('/');
-                                fileInfo = ` [${parts[parts.length - 1]}]`;
+                        try {
+                            const result = await apiCall('/api/delete', { files: [filePath] });
+                            if (result.error) {
+                                failed++;
+                                showLog('❌ 删除失败: ' + fileName + ' - ' + result.error, 'error');
+                            } else {
+                                deleted++;
+                                if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
+                                progress.update(i + 1, `✅ ${fileName} 已删除 (${deleted}/${toDeleteFiles.length})`);
                             }
-                            showLog(`${icon} ${log.message}${fileInfo}`, log.status);
-                        });
-                        if (keyLogs.length > 50) {
-                            showLog(`📋 ... 还有 ${keyLogs.length - 50} 条日志未显示`, 'info');
+                        } catch (e) {
+                            failed++;
+                            showLog('❌ 删除失败: ' + fileName + ' - ' + e.message, 'error');
                         }
                     }
 
-                    if (result.duplicates && result.duplicates.length > 0) {
-                        showLog(`📋 发现 ${result.duplicates.length} 组重复`, 'info');
-                        let totalDup = 0;
-                        result.duplicates.forEach((g, idx) => {
-                            const count = g.length - 1;
-                            totalDup += count;
-                            const fileName = g[0].split('/').pop();
-                            showLog(`  ├─ 组 #${idx + 1}: ${fileName} (${count} 个重复)`, 'info');
-                        });
-                        if (result.deleted > 0) {
-                            showLog(`✅ 已删除 ${result.deleted} 个重复文件`, 'success');
-                        } else if (action === 'find') {
-                            showLog(`📋 共发现 ${totalDup} 个重复文件`, 'info');
-                        }
-                    } else {
-                        showLog('✅ 没有重复文件', 'success');
-                    }
-
-                    if (result.warning) {
-                        showLog('⚠️ ' + result.warning, 'warning');
-                    }
+                    if (deleted > 0) showLog('✅ 成功删除 ' + deleted + ' 个重复文件', 'success');
+                    if (failed > 0) showLog('⚠️ 删除失败 ' + failed + ' 个重复文件', 'error');
 
                     await loadFiles(currentPath);
                 }
