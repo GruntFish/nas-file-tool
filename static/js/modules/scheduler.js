@@ -144,13 +144,13 @@ const SchedulerModule = {
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 例如: \\.jpg$ 只匹配 JPG 文件</div>
             </div>
 
-            <!-- ===== 包括子目录（修复排版） ===== -->
-            <div class="form-group" style="margin-bottom:8px;">
-                <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#8b8fa3;">
+            <!-- ===== 【修复】去掉 flex-wrap:wrap，让勾选框和文字在同一行 ===== -->
+            <div class="form-group" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <label style="margin:0;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">
                     <input type="checkbox" id="schedulerRecursive" style="accent-color:#667eea;width:15px;height:15px;margin:0;">
-                    📂 包括子目录
+                    <span style="color:#8b8fa3;font-size:13px;">📂 包括子目录</span>
                 </label>
-                <span style="color:#4a4e62;font-size:11px;margin-left:6px;">（勾选后将对所有子目录进行相同操作）</span>
+                <span style="color:#4a4e62;font-size:11px;margin-left:2px;">（勾选后将对所有子目录进行相同操作）</span>
             </div>
 
             <div class="form-group" id="schedulerRenameParams" style="display:block;">
