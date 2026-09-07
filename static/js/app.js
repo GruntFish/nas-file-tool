@@ -402,6 +402,8 @@ async function loadTree(path) {
     }
 }
 
+// static/js/app.js - renderTree 函数
+
 function renderTree(nodes, container) {
     if (!container) return;
     container.innerHTML = '';
@@ -414,20 +416,28 @@ function renderTree(nodes, container) {
     nodes.forEach(node => {
         const item = document.createElement('div');
         item.className = 'tree-item';
-        if (node.path === window.currentPath) item.classList.add('active');
+        // ===== 【修复】使用 window.currentPath 判断高亮 =====
+        if (node.path === window.currentPath) {
+            item.classList.add('active');
+        }
         const icon = node.is_root ? '💾' : '📁';
         const hasChildren = node.children && node.children.length > 0;
         item.innerHTML =
             `<span class="icon">${icon}</span><span class="name">${escapeHtml(node.name)}</span>${hasChildren ? '<span class="arrow open">▼</span>' : ''}`;
         item.addEventListener('click', function(e) {
             if (e.target.classList.contains('arrow')) return;
+            // ===== 更新当前路径 =====
             window.currentPath = node.path;
+            // ===== 加载文件列表 =====
             loadFiles(node.path);
+            // ===== 【修复】重新渲染目录树以更新高亮 =====
+            renderTree(window.fullTreeData, document.getElementById('treeContainer'));
         });
         container.appendChild(item);
         if (hasChildren) {
             const childContainer = document.createElement('div');
             childContainer.className = 'tree-children';
+            // ===== 判断是否展开：如果当前路径以节点路径开头则展开 =====
             if (window.currentPath.startsWith(node.path)) {
                 childContainer.classList.remove('collapsed');
             } else {
