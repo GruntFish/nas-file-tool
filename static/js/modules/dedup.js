@@ -42,12 +42,12 @@ const DedupModule = {
                     标准模式：小文件MD5，大文件多点采样
                 </div>
             </div>
-            <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <label style="margin:0;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                    <input type="checkbox" id="dedupRecursive" style="accent-color:#667eea;width:16px;height:16px;">
+            <div class="form-group" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;margin:0;">
+                    <input type="checkbox" id="dedupRecursive" style="accent-color:#667eea;width:15px;height:15px;margin:0;">
                     <span style="color:#8b8fa3;font-size:13px;">📂 包括子目录</span>
                 </label>
-                <span style="color:#4a4e62;font-size:11px;">（勾选后将对所有子目录进行去重）</span>
+                <span style="color:#4a4e62;font-size:11px;white-space:nowrap;">（勾选后将对所有子目录进行去重）</span>
             </div>
             <div id="dedupResultArea" style="display:none;margin-top:8px;">
                 <div style="color:#e4e6eb;font-size:14px;font-weight:600;margin-bottom:6px;">📋 重复文件组</div>
@@ -224,7 +224,6 @@ const DedupModule = {
                         const filePath = toDeleteFiles[i];
                         const fileName = filePath.split('/').pop();
 
-                        // ===== 进度条显示正在处理的文件名 =====
                         progress.update(
                             i,
                             '📄 正在删除: ' + fileName + ' (' + (i + 1) + '/' + toDeleteFiles.length + ')'
