@@ -414,7 +414,6 @@ function renderTree(nodes, container) {
     nodes.forEach(node => {
         const item = document.createElement('div');
         item.className = 'tree-item';
-        // ===== 使用 window.currentPath 判断高亮 =====
         if (node.path === window.currentPath) {
             item.classList.add('active');
         }
@@ -424,18 +423,14 @@ function renderTree(nodes, container) {
             `<span class="icon">${icon}</span><span class="name">${escapeHtml(node.name)}</span>${hasChildren ? '<span class="arrow open">▼</span>' : ''}`;
         item.addEventListener('click', function(e) {
             if (e.target.classList.contains('arrow')) return;
-            // ===== 更新当前路径 =====
             window.currentPath = node.path;
-            // ===== 加载文件列表 =====
             loadFiles(node.path);
-            // ===== 重新渲染目录树以更新高亮 =====
             renderTree(window.fullTreeData, document.getElementById('treeContainer'));
         });
         container.appendChild(item);
         if (hasChildren) {
             const childContainer = document.createElement('div');
             childContainer.className = 'tree-children';
-            // ===== 判断是否展开：如果当前路径以节点路径开头则展开 =====
             if (window.currentPath.startsWith(node.path)) {
                 childContainer.classList.remove('collapsed');
             } else {
@@ -508,7 +503,6 @@ function renderFiles(files) {
     if (thead) {
         const newNameTh = thead.querySelector('.new-name-col');
         if (newNameTh) {
-            // 只有在重命名模块或媒体处理模块（且有压缩结果）时才显示新名称列
             const hasCompressData = isMediaModule && window.compressPreview && Object.keys(window.compressPreview).length > 0;
             newNameTh.style.display = (isRenameModule || hasCompressData) ? '' : 'none';
         }
@@ -563,11 +557,8 @@ function renderFiles(files) {
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
         let newName = window.renamePreview[file.path] || file.name;
 
-        // ===== 检查是否有压缩预览信息（只在媒体处理模块显示，且只显示已压缩的结果） =====
-        const isMediaModule = ModuleRegistry.currentModule === 'media';
         if (isMediaModule && window.compressPreview && window.compressPreview[file.path]) {
             const info = window.compressPreview[file.path];
-            // 只有已压缩的结果才显示（isCompressed 为 true）
             if (info.isCompressed) {
                 const ratioStr = info.ratio > 0 ? `⬇ ${info.ratio.toFixed(1)}%` : '';
                 newName = `${info.original} → ${info.new}`;
@@ -647,7 +638,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const val = this.value.trim();
             window.filterRegex = val || null;
 
-            // ===== 先清空所有选中的文件 =====
             window.selectedFiles.clear();
 
             renderFiles(window.fileList);
@@ -785,4 +775,44 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('refreshTreeBtn')?.addEventListener('click', function() {
         loadTree(window.currentPath);
     });
+
+    // ===== 【新增】页面保活机制 =====
+    (function setupKeepAlive() {
+        let intervalId = null;
+        const KEEP_ALIVE_INTERVAL = 30000;
+
+        function ping() {
+            fetch('/api/health', {
+                method: 'GET',
+                headers: { 'Cache-Control': 'no-cache' }
+            }).catch(() => {});
+        }
+
+        function startKeepAlive() {
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(ping, KEEP_ALIVE_INTERVAL);
+            setTimeout(ping, 1000);
+        }
+
+        function stopKeepAlive() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        }
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopKeepAlive();
+            } else {
+                startKeepAlive();
+            }
+        });
+
+        startKeepAlive();
+
+        window.addEventListener('beforeunload', function() {
+            stopKeepAlive();
+        });
+    })();
 });
