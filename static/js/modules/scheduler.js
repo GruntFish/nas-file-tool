@@ -144,13 +144,12 @@ const SchedulerModule = {
                 <div style="color:#4a4e62;font-size:11px;margin-top:2px;">💡 例如: \\.jpg$ 只匹配 JPG 文件</div>
             </div>
 
-            <!-- ===== 包括子目录（上下结构，永不重叠） ===== -->
-            <div class="form-group" style="margin-bottom:8px;">
-                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;margin-bottom:2px;">
+            <div class="form-group" style="margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;margin:0;">
                     <input type="checkbox" id="schedulerRecursive" style="accent-color:#667eea;width:15px;height:15px;margin:0;">
                     <span style="color:#8b8fa3;font-size:13px;">📂 包括子目录</span>
                 </label>
-                <div style="color:#4a4e62;font-size:11px;padding-left:20px;">（勾选后将对所有子目录进行相同操作）</div>
+                <span style="color:#4a4e62;font-size:11px;white-space:nowrap;">（勾选后将对所有子目录进行相同操作）</span>
             </div>
 
             <div class="form-group" id="schedulerRenameParams" style="display:block;">
