@@ -6,7 +6,6 @@ const MediaModule = {
         document.getElementById('mediaCompressBtn').addEventListener('click', () => this.compress());
         this.updateCount();
         document.addEventListener('selectionChanged', () => { this.updateCount(); });
-        // ===== 监听模块切换，清除压缩预览数据 =====
         document.addEventListener('moduleChanged', () => {
             if (ModuleRegistry.currentModule !== 'media') {
                 window.compressPreview = {};
@@ -21,7 +20,6 @@ const MediaModule = {
         closeModal();
         selectedFiles.clear();
         updateSelectedInfo();
-        // ===== 清除压缩预览数据 =====
         window.compressPreview = {};
         if (typeof renderFiles === 'function' && window.fileList) {
             renderFiles(window.fileList);
@@ -113,7 +111,6 @@ const MediaModule = {
         setTimeout(() => this.previewCompress(files), 100);
     },
 
-    // ===== 预览：显示预估压缩结果（只显示在弹窗中） =====
     async previewCompress(files) {
         if (!files || files.length === 0) {
             document.getElementById('mediaPreviewList').innerHTML = '<div style="color:#4a4e62;text-align:center;padding:8px;">没有图片</div>';
@@ -178,7 +175,7 @@ const MediaModule = {
         }
     },
 
-    // ===== 执行压缩：真实压缩，完成后更新文件列表 =====
+    // ===== 【修复】分批压缩，实时更新进度 =====
     async doCompress(files) {
         if (!files || files.length === 0) {
             showLog('⚠️ 没有可压缩的图片文件', 'warning');
@@ -200,45 +197,66 @@ const MediaModule = {
 
         try {
             await OperationManager.execute({
-                title: `🖼️ 正在压缩 ${files.length} 张图片...`,
-                completeMessage: `✅ 图片压缩完成`,
+                title: '🖼️ 正在压缩 ' + files.length + ' 张图片...',
+                completeMessage: '✅ 图片压缩完成',
                 execute: async (progress) => {
                     progress.setTotal(files.length);
-                    const result = await apiCall('/api/media/compress', {
-                        files: files,
-                        quality: quality,
-                        dry_run: false,
-                        overwrite: overwrite
-                    });
 
-                    if (result.error) {
-                        throw new Error(result.error);
-                    }
-
-                    // ===== 构建压缩结果数据，写入 window.compressPreview =====
+                    const batchSize = 3;
+                    let processed = 0;
                     const compressMap = {};
 
-                    if (result.results) {
-                        const success = result.results.filter(r => r.status === 'success');
-                        let processed = 0;
-                        success.forEach(r => {
-                            const saved = r.ratio || 0;
-                            const tag = r.overwrite ? ' [覆盖原图]' : '';
-                            showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
-                            processed++;
-                            progress.update(processed, `✅ ${r.file} 已压缩 (${processed}/${files.length})`);
-                            // ===== 写入 compressPreview，用于文件列表显示 =====
-                            compressMap[r.file] = {
-                                original: formatSize(r.original_size),
-                                new: formatSize(r.new_size),
-                                ratio: saved,
-                                isPreview: false,
-                                output: r.output,
-                                isCompressed: true  // 标记已压缩
-                            };
+                    for (let i = 0; i < files.length; i += batchSize) {
+                        const batch = files.slice(i, i + batchSize);
+
+                        // ===== 更新进度：显示当前批次 =====
+                        progress.update(
+                            processed,
+                            '正在处理第 ' + (i + 1) + '-' + Math.min(i + batchSize, files.length) + ' 张 (' + processed + '/' + files.length + ')'
+                        );
+
+                        const result = await apiCall('/api/media/compress', {
+                            files: batch,
+                            quality: quality,
+                            dry_run: false,
+                            overwrite: overwrite
                         });
-                        const msg = result.stats.compressed + ' 张图片已压缩，节省 ' + formatSize(result.stats.saved_bytes || 0);
-                        showLog('✅ ' + msg + (overwrite ? ' (已覆盖原图)' : ''), 'success');
+
+                        if (result.error) {
+                            throw new Error(result.error);
+                        }
+
+                        if (result.results) {
+                            const success = result.results.filter(r => r.status === 'success');
+                            success.forEach(r => {
+                                const saved = r.ratio || 0;
+                                const tag = r.overwrite ? ' [覆盖原图]' : '';
+                                showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
+                                compressMap[r.file] = {
+                                    original: formatSize(r.original_size),
+                                    new: formatSize(r.new_size),
+                                    ratio: saved,
+                                    isPreview: false,
+                                    output: r.output,
+                                    isCompressed: true
+                                };
+                                processed++;
+                                // ===== 每处理一张更新进度 =====
+                                progress.update(
+                                    processed,
+                                    '✅ ' + r.file.split('/').pop() + ' 已压缩 (' + processed + '/' + files.length + ')'
+                                );
+                            });
+                            const errors = result.results.filter(r => r.status === 'error');
+                            errors.forEach(r => {
+                                showLog('❌ ' + r.file + ' - ' + r.reason, 'error');
+                                processed++;
+                                progress.update(
+                                    processed,
+                                    '❌ ' + r.file.split('/').pop() + ' 失败 (' + processed + '/' + files.length + ')'
+                                );
+                            });
+                        }
                     }
 
                     // ===== 更新文件列表显示压缩结果 =====
@@ -246,6 +264,10 @@ const MediaModule = {
                     if (typeof renderFiles === 'function') {
                         renderFiles(window.fileList);
                     }
+
+                    const totalSaved = Object.values(compressMap).reduce((sum, info) => sum + (info.ratio || 0), 0);
+                    const avgSaved = files.length > 0 ? (totalSaved / files.length).toFixed(1) : 0;
+                    showLog('✅ 压缩完成！' + files.length + ' 张图片，平均节省 ' + avgSaved + '%', 'success');
 
                     await loadFiles(currentPath);
                 }
