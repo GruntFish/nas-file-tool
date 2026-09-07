@@ -148,7 +148,6 @@ const DedupModule = {
                 totalFiles: totalDup
             };
 
-            // ===== 【修复】使用字符串拼接避免模板表达式冲突 =====
             resultList.querySelectorAll('.dedup-file-checkbox').forEach(cb => {
                 cb.addEventListener('change', function() {
                     const group = this.dataset.group;
@@ -224,28 +223,46 @@ const DedupModule = {
                         }
                         const filePath = toDeleteFiles[i];
                         const fileName = filePath.split('/').pop();
-                        progress.update(i, '[' + (i + 1) + '/' + toDeleteFiles.length + '] 正在删除: ' + fileName);
+
+                        // ===== 进度条显示正在处理的文件名 =====
+                        progress.update(
+                            i,
+                            '📄 正在删除: ' + fileName + ' (' + (i + 1) + '/' + toDeleteFiles.length + ')'
+                        );
+
+                        showLog('⏳ 正在删除: ' + fileName + ' (' + (i + 1) + '/' + toDeleteFiles.length + ')', 'info');
 
                         try {
                             const result = await apiCall('/api/delete', { files: [filePath] });
                             if (result.error) {
                                 failed++;
                                 showLog('❌ 删除失败: ' + fileName + ' - ' + result.error, 'error');
+                                progress.update(
+                                    i + 1,
+                                    '❌ ' + fileName + ' 失败 (' + (i + 1) + '/' + toDeleteFiles.length + ')'
+                                );
                             } else {
                                 deleted++;
                                 if (result.logs) result.logs.forEach(log => showLog(log.text, log.type || 'info'));
-                                progress.update(i + 1, '✅ ' + fileName + ' 已删除 (' + deleted + '/' + toDeleteFiles.length + ')');
+                                progress.update(
+                                    i + 1,
+                                    '✅ ' + fileName + ' 已删除 (' + deleted + '/' + toDeleteFiles.length + ')'
+                                );
                             }
                         } catch (e) {
                             failed++;
                             showLog('❌ 删除失败: ' + fileName + ' - ' + e.message, 'error');
+                            progress.update(
+                                i + 1,
+                                '❌ ' + fileName + ' 失败 (' + (i + 1) + '/' + toDeleteFiles.length + ')'
+                            );
                         }
                     }
 
                     if (deleted > 0) showLog('✅ 成功删除 ' + deleted + ' 个重复文件', 'success');
                     if (failed > 0) showLog('⚠️ 删除失败 ' + failed + ' 个重复文件', 'error');
 
-                    await loadFiles(window.currentPath);
+                    await loadFiles(currentPath);
                 }
             });
         } catch (e) {
