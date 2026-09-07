@@ -23,9 +23,8 @@ def get_env(key, default):
     return value
 
 
-# ===== NAS 性能优化配置 =====
 MAX_HISTORY = get_env('MAX_HISTORY', 50)
-MAX_FILES_PER_OPERATION = get_env('MAX_FILES_PER_OPERATION', 10000)
+MAX_FILES_PER_OPERATION = get_env('MAX_FILES_PER_OPERATION', 999999)
 MAX_DEDUP_FILES = get_env('MAX_DEDUP_FILES', 3000)
 BATCH_SIZE = get_env('BATCH_SIZE', 20)
 TREE_MAX_DEPTH = get_env('TREE_MAX_DEPTH', 3)
@@ -35,7 +34,6 @@ SAMPLE_SIZE = get_env('SAMPLE_SIZE', 4096)
 
 WORK_DIR = get_env('WORK_DIR', '/data')
 
-# ===== 【新增】日志级别配置 =====
 LOG_LEVEL = get_env('LOG_LEVEL', 'INFO')
 
 
@@ -60,11 +58,9 @@ def scan_root_dirs():
 
 ROOT_DIRS = scan_root_dirs()
 
-# ===== 内存阈值 =====
 MAX_MEMORY_PERCENT = get_env('MAX_MEMORY_PERCENT', 20)
 AUTO_CLEANUP_INTERVAL = get_env('AUTO_CLEANUP_INTERVAL', 1800)
 
-# ===== 文件类型映射 =====
 FILE_TYPES = {
     '图片': {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif', '.heic'},
     '视频': {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg', '.3gp', '.mts'},
