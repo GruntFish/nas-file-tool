@@ -233,20 +233,18 @@ const MoveCopyModule = {
 
         const filters = this.getFilters();
         if (Object.keys(filters).length > 0) showLog('📋 应用过滤条件...', 'info');
-        showLog('⏳ 开始' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件/目录到: ' + targetDir, 'info');
 
         try {
             await OperationManager.execute({
-                title: `📦 正在${action === 'move' ? '移动' : '复制'} ${files.length} 个文件/目录...`,
-                completeMessage: `✅ 成功${action === 'move' ? '移动' : '复制'} ${files.length} 个文件/目录`,
+                title: '📦 正在' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件/目录...',
+                completeMessage: '✅ 成功' + (action === 'move' ? '移动' : '复制') + ' ' + files.length + ' 个文件/目录',
                 execute: async (progress) => {
-                    // ===== 设置总进度 =====
                     progress.setTotal(files.length);
-                    showLog(`📊 共 ${files.length} 个项目待处理`, 'info');
+                    showLog('📊 共 ' + files.length + ' 个项目待处理', 'info');
 
                     let processed = 0;
                     let lastResult = null;
-                    const batchSize = 5;
+                    const batchSize = 1;
 
                     for (let i = 0; i < files.length; i += batchSize) {
                         const batch = files.slice(i, i + batchSize);
@@ -254,8 +252,10 @@ const MoveCopyModule = {
 
                         progress.update(
                             processed,
-                            `[${i + 1}/${files.length}] ${currentFile} (${processed}/${files.length})`
+                            '📄 正在处理: ' + currentFile + ' (' + (i + 1) + '/' + files.length + ')'
                         );
+
+                        showLog('⏳ 正在' + (action === 'move' ? '移动' : '复制') + ': ' + currentFile + ' (' + (i + 1) + '/' + files.length + ')', 'info');
 
                         const result = await apiCall('/api/move_copy', {
                             action: action,
@@ -284,7 +284,7 @@ const MoveCopyModule = {
                                 processed++;
                                 progress.update(
                                     processed,
-                                    `✅ ${r.file.split('/').pop()} (${processed}/${files.length})`
+                                    '✅ ' + r.file.split('/').pop() + ' 已完成 (' + processed + '/' + files.length + ')'
                                 );
                             });
                             errors.forEach(r => {
@@ -293,7 +293,7 @@ const MoveCopyModule = {
                                 processed++;
                                 progress.update(
                                     processed,
-                                    `❌ ${r.file.split('/').pop()} 失败 (${processed}/${files.length})`
+                                    '❌ ' + r.file.split('/').pop() + ' 失败 (' + processed + '/' + files.length + ')'
                                 );
                             });
                             skipped.forEach(r => {
@@ -301,26 +301,22 @@ const MoveCopyModule = {
                                 processed++;
                                 progress.update(
                                     processed,
-                                    `⏭️ ${r.file.split('/').pop()} 跳过 (${processed}/${files.length})`
+                                    '⏭️ ' + r.file.split('/').pop() + ' 跳过 (' + processed + '/' + files.length + ')'
                                 );
                             });
                         }
 
-                        progress.update(processed, `[${i + batchSize}/${files.length}] 已完成 ${processed} 个`);
+                        progress.update(processed, '📄 已完成 ' + processed + '/' + files.length);
                     }
 
                     const msg = lastResult?.stats?.message || '处理完成';
                     showLog('✅ ' + msg, 'success');
 
-                    // ===== 【修复1】刷新文件列表 =====
                     await loadFiles(window.currentPath);
-
-                    // ===== 【修复2】刷新左侧目录树 =====
                     await loadTree('/');
 
                     selectedFiles.clear();
                     updateSelectedInfo();
-
                     showLog('📂 目录树已刷新', 'info');
                 }
             });
