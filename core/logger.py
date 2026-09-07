@@ -13,11 +13,9 @@ def setup_logger(name='nas-tool'):
     logger = logging.getLogger(name)
     logger.setLevel(LOG_LEVEL)
 
-    # 避免重复添加 handler
     if logger.handlers:
         return logger
 
-    # ===== 仅控制台输出，不写文件 =====
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(LOG_LEVEL)
     console_formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
