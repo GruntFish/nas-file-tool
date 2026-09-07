@@ -13,7 +13,6 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# ===== 尝试导入 xxhash，如果没有则降级 =====
 try:
     import xxhash
     HAS_XXHASH = True
@@ -26,7 +25,6 @@ def register(app):
     """注册去重路由"""
 
     def scan_files_generator(directory, recursive=True):
-        """生成器，逐个产生文件路径"""
         try:
             if recursive:
                 for item in directory.rglob('*'):
@@ -40,16 +38,13 @@ def register(app):
             pass
 
     def get_file_hash_xxhash(file_path, sample_size=4096):
-        """计算文件采样 xxHash（极快）"""
         if not HAS_XXHASH:
             return None
         try:
             xxh = xxhash.xxh64()
             with open(file_path, 'rb') as f:
-                # 读取开头
                 data = f.read(sample_size)
                 xxh.update(data)
-                # 读取结尾
                 f.seek(-min(sample_size, f.tell()), 2)
                 data = f.read(sample_size)
                 xxh.update(data)
@@ -59,7 +54,6 @@ def register(app):
             return None
 
     def get_file_hash_md5_chunked(file_path, chunk_size=8192):
-        """分块计算完整 MD5"""
         md5 = hashlib.md5()
         try:
             with open(file_path, 'rb') as f:
@@ -71,12 +65,6 @@ def register(app):
             return None
 
     def get_file_signature_optimized(file_path):
-        """
-        三级去重签名：
-        1. 文件大小（快速筛选）
-        2. xxHash 采样（极速过滤）
-        3. MD5（精准确认）
-        """
         try:
             stat = file_path.stat()
             size = stat.st_size
@@ -87,28 +75,20 @@ def register(app):
                     'method': 'empty'
                 }
 
-            # ===== 第一级：文件大小 =====
             size_key = f'{size}'
-
-            # ===== 第二级：xxHash 采样（极快） =====
             xxh = get_file_hash_xxhash(file_path)
             if xxh:
                 xxh_key = f'{size_key}_{xxh}'
-                # 小文件（< 10MB）：直接返回 xxHash 结果（足够精准）
                 if size < 10 * 1024 * 1024:
                     return {
                         'key': xxh_key,
                         'method': 'xxhash_small'
                     }
-                # 大文件：先用 xxHash 预筛选，再决定是否用 MD5
-                # 但 xxHash 本身已经足够精准，加上 size 和文件名前缀，碰撞概率极低
-                # 为了更安全，对大文件我们也只返回 xxHash + size
                 return {
                     'key': xxh_key,
                     'method': 'xxhash_large'
                 }
             else:
-                # xxhash 不可用，使用 MD5
                 md5 = get_file_hash_md5_chunked(file_path)
                 if md5:
                     return {
@@ -119,6 +99,41 @@ def register(app):
 
         except Exception as e:
             logger.error(f'获取文件签名失败: {file_path} - {e}')
+            return None
+
+    def get_file_signature_fast(file_path):
+        """快速模式：文件名 + 大小 + xxHash"""
+        try:
+            stat = file_path.stat()
+            size = stat.st_size
+            file_name = file_path.name
+
+            if size == 0:
+                return {
+                    'key': f'{file_name}_0_empty',
+                    'method': 'fast_empty'
+                }
+
+            xxh = get_file_hash_xxhash(file_path)
+            if xxh:
+                return {
+                    'key': f'{file_name}_{size}_{xxh}',
+                    'method': 'fast_xxhash'
+                }
+            else:
+                # xxhash 不可用，用 MD5 采样
+                md5_sample = get_file_hash_md5_chunked(file_path, chunk_size=4096)
+                if md5_sample:
+                    return {
+                        'key': f'{file_name}_{size}_{md5_sample[:16]}',
+                        'method': 'fast_md5_sample'
+                    }
+                return {
+                    'key': f'{file_name}_{size}',
+                    'method': 'fast_size_only'
+                }
+        except Exception as e:
+            logger.error(f'快速签名失败: {file_path} - {e}')
             return None
 
     @app.route('/api/dedup', methods=['POST'])
@@ -136,7 +151,6 @@ def register(app):
         base_path = data.get('path', '/')
         work_dir = WORK_DIR
 
-        # ===== 日志收集 =====
         logs = []
 
         def add_log(message, status='info', file_path=None):
@@ -196,7 +210,6 @@ def register(app):
         except PermissionError:
             return jsonify({'error': '无法读取目录'}), 403
 
-        # 精确模式限制
         if mode == 'precise':
             file_count = 0
             for _ in scan_files_generator(target, recursive):
@@ -221,7 +234,7 @@ def register(app):
         processed = 0
         batch_counter = 0
         BATCH_LIMIT = 100
-        stats_methods = {'empty': 0, 'xxhash_small': 0, 'xxhash_large': 0, 'md5': 0, 'failed': 0}
+        stats_methods = {}
 
         for file_path in scan_files_generator(target, recursive):
             try:
@@ -232,27 +245,30 @@ def register(app):
                         gc.collect()
                         return jsonify({'error': '内存使用超过限制，请缩小范围或使用快速模式'}), 503
 
-                file_name = file_path.name
-                file_size = file_path.stat().st_size
-
                 if mode == 'fast':
-                    # 快速模式：只用大小
-                    key = f'{file_size}'
-                    method = 'size_only'
-                    add_log(f'快速模式: {file_name} ({file_size} bytes)', 'info', file_path)
+                    # ===== 【修复】快速模式：文件名 + 大小 + xxHash =====
+                    result = get_file_signature_fast(file_path)
+                    if result is None:
+                        add_log(f'⚠️ 无法计算签名: {file_path.name}', 'warning', file_path)
+                        stats_methods['failed'] = stats_methods.get('failed', 0) + 1
+                        processed += 1
+                        continue
+                    key = result['key']
+                    method = result['method']
+                    stats_methods[method] = stats_methods.get(method, 0) + 1
+                    add_log(f'快速模式: {file_path.name} -> {method}', 'info', file_path)
                 else:
-                    # 标准/精确模式：使用优化签名
                     result = get_file_signature_optimized(file_path)
                     if result is None:
-                        add_log(f'⚠️ 无法计算签名: {file_name}', 'warning', file_path)
-                        stats_methods['failed'] += 1
+                        add_log(f'⚠️ 无法计算签名: {file_path.name}', 'warning', file_path)
+                        stats_methods['failed'] = stats_methods.get('failed', 0) + 1
                         processed += 1
                         continue
                     key = result['key']
                     method = result['method']
                     stats_methods[method] = stats_methods.get(method, 0) + 1
                     if processed % 50 == 0:
-                        add_log(f'处理: {file_name} ({method})', 'info', file_path)
+                        add_log(f'处理: {file_path.name} ({method})', 'info', file_path)
 
                 if key not in groups:
                     groups[key] = []
@@ -280,16 +296,15 @@ def register(app):
                 processed += 1
                 continue
 
-        # ===== 提取重复组 =====
         duplicates = [v for v in groups.values() if len(v) > 1]
         groups.clear()
         gc.collect()
 
         add_log(f'发现 {len(duplicates)} 组重复文件')
-        add_log(f'哈希统计: 小文件xxHash={stats_methods.get("xxhash_small", 0)}, '
-                f'大文件xxHash={stats_methods.get("xxhash_large", 0)}, '
-                f'MD5={stats_methods.get("md5", 0)}, '
-                f'空文件={stats_methods.get("empty", 0)}')
+        
+        # 统计信息
+        method_summary = ', '.join([f'{k}={v}' for k, v in stats_methods.items()])
+        add_log(f'哈希统计: {method_summary}')
 
         for idx, group in enumerate(duplicates):
             add_log(f'重复组 #{idx + 1}: {len(group)} 个文件', 'info')
@@ -297,7 +312,7 @@ def register(app):
                 add_log(f'  └─ {Path(f).name}', 'info', f)
 
         mode_labels = {
-            'fast': '快速（按大小）',
+            'fast': '快速（文件名+大小+xxHash）',
             'standard': '标准（xxHash + MD5）',
             'precise': '精确（完整MD5，限500文件）'
         }
