@@ -1,5 +1,5 @@
 // static/js/app.js
-
+// 模块注册器
 const ModuleRegistry = {
     modules: {},
     currentModule: null,
@@ -402,8 +402,6 @@ async function loadTree(path) {
     }
 }
 
-// static/js/app.js - renderTree 函数
-
 function renderTree(nodes, container) {
     if (!container) return;
     container.innerHTML = '';
@@ -416,7 +414,7 @@ function renderTree(nodes, container) {
     nodes.forEach(node => {
         const item = document.createElement('div');
         item.className = 'tree-item';
-        // ===== 【修复】使用 window.currentPath 判断高亮 =====
+        // ===== 使用 window.currentPath 判断高亮 =====
         if (node.path === window.currentPath) {
             item.classList.add('active');
         }
@@ -430,7 +428,7 @@ function renderTree(nodes, container) {
             window.currentPath = node.path;
             // ===== 加载文件列表 =====
             loadFiles(node.path);
-            // ===== 【修复】重新渲染目录树以更新高亮 =====
+            // ===== 重新渲染目录树以更新高亮 =====
             renderTree(window.fullTreeData, document.getElementById('treeContainer'));
         });
         container.appendChild(item);
@@ -504,12 +502,15 @@ function renderFiles(files) {
     const fileData = files || window.fileList || [];
 
     const isRenameModule = ModuleRegistry.currentModule === 'rename';
+    const isMediaModule = ModuleRegistry.currentModule === 'media';
 
     const thead = document.querySelector('#fileListContainer thead tr');
     if (thead) {
         const newNameTh = thead.querySelector('.new-name-col');
         if (newNameTh) {
-            newNameTh.style.display = isRenameModule ? '' : 'none';
+            // 只有在重命名模块或媒体处理模块（且有压缩结果）时才显示新名称列
+            const hasCompressData = isMediaModule && window.compressPreview && Object.keys(window.compressPreview).length > 0;
+            newNameTh.style.display = (isRenameModule || hasCompressData) ? '' : 'none';
         }
     }
 
@@ -562,12 +563,17 @@ function renderFiles(files) {
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
         let newName = window.renamePreview[file.path] || file.name;
 
-        if (window.compressPreview && window.compressPreview[file.path]) {
+        // ===== 检查是否有压缩预览信息（只在媒体处理模块显示，且只显示已压缩的结果） =====
+        const isMediaModule = ModuleRegistry.currentModule === 'media';
+        if (isMediaModule && window.compressPreview && window.compressPreview[file.path]) {
             const info = window.compressPreview[file.path];
-            const ratioStr = info.ratio > 0 ? `(-${info.ratio.toFixed(1)}%)` : '';
-            newName = `${info.original} → ${info.new} ${ratioStr}`;
-            if (info.output && info.output !== file.name && !info.isPreview) {
-                newName += ` (${info.output})`;
+            // 只有已压缩的结果才显示（isCompressed 为 true）
+            if (info.isCompressed) {
+                const ratioStr = info.ratio > 0 ? `⬇ ${info.ratio.toFixed(1)}%` : '';
+                newName = `${info.original} → ${info.new}`;
+                if (ratioStr) {
+                    newName += ` ${ratioStr}`;
+                }
             }
         }
 
@@ -580,10 +586,12 @@ function renderFiles(files) {
             window.selectedFiles.has('/' + file.path);
         const checked = isChecked ? 'checked' : '';
 
+        const showNewName = (isRenameModule || (isMediaModule && window.compressPreview && window.compressPreview[file.path]?.isCompressed));
+
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
             `<td class="name-col${isDir ? ' folder-row' : ''}">${icon} ${escapeHtml(file.name)}</td>` +
-            `<td class="new-name-col${isChanged && !isDir ? '' : ' unchanged'}" style="${isRenameModule ? '' : 'display:none;'}">${isDir ? '-' : escapeHtml(newName)}</td>` +
+            `<td class="new-name-col${isChanged && !isDir ? '' : ' unchanged'}" style="${showNewName ? '' : 'display:none;'}">${isDir ? '-' : escapeHtml(newName)}</td>` +
             `<td class="size-col">${size}</td>` +
             `<td class="date-col">${date}</td>` +
             `<td class="status-col ${statusClass}">${statusText}</td>`;
@@ -639,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const val = this.value.trim();
             window.filterRegex = val || null;
 
-            // ===== 【核心修复】先清空所有选中的文件 =====
+            // ===== 先清空所有选中的文件 =====
             window.selectedFiles.clear();
 
             renderFiles(window.fileList);
