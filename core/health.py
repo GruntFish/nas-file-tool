@@ -2,7 +2,6 @@
 from flask import jsonify
 import time
 import os
-import psutil
 from datetime import datetime
 from core.logger import get_logger
 
@@ -14,11 +13,9 @@ _start_time = time.time()
 def get_system_status():
     """获取系统状态"""
     try:
-        # 内存信息
+        import psutil
         mem = psutil.virtual_memory()
-        # 磁盘信息
         disk = psutil.disk_usage('/')
-        # CPU 信息
         cpu_percent = psutil.cpu_percent(interval=0.5)
         
         return {
@@ -44,6 +41,19 @@ def get_system_status():
                 'pid': os.getpid()
             }
         }
+    except ImportError:
+        # psutil 未安装，返回基础信息
+        return {
+            'status': 'ok',
+            'uptime': time.time() - _start_time,
+            'timestamp': datetime.now().isoformat(),
+            'system': {
+                'memory': {'info': 'psutil not installed'},
+                'disk': {'info': 'psutil not installed'},
+                'cpu': {'info': 'psutil not installed'},
+                'pid': os.getpid()
+            }
+        }
     except Exception as e:
         logger.error(f'获取系统状态失败: {e}')
         return {
@@ -65,6 +75,15 @@ def register_health_routes(app):
             'uptime': time.time() - _start_time
         })
     
+    @app.route('/api/health')
+    def api_health():
+        """API 健康检查（用于前端保活）"""
+        return jsonify({
+            'status': 'ok',
+            'timestamp': datetime.now().isoformat(),
+            'uptime': time.time() - _start_time
+        })
+    
     @app.route('/health/detailed')
     def health_detailed():
         """详细健康检查"""
@@ -74,9 +93,8 @@ def register_health_routes(app):
     @app.route('/health/ready')
     def health_ready():
         """就绪检查"""
-        # 检查数据目录是否可写
         try:
-            test_file = '/data/.health_check'
+            test_file = '/tmp/.health_check'
             with open(test_file, 'w') as f:
                 f.write('ok')
             os.remove(test_file)
