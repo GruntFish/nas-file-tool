@@ -231,8 +231,17 @@ const MediaModule = {
                                 const tag = r.overwrite ? ' [覆盖原图]' : '';
                                 showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
                                 
-                                // ===== 写入完整的大小对比数据 =====
-                                compressMap[r.file] = {
+                                // ===== 【修复】匹配原始文件路径 =====
+                                const fileName = r.file.split('/').pop();
+                                // 在 fileList 中查找匹配的文件
+                                const fileObj = window.fileList.find(f => 
+                                    f.path === r.file || 
+                                    f.path.endsWith(fileName) ||
+                                    r.file.endsWith(f.path.split('/').pop())
+                                );
+                                const key = fileObj ? fileObj.path : r.file;
+                                
+                                compressMap[key] = {
                                     original: formatSize(r.original_size),
                                     new: formatSize(r.new_size),
                                     ratio: saved,
@@ -243,7 +252,7 @@ const MediaModule = {
                                 processed++;
                                 progress.update(
                                     processed,
-                                    '✅ ' + r.file.split('/').pop() + ' 已压缩 (' + processed + '/' + files.length + ')'
+                                    '✅ ' + fileName + ' 已压缩 (' + processed + '/' + files.length + ')'
                                 );
                             });
                             const errors = result.results.filter(r => r.status === 'error');
