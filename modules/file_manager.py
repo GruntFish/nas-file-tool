@@ -140,7 +140,6 @@ def register(app):
                     stat_info = item.stat()
                     mode = stat_info.st_mode
                     perms = get_permission_text(mode)
-                    # 目录添加 d 前缀
                     if item.is_dir():
                         perms = 'd' + perms
                     files.append({
