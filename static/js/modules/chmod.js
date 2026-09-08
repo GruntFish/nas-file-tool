@@ -47,8 +47,9 @@ const ChmodModule = {
                     <option value="775">775 (rwxrwxr-x) - 组内可写</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label><input type="checkbox" id="chmodRecursive"> 递归修改子目录</label>
+            <div class="form-group" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                <input type="checkbox" id="chmodRecursive" style="accent-color:#667eea;width:15px;height:15px;margin:0;">
+                <label for="chmodRecursive" style="color:#8b8fa3;font-size:13px;cursor:pointer;margin:0;">递归修改子目录</label>
             </div>
             <div class="btn-row">
                 <button class="btn-cancel" onclick="closeModal()">取消</button>
