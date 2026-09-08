@@ -44,12 +44,13 @@ const DedupModule = {
                     <div>🎯 精确：完整 MD5 计算，最精准但速度较慢</div>
                 </div>
             </div>
-            <div class="form-group" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;margin:0;">
+            <!-- ===== 包括子目录（勾选框+文字一行，解释单独一行） ===== -->
+            <div class="form-group" style="margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
                     <input type="checkbox" id="dedupRecursive" style="accent-color:#667eea;width:15px;height:15px;margin:0;">
-                    <span style="color:#8b8fa3;font-size:13px;">📂 包括子目录</span>
-                </label>
-                <span style="color:#4a4e62;font-size:11px;white-space:nowrap;">（勾选后将对所有子目录进行去重）</span>
+                    <label for="dedupRecursive" style="color:#8b8fa3;font-size:13px;cursor:pointer;margin:0;">📂 包括子目录</label>
+                </div>
+                <div style="color:#4a4e62;font-size:11px;padding-left:22px;">勾选后将对所有子目录进行去重</div>
             </div>
             <div id="dedupResultArea" style="display:none;margin-top:8px;">
                 <div style="color:#e4e6eb;font-size:14px;font-weight:600;margin-bottom:6px;">📋 重复文件组</div>
