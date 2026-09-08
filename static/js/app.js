@@ -485,6 +485,31 @@ async function loadFiles(path) {
         document.getElementById('currentPathDisplay').textContent = path;
         document.getElementById('fileCountDisplay').textContent = window.fileList.length + ' 项';
         document.dispatchEvent(new CustomEvent('filesLoaded', { detail: { files: window.fileList } }));
+
+        // ===== 加载完成后重新应用正则过滤 =====
+        if (window.filterRegex) {
+            const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
+            try {
+                const regex = new RegExp(window.filterRegex);
+                window.selectedFiles.clear();
+                checkboxes.forEach(cb => {
+                    const fileName = getFileName(cb.value);
+                    const isMatch = regex.test(fileName);
+                    cb.checked = isMatch;
+                    const tr = cb.closest('tr');
+                    if (tr) {
+                        isMatch ? tr.classList.add('selected') : tr.classList.remove('selected');
+                    }
+                    if (isMatch) {
+                        window.selectedFiles.add(cb.value);
+                    }
+                });
+            } catch (e) {
+                // 正则无效，忽略
+            }
+            updateSelectedInfo();
+            updateSelectAllState();
+        }
     } catch (err) {
         showLog('❌ 加载失败: ' + err.message, 'error');
     }
