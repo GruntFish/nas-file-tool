@@ -498,13 +498,22 @@ function renderFiles(files) {
 
     const isRenameModule = ModuleRegistry.currentModule === 'rename';
     const isMediaModule = ModuleRegistry.currentModule === 'media';
+    const hasCompressData = isMediaModule && window.compressPreview && Object.keys(window.compressPreview).length > 0;
 
+    // ===== 根据模块动态设置列头文字 =====
     const thead = document.querySelector('#fileListContainer thead tr');
     if (thead) {
         const newNameTh = thead.querySelector('.new-name-col');
         if (newNameTh) {
-            const hasCompressData = isMediaModule && window.compressPreview && Object.keys(window.compressPreview).length > 0;
-            newNameTh.style.display = (isRenameModule || hasCompressData) ? '' : 'none';
+            if (isRenameModule) {
+                newNameTh.textContent = '新名称';
+                newNameTh.style.display = '';
+            } else if (hasCompressData) {
+                newNameTh.textContent = '压缩结果';
+                newNameTh.style.display = '';
+            } else {
+                newNameTh.style.display = 'none';
+            }
         }
     }
 
@@ -557,6 +566,7 @@ function renderFiles(files) {
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
         let newName = window.renamePreview[file.path] || file.name;
 
+        // ===== 检查是否有压缩预览信息（只在媒体处理模块显示，且只显示已压缩的结果） =====
         if (isMediaModule && window.compressPreview && window.compressPreview[file.path]) {
             const info = window.compressPreview[file.path];
             if (info.isCompressed) {
@@ -577,7 +587,7 @@ function renderFiles(files) {
             window.selectedFiles.has('/' + file.path);
         const checked = isChecked ? 'checked' : '';
 
-        const showNewName = (isRenameModule || (isMediaModule && window.compressPreview && window.compressPreview[file.path]?.isCompressed));
+        const showNewName = isRenameModule || hasCompressData;
 
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
@@ -776,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadTree(window.currentPath);
     });
 
-    // ===== 【新增】页面保活机制 =====
+    // ===== 页面保活机制 =====
     (function setupKeepAlive() {
         let intervalId = null;
         const KEEP_ALIVE_INTERVAL = 30000;
