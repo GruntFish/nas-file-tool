@@ -175,7 +175,6 @@ const MediaModule = {
         }
     },
 
-    // ===== 【修复】分批压缩，实时更新进度 =====
     async doCompress(files) {
         if (!files || files.length === 0) {
             showLog('⚠️ 没有可压缩的图片文件', 'warning');
@@ -209,7 +208,6 @@ const MediaModule = {
                     for (let i = 0; i < files.length; i += batchSize) {
                         const batch = files.slice(i, i + batchSize);
 
-                        // ===== 更新进度：显示当前批次 =====
                         progress.update(
                             processed,
                             '正在处理第 ' + (i + 1) + '-' + Math.min(i + batchSize, files.length) + ' 张 (' + processed + '/' + files.length + ')'
@@ -232,6 +230,8 @@ const MediaModule = {
                                 const saved = r.ratio || 0;
                                 const tag = r.overwrite ? ' [覆盖原图]' : '';
                                 showLog('✅ ' + r.file + ' → ' + r.output + tag + ' (节省 ' + saved.toFixed(1) + '%)', 'success');
+                                
+                                // ===== 写入完整的大小对比数据 =====
                                 compressMap[r.file] = {
                                     original: formatSize(r.original_size),
                                     new: formatSize(r.new_size),
@@ -241,7 +241,6 @@ const MediaModule = {
                                     isCompressed: true
                                 };
                                 processed++;
-                                // ===== 每处理一张更新进度 =====
                                 progress.update(
                                     processed,
                                     '✅ ' + r.file.split('/').pop() + ' 已压缩 (' + processed + '/' + files.length + ')'
