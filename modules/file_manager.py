@@ -2,6 +2,8 @@
 from flask import jsonify, request
 from pathlib import Path
 from core.config import WORK_DIR, ROOT_DIRS, TREE_MAX_DEPTH
+import os
+import stat
 
 
 def register(app):
@@ -29,7 +31,6 @@ def register(app):
                 if item.is_symlink():
                     continue
                 if item.is_dir():
-                    # 跳过系统目录
                     if item.name in ['logs', 'lost+found']:
                         continue
                     node = {
@@ -45,6 +46,23 @@ def register(app):
             pass
         return nodes
 
+    def get_permission_text(mode):
+        """将权限数字转换为读写执行文字"""
+        perms = []
+        # 所有者权限
+        perms.append('r' if mode & stat.S_IRUSR else '-')
+        perms.append('w' if mode & stat.S_IWUSR else '-')
+        perms.append('x' if mode & stat.S_IXUSR else '-')
+        # 组权限
+        perms.append('r' if mode & stat.S_IRGRP else '-')
+        perms.append('w' if mode & stat.S_IWGRP else '-')
+        perms.append('x' if mode & stat.S_IXGRP else '-')
+        # 其他人权限
+        perms.append('r' if mode & stat.S_IROTH else '-')
+        perms.append('w' if mode & stat.S_IWOTH else '-')
+        perms.append('x' if mode & stat.S_IXOTH else '-')
+        return ''.join(perms)
+
     @app.route('/api/tree', methods=['POST'])
     def get_tree():
         data = request.json
@@ -53,7 +71,6 @@ def register(app):
 
         base_path = data.get('path', '/')
         
-        # ===== 根目录：返回所有根目录 =====
         if base_path == '/':
             tree = []
             for root_dir in ROOT_DIRS:
@@ -74,7 +91,6 @@ def register(app):
             
             return jsonify({'tree': tree, 'current': '/'})
 
-        # ===== 子目录处理 =====
         target = Path(base_path)
         if not target.exists():
             return jsonify({'error': f'路径不存在: {target}'}), 404
@@ -90,7 +106,6 @@ def register(app):
 
         base_path = data.get('path', '/')
 
-        # ===== 根目录：显示所有根目录 =====
         if base_path == '/':
             all_files = []
             for root_dir in ROOT_DIRS:
@@ -103,13 +118,13 @@ def register(app):
                             'is_dir': True,
                             'size': 0,
                             'modified': None,
-                            'is_root': True
+                            'is_root': True,
+                            'permission': 'drwxr-xr-x'
                         })
                 except Exception as e:
                     pass
             return jsonify({'files': all_files, 'current': '/'})
 
-        # ===== 子目录处理 =====
         target = Path(base_path)
         if not target.exists():
             return jsonify({'error': f'路径不存在: {target}'}), 404
@@ -122,14 +137,20 @@ def register(app):
                 if item.name in ['logs', 'lost+found']:
                     continue
                 try:
-                    stat = item.stat()
+                    stat_info = item.stat()
+                    mode = stat_info.st_mode
+                    perms = get_permission_text(mode)
+                    # 目录添加 d 前缀
+                    if item.is_dir():
+                        perms = 'd' + perms
                     files.append({
                         'name': item.name,
                         'path': str(item),
                         'is_dir': item.is_dir(),
-                        'size': stat.st_size if item.is_file() else 0,
-                        'modified': stat.st_mtime if item.is_file() else None,
-                        'is_root': False
+                        'size': stat_info.st_size if item.is_file() else 0,
+                        'modified': stat_info.st_mtime if item.is_file() else None,
+                        'is_root': False,
+                        'permission': perms
                     })
                 except:
                     pass
