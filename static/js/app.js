@@ -486,7 +486,6 @@ async function loadFiles(path) {
         document.getElementById('fileCountDisplay').textContent = window.fileList.length + ' 项';
         document.dispatchEvent(new CustomEvent('filesLoaded', { detail: { files: window.fileList } }));
 
-        // ===== 加载完成后重新应用正则过滤 =====
         if (window.filterRegex) {
             const checkboxes = document.querySelectorAll('#fileTableBody input[type="checkbox"]:not(:disabled)');
             try {
@@ -523,12 +522,13 @@ function renderFiles(files) {
 
     const isRenameModule = ModuleRegistry.currentModule === 'rename';
     const isMediaModule = ModuleRegistry.currentModule === 'media';
+    const isChmodModule = ModuleRegistry.currentModule === 'chmod';
     const hasCompressData = isMediaModule && window.compressPreview && Object.keys(window.compressPreview).length > 0;
 
-    // ===== 根据模块动态设置列头文字 =====
+    // ===== 根据模块动态设置列头 =====
     const thead = document.querySelector('#fileListContainer thead tr');
     if (thead) {
-        const newNameTh = thead.querySelector('.new-name-col');
+        let newNameTh = thead.querySelector('.new-name-col');
         if (newNameTh) {
             if (isRenameModule) {
                 newNameTh.textContent = '新名称';
@@ -538,6 +538,25 @@ function renderFiles(files) {
                 newNameTh.style.display = '';
             } else {
                 newNameTh.style.display = 'none';
+            }
+        }
+        
+        // ===== 权限列 =====
+        let permTh = thead.querySelector('.perm-col');
+        if (!permTh) {
+            const sizeCol = thead.querySelector('.size-col');
+            if (sizeCol) {
+                permTh = document.createElement('th');
+                permTh.className = 'perm-col';
+                permTh.textContent = '权限';
+                sizeCol.parentNode.insertBefore(permTh, sizeCol);
+            }
+        }
+        if (permTh) {
+            if (isChmodModule) {
+                permTh.style.display = '';
+            } else {
+                permTh.style.display = 'none';
             }
         }
     }
@@ -591,7 +610,6 @@ function renderFiles(files) {
         const date = file.modified ? new Date(file.modified * 1000).toLocaleString() : '-';
         let newName = window.renamePreview[file.path] || file.name;
 
-        // ===== 检查是否有压缩预览信息（只在媒体处理模块显示，且只显示已压缩的结果） =====
         if (isMediaModule && window.compressPreview && window.compressPreview[file.path]) {
             const info = window.compressPreview[file.path];
             if (info.isCompressed) {
@@ -613,11 +631,13 @@ function renderFiles(files) {
         const checked = isChecked ? 'checked' : '';
 
         const showNewName = isRenameModule || hasCompressData;
+        const permission = file.permission || (isDir ? 'drwxr-xr-x' : '-rw-r--r--');
 
         tr.innerHTML =
             `<td class="checkbox-col"><input type="checkbox" value="${escapeHtml(file.path)}" ${checked}></td>` +
             `<td class="name-col${isDir ? ' folder-row' : ''}">${icon} ${escapeHtml(file.name)}</td>` +
             `<td class="new-name-col${isChanged && !isDir ? '' : ' unchanged'}" style="${showNewName ? '' : 'display:none;'}">${isDir ? '-' : escapeHtml(newName)}</td>` +
+            `<td class="perm-col" style="${isChmodModule ? '' : 'display:none;'}">${permission}</td>` +
             `<td class="size-col">${size}</td>` +
             `<td class="date-col">${date}</td>` +
             `<td class="status-col ${statusClass}">${statusText}</td>`;
@@ -779,7 +799,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== 键盘快捷键 =====
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && e.key === 'a') {
             e.preventDefault();
@@ -811,7 +830,6 @@ document.addEventListener('DOMContentLoaded', function() {
         loadTree(window.currentPath);
     });
 
-    // ===== 页面保活机制 =====
     (function setupKeepAlive() {
         let intervalId = null;
         const KEEP_ALIVE_INTERVAL = 30000;
